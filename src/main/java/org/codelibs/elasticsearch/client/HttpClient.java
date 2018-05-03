@@ -1,8 +1,8 @@
 package org.codelibs.elasticsearch.client;
 
-import org.codelibs.elasticsearch.runner.net.Curl;
-import org.codelibs.elasticsearch.runner.net.CurlRequest;
-import org.codelibs.elasticsearch.runner.net.CurlResponse;
+import org.codelibs.elasticsearch.client.net.Curl;
+import org.codelibs.elasticsearch.client.net.CurlRequest;
+import org.codelibs.elasticsearch.client.net.CurlResponse;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
@@ -57,7 +57,11 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        try (CurlResponse response = getPostRequest(request.indices()).body(request.source().toString()).execute()) {
+        try (CurlResponse response =
+                getPostRequest(request.indices())
+                        .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
+                        .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
+                        .execute()) {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
             }
