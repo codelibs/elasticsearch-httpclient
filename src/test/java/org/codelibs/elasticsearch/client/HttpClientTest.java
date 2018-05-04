@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.junit.jupiter.api.AfterAll;
@@ -22,6 +23,8 @@ public class HttpClientTest {
     static ElasticsearchClusterRunner runner;
 
     static String clusterName;
+
+    private HttpClient client;
 
     @BeforeAll
     static void setUpAll() {
@@ -41,12 +44,13 @@ public class HttpClientTest {
 
     @BeforeEach
     void setUp() {
-        // TODO
+        final Settings settings = Settings.builder().putList("http.hosts", "localhost:9201").build();
+        client = new HttpClient(settings, null);
     }
 
     @AfterEach
     void tearDown() {
-        // TODO
+        client.close();
     }
 
     @AfterAll
@@ -63,20 +67,23 @@ public class HttpClientTest {
 
     @Test
     void test_search() throws InterruptedException {
-        final Settings settings = Settings.builder().putList("http.hosts", "localhost:9201").build();
-        try (HttpClient client = new HttpClient(settings, null)) {
 
-            CountDownLatch latch = new CountDownLatch(1);
-            client.prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
-                assertEquals(0, res.getHits().getTotalHits());
-                latch.countDown();
-            }, e -> {
-                e.printStackTrace();
-                assertTrue(false);
-                latch.countDown();
-            }));
-            latch.await();
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
+            assertEquals(0, res.getHits().getTotalHits());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            SearchResponse res = client.prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+            assertEquals(0, res.getHits().getTotalHits());
         }
+
     }
 
 }

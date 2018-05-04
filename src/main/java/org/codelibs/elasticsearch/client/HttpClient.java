@@ -169,6 +169,7 @@ public class HttpClient extends AbstractClient {
         }
         buf.append("/_search");
         // TODO other request headers
+        // TODO threadPool
         return Curl.post(buf.toString()).header("Content-Type", "application/json").threadPool(ForkJoinPool.commonPool());
     }
 }
