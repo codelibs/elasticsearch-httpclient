@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.common.settings.Settings;
@@ -61,16 +62,20 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_search() {
+    void test_search() throws InterruptedException {
         final Settings settings = Settings.builder().putList("http.hosts", "localhost:9201").build();
         try (HttpClient client = new HttpClient(settings, null)) {
 
+            CountDownLatch latch = new CountDownLatch(1);
             client.prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
                 assertEquals(0, res.getHits().getTotalHits());
+                latch.countDown();
             }, e -> {
                 e.printStackTrace();
                 assertTrue(false);
+                latch.countDown();
             }));
+            latch.await();
         }
     }
 

@@ -16,9 +16,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Consumer;
 
 import org.codelibs.elasticsearch.client.net.Curl.Method;
-import org.codelibs.elasticsearch.client.net.Curl.ResponseListener;
 import org.elasticsearch.node.Node;
 
 public class CurlRequest {
@@ -35,6 +36,8 @@ public class CurlRequest {
     protected List<String[]> headerList;
 
     protected String body;
+
+    protected ForkJoinPool threadPool;
 
     private ConnectionBuilder connectionBuilder;
 
@@ -113,110 +116,77 @@ public class CurlRequest {
         return this;
     }
 
-    public void execute(final ResponseListener listener) {
-        if (paramList != null) {
-            char sp;
-            if (url.indexOf('?') == -1) {
-                sp = '?';
-            } else {
-                sp = '&';
-            }
-            final StringBuilder urlBuf = new StringBuilder(100);
-            for (final String param : paramList) {
-                urlBuf.append(sp).append(param);
-                if (sp == '?') {
+    public void connect(final Consumer<HttpURLConnection> actionListener, Consumer<Exception> exceptionListener) {
+        Runnable task = () -> {
+            if (paramList != null) {
+                char sp;
+                if (url.indexOf('?') == -1) {
+                    sp = '?';
+                } else {
                     sp = '&';
                 }
-            }
-            url = url + urlBuf.toString();
-        }
-
-        HttpURLConnection connection = null;
-        try {
-            final URL u = new URL(url);
-            connection = (HttpURLConnection) (proxy != null ? u.openConnection(proxy) : u.openConnection());
-            connection.setRequestMethod(method.toString());
-            if (headerList != null) {
-                for (final String[] values : headerList) {
-                    connection.addRequestProperty(values[0], values[1]);
-                }
-            }
-            if (connectionBuilder != null) {
-                connectionBuilder.onConnect(this, connection);
-            } else {
-                if (body != null) {
-                    connection.setDoOutput(true);
-                    try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), encoding))) {
-                        writer.write(body);
-                        writer.flush();
+                final StringBuilder urlBuf = new StringBuilder(100);
+                for (final String param : paramList) {
+                    urlBuf.append(sp).append(param);
+                    if (sp == '?') {
+                        sp = '&';
                     }
                 }
+                url = url + urlBuf.toString();
             }
-            listener.onResponse(connection);
-        } catch (final Exception e) {
-            throw new CurlException("Failed to access to " + url, e);
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
+
+            HttpURLConnection connection = null;
+            try {
+                final URL u = new URL(url);
+                connection = (HttpURLConnection) (proxy != null ? u.openConnection(proxy) : u.openConnection());
+                connection.setRequestMethod(method.toString());
+                if (headerList != null) {
+                    for (final String[] values : headerList) {
+                        connection.addRequestProperty(values[0], values[1]);
+                    }
+                }
+                if (connectionBuilder != null) {
+                    connectionBuilder.onConnect(this, connection);
+                } else {
+                    if (body != null) {
+                        connection.setDoOutput(true);
+                        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream(), encoding))) {
+                            writer.write(body);
+                            writer.flush();
+                        }
+                    }
+                }
+                actionListener.accept(connection);
+            } catch (final Exception e) {
+                exceptionListener.accept(new CurlException("Failed to access to " + url, e));
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
             }
+        };
+        if (threadPool != null) {
+            threadPool.execute(task);
+        } else {
+            task.run();
         }
     }
 
-    public CurlResponse execute() {
-        final CurlResponse response = new CurlResponse();
-        execute(new ResponseListener() {
-            @Override
-            public void onResponse(final HttpURLConnection con) {
-                try {
-                    response.setEncoding(encoding);
-                    response.setHttpStatusCode(con.getResponseCode());
-                    writeContent(() -> con.getInputStream());
-                } catch (final Exception e) {
-                    final InputStream errorStream = con.getErrorStream();
-                    if (errorStream != null) {
-                        writeContent(() -> errorStream);
-                        // overwrite
-                        response.setContentException(e);
-                    } else {
-                        throw new CurlException("Failed to access the response.", e);
-                    }
-                }
-            }
+    public void execute(final Consumer<CurlResponse> actionListener, Consumer<Exception> exceptionListener) {
+        connect(con -> {
+            final RequestProcessor processor = new RequestProcessor(encoding);
+            processor.accept(con);
+            actionListener.accept(processor.getResponse());
+        }, exceptionListener);
+    }
 
-            private void writeContent(final InputStreamHandler handler) {
-                final Path tempFile;
-                try {
-                    tempFile = Files.createTempFile("esclient-", ".tmp");
-                } catch (final IOException e) {
-                    throw new CurlException("Failed to create a temporary file.", e);
-                }
-                try (BufferedInputStream bis = new BufferedInputStream(handler.open());
-                        BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(tempFile, StandardOpenOption.WRITE))) {
-                    byte[] bytes = new byte[4096];
-                    try {
-                        int length = bis.read(bytes);
-                        while (length != -1) {
-                            if (length != 0) {
-                                bos.write(bytes, 0, length);
-                            }
-                            length = bis.read(bytes);
-                        }
-                    } finally {
-                        bytes = null;
-                    }
-                    bos.flush();
-                    response.setContentFile(tempFile);
-                } catch (final Exception e) {
-                    response.setContentException(e);
-                    try {
-                        Files.deleteIfExists(tempFile);
-                    } catch (final Exception ignore) {
-                        // ignore
-                    }
-                }
-            }
+    public CurlResponse execute() {
+        this.threadPool = null;
+        final RequestProcessor processor = new RequestProcessor(encoding);
+        connect(processor, e -> {
+            throw new CurlException("Failed to process a request.", e);
         });
-        return response;
+        return processor.getResponse();
     }
 
     private interface InputStreamHandler {
@@ -235,4 +205,79 @@ public class CurlRequest {
         void onConnect(CurlRequest curlRequest, HttpURLConnection connection);
     }
 
+    public CurlRequest threadPool(ForkJoinPool threadPool) {
+        this.threadPool = threadPool;
+        return this;
+    }
+
+    public static class RequestProcessor implements Consumer<HttpURLConnection> {
+        protected CurlResponse response = new CurlResponse();
+
+        private String encoding;
+
+        public RequestProcessor(final String encoding) {
+            this.encoding = encoding;
+        }
+
+        public CurlResponse getResponse() {
+            return response;
+        }
+
+        @Override
+        public void accept(final HttpURLConnection con) {
+            try {
+                response.setEncoding(encoding);
+                response.setHttpStatusCode(con.getResponseCode());
+                writeContent(() -> {
+                    final InputStream in = con.getInputStream();
+                    if (in != null) {
+                        return in;
+                    }
+                    return con.getErrorStream();
+                });
+            } catch (final Exception e) {
+                final InputStream errorStream = con.getErrorStream();
+                if (errorStream != null) {
+                    writeContent(() -> errorStream);
+                    // overwrite
+                    response.setContentException(e);
+                } else {
+                    throw new CurlException("Failed to access the response.", e);
+                }
+            }
+        }
+
+        private void writeContent(final InputStreamHandler handler) {
+            final Path tempFile;
+            try {
+                tempFile = Files.createTempFile("esclient-", ".tmp");
+            } catch (final IOException e) {
+                throw new CurlException("Failed to create a temporary file.", e);
+            }
+            try (BufferedInputStream bis = new BufferedInputStream(handler.open());
+                    BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(tempFile, StandardOpenOption.WRITE))) {
+                byte[] bytes = new byte[4096];
+                try {
+                    int length = bis.read(bytes);
+                    while (length != -1) {
+                        if (length != 0) {
+                            bos.write(bytes, 0, length);
+                        }
+                        length = bis.read(bytes);
+                    }
+                } finally {
+                    bytes = null;
+                }
+                bos.flush();
+                response.setContentFile(tempFile);
+            } catch (final Exception e) {
+                response.setContentException(e);
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (final Exception ignore) {
+                    // ignore
+                }
+            }
+        }
+    }
 }

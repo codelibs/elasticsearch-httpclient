@@ -1,7 +1,5 @@
 package org.codelibs.elasticsearch.client.net;
 
-import java.net.HttpURLConnection;
-
 import org.elasticsearch.node.Node;
 
 public class Curl {
@@ -45,9 +43,4 @@ public class Curl {
     public enum Method {
         GET, POST, PUT, DELETE;
     }
-
-    public interface ResponseListener {
-        public void onResponse(HttpURLConnection con);
-    }
-
 }
