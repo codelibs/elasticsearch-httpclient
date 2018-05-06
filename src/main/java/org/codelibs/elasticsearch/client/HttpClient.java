@@ -24,6 +24,9 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
@@ -36,11 +39,13 @@ import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
@@ -95,6 +100,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<RefreshResponse> actionListener = (ActionListener<RefreshResponse>) listener;
             processRefreshAction((RefreshAction) action, (RefreshRequest) request, actionListener);
+        } else if (CreateIndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.create.CreateIndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<CreateIndexResponse> actionListener = (ActionListener<CreateIndexResponse>) listener;
+            processCreateIndexAction((CreateIndexAction) action, (CreateIndexRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -125,7 +135,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
             // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
             // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
-            // org.elasticsearch.action.admin.indices.create.CreateIndexAction
             // org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction
             // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
@@ -178,6 +187,25 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.bulk.BulkAction
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processCreateIndexAction(final CreateIndexAction action, final CreateIndexRequest request,
+            final ActionListener<CreateIndexResponse> listener) {
+        String source = null;
+        try {
+            source = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(PUT, "/", request.index()).body(source).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);
+                listener.onResponse(refreshResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
     }
 
     protected void processRefreshAction(final RefreshAction action, final RefreshRequest request,

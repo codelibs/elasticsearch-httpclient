@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
@@ -108,4 +109,24 @@ public class HttpClientTest {
 
     }
 
+    @Test
+    void test_create_index() throws InterruptedException {
+
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate("create_index1").execute(wrap(res -> {
+            assertTrue(res.isAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            CreateIndexResponse res = client.admin().indices().prepareCreate("create_index2").execute().actionGet();
+            assertTrue(res.isAcknowledged());
+        }
+
+    }
 }
