@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
@@ -44,10 +45,21 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
 
-    public static final ParseField SHARD_FIELD = new ParseField("shard");
-    public static final ParseField INDEX_FIELD = new ParseField("index");
-    public static final ParseField STATUS_FIELD = new ParseField("status");
-    public static final ParseField REASON_FIELD = new ParseField("reason");
+    protected static final ParseField SHARD_FIELD = new ParseField("shard");
+
+    protected static final ParseField INDEX_FIELD = new ParseField("index");
+
+    protected static final ParseField STATUS_FIELD = new ParseField("status");
+
+    protected static final ParseField REASON_FIELD = new ParseField("reason");
+
+    protected static Function<String, CurlRequest> GET = s -> Curl.get(s);
+
+    protected static Function<String, CurlRequest> POST = s -> Curl.post(s);
+
+    protected static Function<String, CurlRequest> PUT = s -> Curl.put(s);
+
+    protected static Function<String, CurlRequest> DELETE = s -> Curl.delete(s);
 
     private String[] hosts;
 
@@ -170,7 +182,7 @@ public class HttpClient extends AbstractClient {
 
     protected void processRefreshAction(final RefreshAction action, final RefreshRequest request,
             final ActionListener<RefreshResponse> listener) {
-        getPostRequest("/_refresh", request.indices()).execute(response -> {
+        getCurlRequest(POST, "/_refresh", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
             }
@@ -185,7 +197,7 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        getPostRequest("/_search", request.indices())
+        getCurlRequest(POST, "/_search", request.indices())
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
                 .execute(response -> {
@@ -287,7 +299,7 @@ public class HttpClient extends AbstractClient {
         return hosts[0];
     }
 
-    protected CurlRequest getPostRequest(final String path, final String... indices) {
+    protected CurlRequest getCurlRequest(final Function<String, CurlRequest> method, final String path, final String... indices) {
         final StringBuilder buf = new StringBuilder(100);
         buf.append(getHost());
         if (indices.length > 0) {
@@ -296,6 +308,6 @@ public class HttpClient extends AbstractClient {
         buf.append(path);
         // TODO other request headers
         // TODO threadPool
-        return Curl.post(buf.toString()).header("Content-Type", "application/json").threadPool(ForkJoinPool.commonPool());
+        return method.apply(buf.toString()).header("Content-Type", "application/json").threadPool(ForkJoinPool.commonPool());
     }
 }
