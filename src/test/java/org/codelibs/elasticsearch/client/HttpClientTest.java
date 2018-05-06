@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -63,6 +64,27 @@ public class HttpClientTest {
         }
         // delete all files
         runner.clean();
+    }
+
+    @Test
+    void test_refresh() throws InterruptedException {
+
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareRefresh().execute(wrap(res -> {
+            assertEquals(0, res.getTotalShards());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            RefreshResponse res = client.admin().indices().prepareRefresh().execute().actionGet();
+            assertEquals(0, res.getTotalShards());
+        }
+
     }
 
     @Test

@@ -116,8 +116,8 @@ public class CurlRequest {
         return this;
     }
 
-    public void connect(final Consumer<HttpURLConnection> actionListener, Consumer<Exception> exceptionListener) {
-        Runnable task = () -> {
+    public void connect(final Consumer<HttpURLConnection> actionListener, final Consumer<Exception> exceptionListener) {
+        final Runnable task = () -> {
             if (paramList != null) {
                 char sp;
                 if (url.indexOf('?') == -1) {
@@ -172,7 +172,7 @@ public class CurlRequest {
         }
     }
 
-    public void execute(final Consumer<CurlResponse> actionListener, Consumer<Exception> exceptionListener) {
+    public void execute(final Consumer<CurlResponse> actionListener, final Consumer<Exception> exceptionListener) {
         connect(con -> {
             final RequestProcessor processor = new RequestProcessor(encoding);
             processor.accept(con);
@@ -205,7 +205,7 @@ public class CurlRequest {
         void onConnect(CurlRequest curlRequest, HttpURLConnection connection);
     }
 
-    public CurlRequest threadPool(ForkJoinPool threadPool) {
+    public CurlRequest threadPool(final ForkJoinPool threadPool) {
         this.threadPool = threadPool;
         return this;
     }
@@ -213,7 +213,7 @@ public class CurlRequest {
     public static class RequestProcessor implements Consumer<HttpURLConnection> {
         protected CurlResponse response = new CurlResponse();
 
-        private String encoding;
+        private final String encoding;
 
         public RequestProcessor(final String encoding) {
             this.encoding = encoding;

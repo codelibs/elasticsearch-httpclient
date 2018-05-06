@@ -1,7 +1,19 @@
 package org.codelibs.elasticsearch.client;
 
-import java.util.concurrent.ForkJoinPool;
+import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+import static org.elasticsearch.rest.action.RestActions.FAILED_FIELD;
+import static org.elasticsearch.rest.action.RestActions.FAILURES_FIELD;
+import static org.elasticsearch.rest.action.RestActions.SUCCESSFUL_FIELD;
+import static org.elasticsearch.rest.action.RestActions.TOTAL_FIELD;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Supplier;
+
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.codelibs.elasticsearch.client.net.Curl;
 import org.codelibs.elasticsearch.client.net.CurlRequest;
 import org.elasticsearch.ElasticsearchException;
@@ -10,19 +22,32 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.DefaultShardOperationFailedException;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.client.support.AbstractClient;
+import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
+
+    public static final ParseField SHARD_FIELD = new ParseField("shard");
+    public static final ParseField INDEX_FIELD = new ParseField("index");
+    public static final ParseField STATUS_FIELD = new ParseField("status");
+    public static final ParseField REASON_FIELD = new ParseField("reason");
 
     private String[] hosts;
 
@@ -53,6 +78,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
             processSearchAction((SearchAction) action, (SearchRequest) request, actionListener);
+        } else if (RefreshAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.refresh.RefreshAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<RefreshResponse> actionListener = (ActionListener<RefreshResponse>) listener;
+            processRefreshAction((RefreshAction) action, (RefreshRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -66,7 +96,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
             // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.indices.refresh.RefreshAction
             // org.elasticsearch.action.admin.indices.flush.FlushAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
             // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
@@ -139,35 +168,132 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    protected void processRefreshAction(final RefreshAction action, final RefreshRequest request,
+            final ActionListener<RefreshResponse> listener) {
+        getPostRequest("/_refresh", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final RefreshResponse refreshResponse = getResponseFromXContent(parser, action::newResponse);
+                listener.onResponse(refreshResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
     protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        getPostRequest(request.indices()).param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
+        getPostRequest("/_search", request.indices())
+                .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
                 .execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
                         throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
                     }
-                    try {
-                        final XContent xContent = XContentFactory.xContent(XContentType.JSON);
-                        final XContentParser parser = xContent.createParser(NamedXContentRegistry.EMPTY, response.getContentAsStream());
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
                         final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
                         listener.onResponse(searchResponse);
-                    } catch (Exception e) {
+                    } catch (final Exception e) {
                         listener.onFailure(e);
                     }
-                }, e -> listener.onFailure(e));
+                }, listener::onFailure);
+    }
+
+    protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
+            throws IOException {
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        parser.nextToken();
+        ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
+        String currentFieldName = parser.currentName(); // _SHARDS_FIELD
+        int totalShards = 0;
+        int successfulShards = 0;
+        int failedShards = 0;
+        final List<DefaultShardOperationFailedException> shardFailures = new ArrayList<>();
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token == Token.START_ARRAY) {
+                if (FAILURES_FIELD.match(currentFieldName)) {
+                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
+                        if (token != XContentParser.Token.START_OBJECT) {
+                            throw new ElasticsearchException("failures array element should include an object");
+                        }
+                        shardFailures.add(getFailureFromXContent(parser));
+                    }
+                } else {
+                    parser.skipChildren();
+                }
+            } else if (token.isValue()) {
+                if (TOTAL_FIELD.match(currentFieldName)) {
+                    totalShards = parser.intValue();
+                } else if (SUCCESSFUL_FIELD.match(currentFieldName)) {
+                    successfulShards = parser.intValue();
+                } else if (FAILED_FIELD.match(currentFieldName)) {
+                    failedShards = parser.intValue();
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+
+        // BroadcastResponse
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeVInt(totalShards);
+            out.writeVInt(successfulShards);
+            out.writeVInt(failedShards);
+            out.writeVInt(shardFailures.size());
+            for (final ShardOperationFailedException exp : shardFailures) {
+                exp.writeTo(out);
+            }
+
+            final T response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected DefaultShardOperationFailedException getFailureFromXContent(final XContentParser parser) throws IOException {
+        String index = null;
+        ElasticsearchException reason = null;
+        int shardId = 0;
+        String currentFieldName = "";
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token.isValue()) {
+                if (SHARD_FIELD.match(currentFieldName)) {
+                    shardId = parser.intValue();
+                } else if (INDEX_FIELD.match(currentFieldName)) {
+                    index = parser.text();
+                } else if (REASON_FIELD.match(currentFieldName)) {
+                    reason = ElasticsearchException.fromXContent(parser);
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+        return new DefaultShardOperationFailedException(index, shardId, reason);
+    }
+
+    protected XContentParser createParser(final InputStream in) throws IOException {
+        final XContent xContent = XContentFactory.xContent(XContentType.JSON);
+        return xContent.createParser(NamedXContentRegistry.EMPTY, in);
     }
 
     protected String getHost() {
         return hosts[0];
     }
 
-    protected CurlRequest getPostRequest(final String[] indices) {
+    protected CurlRequest getPostRequest(final String path, final String... indices) {
         final StringBuilder buf = new StringBuilder(100);
         buf.append(getHost());
         if (indices.length > 0) {
             buf.append('/').append(String.join(",", indices));
         }
-        buf.append("/_search");
+        buf.append(path);
         // TODO other request headers
         // TODO threadPool
         return Curl.post(buf.toString()).header("Content-Type", "application/json").threadPool(ForkJoinPool.commonPool());
