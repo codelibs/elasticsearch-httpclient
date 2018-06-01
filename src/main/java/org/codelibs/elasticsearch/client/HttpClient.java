@@ -24,12 +24,18 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
+import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
+import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
+import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
+import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
@@ -113,6 +119,16 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<DeleteIndexResponse> actionListener = (ActionListener<DeleteIndexResponse>) listener;
             processDeleteIndexAction((DeleteIndexAction) action, (DeleteIndexRequest) request, actionListener);
+        } else if (OpenIndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.open.OpenIndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<OpenIndexResponse> actionListener = (ActionListener<OpenIndexResponse>) listener;
+            processOpenIndexAction((OpenIndexAction) action, (OpenIndexRequest) request, actionListener);
+        } else if (CloseIndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.close.CloseIndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<CloseIndexResponse> actionListener = (ActionListener<CloseIndexResponse>) listener;
+            processCloseIndexAction((CloseIndexAction) action, (CloseIndexRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -134,8 +150,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
             // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
             // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
-            // org.elasticsearch.action.admin.indices.open.OpenIndexAction
-            // org.elasticsearch.action.admin.indices.close.CloseIndexAction
             // org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction
             // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
             // org.elasticsearch.action.admin.indices.rollover.RolloverAction
@@ -231,6 +245,38 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
+    protected void processOpenIndexAction(final OpenIndexAction action, final OpenIndexRequest request,
+            final ActionListener<OpenIndexResponse> listener) {
+        getCurlRequest(POST, "/_open", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final OpenIndexResponse openIndexResponse = OpenIndexResponse.fromXContent(parser);
+                listener.onResponse(openIndexResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected void processCloseIndexAction(final CloseIndexAction action, final CloseIndexRequest request,
+            final ActionListener<CloseIndexResponse> listener) {
+        getCurlRequest(POST, "/_close", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final CloseIndexResponse closeIndexResponse = CloseIndexResponse.fromXContent(parser);
+                listener.onResponse(closeIndexResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
     protected void processRefreshAction(final RefreshAction action, final RefreshRequest request,
             final ActionListener<RefreshResponse> listener) {
         getCurlRequest(POST, "/_refresh", request.indices()).execute(response -> {
@@ -247,7 +293,8 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
+    protected void processSearchAction(final SearchAction action, final SearchRequest request,
+            final ActionListener<SearchResponse> listener) {
         getCurlRequest(POST, "/_search", request.indices())
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
