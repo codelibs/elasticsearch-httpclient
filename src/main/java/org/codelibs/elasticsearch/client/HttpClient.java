@@ -27,6 +27,9 @@ import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
@@ -105,6 +108,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<CreateIndexResponse> actionListener = (ActionListener<CreateIndexResponse>) listener;
             processCreateIndexAction((CreateIndexAction) action, (CreateIndexRequest) request, actionListener);
+        } else if (DeleteIndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.delete.DeleteIndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<DeleteIndexResponse> actionListener = (ActionListener<DeleteIndexResponse>) listener;
+            processDeleteIndexAction((DeleteIndexAction) action, (DeleteIndexRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -146,7 +154,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
             // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
             // org.elasticsearch.action.admin.indices.get.GetIndexAction
-            // org.elasticsearch.action.admin.indices.delete.DeleteIndexAction
             // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
             // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
             // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
@@ -202,6 +209,22 @@ public class HttpClient extends AbstractClient {
                 final XContentParser parser = createParser(in);
                 final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected void processDeleteIndexAction(final DeleteIndexAction action, final DeleteIndexRequest request,
+            final ActionListener<DeleteIndexResponse> listener) {
+        getCurlRequest(DELETE, "/", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final DeleteIndexResponse deleteIndexResponse = DeleteIndexResponse.fromXContent(parser);
+                listener.onResponse(deleteIndexResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
             }

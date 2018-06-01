@@ -10,6 +10,7 @@ import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
@@ -127,6 +128,29 @@ public class HttpClientTest {
 
         {
             CreateIndexResponse res = client.admin().indices().prepareCreate("create_index2").execute().actionGet();
+            assertTrue(res.isAcknowledged());
+        }
+
+    }
+
+    @Test
+    void test_delete_index() throws InterruptedException {
+
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate("delete_index1").execute().actionGet();
+        client.admin().indices().prepareDelete("delete_index1").execute(wrap(res -> {
+            assertTrue(res.isAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            client.admin().indices().prepareCreate("delete_index2").execute().actionGet();
+            DeleteIndexResponse res = client.admin().indices().prepareDelete("delete_index2").execute().actionGet();
             assertTrue(res.isAcknowledged());
         }
 
