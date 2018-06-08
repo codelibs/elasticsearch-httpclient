@@ -24,6 +24,10 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
@@ -47,12 +51,14 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
@@ -139,6 +145,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<IndicesExistsResponse> actionListener = (ActionListener<IndicesExistsResponse>) listener;
             processIndicesExistsAction((IndicesExistsAction) action, (IndicesExistsRequest) request, actionListener);
+        } else if (IndicesAliasesAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<IndicesAliasesResponse> actionListener = (ActionListener<IndicesAliasesResponse>) listener;
+            processIndicesAliasesAction((IndicesAliasesAction) action, (IndicesAliasesRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -166,7 +177,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
             // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
             // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
-            // org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction
             // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
             // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
@@ -345,6 +355,41 @@ public class HttpClient extends AbstractClient {
 
     }
 
+    protected void processIndicesAliasesAction(final IndicesAliasesAction action, final IndicesAliasesRequest request,
+            final ActionListener<IndicesAliasesResponse> listener) {
+        String source = null;
+        try {
+            XContentBuilder builder = XContentFactory.jsonBuilder().startObject().startArray("actions");
+            for (AliasActions aliasAction : request.getAliasActions()) {
+                builder.startObject();
+                builder.startObject(aliasAction.actionType().toString().toLowerCase());
+                builder.array("indices", aliasAction.indices());
+                builder.array("aliases", aliasAction.aliases());
+                if (aliasAction.filter() != null)
+                    builder.field("filter", aliasAction.filter());
+                if (aliasAction.indexRouting() != null)
+                    builder.field("index_routing", aliasAction.indexRouting());
+                if (aliasAction.searchRouting() != null)
+                    builder.field("search_routing", aliasAction.searchRouting());
+                builder.endObject().endObject();
+            }
+            builder.endArray().endObject();
+            source = builder.string();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(POST, "/_aliases").body(source).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final IndicesAliasesResponse indicesAliasesResponse = getAcknowledgedResponse(parser, action::newResponse);
+                listener.onResponse(indicesAliasesResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+
+    }
+
     protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
             throws IOException {
         ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
@@ -392,6 +437,22 @@ public class HttpClient extends AbstractClient {
                 exp.writeTo(out);
             }
 
+            final T response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse)
+            throws IOException {
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.FIELD_NAME, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.VALUE_BOOLEAN, parser.nextToken(), parser::getTokenLocation);
+        boolean acknowledged = parser.booleanValue();
+        ensureExpectedToken(Token.END_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeBoolean(acknowledged);
             final T response = newResponse.get();
             response.readFrom(out.toStreamInput());
             return response;

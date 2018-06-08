@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
@@ -225,6 +226,29 @@ public class HttpClientTest {
             assertTrue(res.isExists());
             res = client.admin().indices().prepareExists("indices_exists_not").execute().actionGet();
             assertTrue(!res.isExists());
+        }
+
+    }
+
+    @Test
+    void test_indices_aliases() throws InterruptedException {
+
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate("indices_aliases").execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias("indices_aliases", "test_alias1").execute(wrap(res -> {
+            assertTrue(res.isAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            IndicesAliasesResponse res =
+                    client.admin().indices().prepareAliases().addAlias("indices_aliases", "test_alias2").execute().actionGet();
+            assertTrue(res.isAcknowledged());
         }
 
     }
