@@ -33,6 +33,9 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -74,6 +77,8 @@ public class HttpClient extends AbstractClient {
     protected static Function<String, CurlRequest> PUT = s -> Curl.put(s);
 
     protected static Function<String, CurlRequest> DELETE = s -> Curl.delete(s);
+
+    protected static Function<String, CurlRequest> HEAD = s -> Curl.head(s);
 
     private String[] hosts;
 
@@ -129,6 +134,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<CloseIndexResponse> actionListener = (ActionListener<CloseIndexResponse>) listener;
             processCloseIndexAction((CloseIndexAction) action, (CloseIndexRequest) request, actionListener);
+        } else if (IndicesExistsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<IndicesExistsResponse> actionListener = (ActionListener<IndicesExistsResponse>) listener;
+            processIndicesExistsAction((IndicesExistsAction) action, (IndicesExistsRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -150,7 +160,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
             // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
             // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
-            // org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction
             // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
             // org.elasticsearch.action.admin.indices.rollover.RolloverAction
             // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
@@ -310,6 +319,30 @@ public class HttpClient extends AbstractClient {
                         listener.onFailure(e);
                     }
                 }, listener::onFailure);
+    }
+
+    protected void processIndicesExistsAction(final IndicesExistsAction action, final IndicesExistsRequest request,
+            final ActionListener<IndicesExistsResponse> listener) {
+        getCurlRequest(HEAD, "", request.indices()).execute(response -> {
+            boolean exists = false;
+            switch (response.getHttpStatusCode()) {
+            case 200:
+                exists = true;
+                break;
+            case 404:
+                exists = false;
+                break;
+            default:
+                throw new ElasticsearchException("Unexpected status: " + response.getHttpStatusCode());
+            }
+            try {
+                final IndicesExistsResponse indicesExistsResponse = new IndicesExistsResponse(exists);
+                listener.onResponse(indicesExistsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+
     }
 
     protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)

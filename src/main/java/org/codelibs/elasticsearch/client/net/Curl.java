@@ -24,6 +24,10 @@ public class Curl {
         return new CurlRequest(Method.DELETE, node, path);
     }
 
+    public static CurlRequest head(final Node node, final String path) {
+        return new CurlRequest(Method.HEAD, node, path);
+    }
+
     public static CurlRequest get(final String url) {
         return new CurlRequest(Method.GET, url);
     }
@@ -40,7 +44,11 @@ public class Curl {
         return new CurlRequest(Method.DELETE, url);
     }
 
+    public static CurlRequest head(final String url) {
+        return new CurlRequest(Method.HEAD, url);
+    }
+
     public enum Method {
-        GET, POST, PUT, DELETE;
+        GET, POST, PUT, DELETE, HEAD;
     }
 }

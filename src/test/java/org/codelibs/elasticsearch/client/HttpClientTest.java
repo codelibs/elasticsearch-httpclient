@@ -12,6 +12,7 @@ import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
@@ -200,6 +201,30 @@ public class HttpClientTest {
             client.admin().indices().prepareCreate("close_index2").execute().actionGet();
             CloseIndexResponse res = client.admin().indices().prepareClose("close_index2").execute().actionGet();
             assertTrue(res.isAcknowledged());
+        }
+
+    }
+
+    @Test
+    void test_indices_exists() throws InterruptedException {
+
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate("indices_exists").execute().actionGet();
+        client.admin().indices().prepareExists("indices_exists").execute(wrap(res -> {
+            assertTrue(res.isExists());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            IndicesExistsResponse res = client.admin().indices().prepareExists("indices_exists").execute().actionGet();
+            assertTrue(res.isExists());
+            res = client.admin().indices().prepareExists("indices_exists_not").execute().actionGet();
+            assertTrue(!res.isExists());
         }
 
     }
