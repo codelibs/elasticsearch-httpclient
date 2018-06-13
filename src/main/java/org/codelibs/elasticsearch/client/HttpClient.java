@@ -10,9 +10,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.codelibs.elasticsearch.client.net.Curl;
@@ -40,6 +43,9 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
@@ -56,7 +62,9 @@ import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.support.AbstractClient;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -158,6 +166,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<PutMappingResponse> actionListener = (ActionListener<PutMappingResponse>) listener;
             processPutMappingAction((PutMappingAction) action, (PutMappingRequest) request, actionListener);
+        } else if (GetMappingsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetMappingsResponse> actionListener = (ActionListener<GetMappingsResponse>) listener;
+            processGetMappingsAction((GetMappingsAction) action, (GetMappingsRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -190,7 +203,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
             // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
             // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
-            // org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction
             // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
             // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
             // org.elasticsearch.action.admin.indices.get.GetIndexAction
@@ -412,6 +424,22 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
+    protected void processGetMappingsAction(final GetMappingsAction action, final GetMappingsRequest request,
+            final ActionListener<GetMappingsResponse> listener) {
+        getCurlRequest(GET, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetMappingsResponse getMappingsResponse = getGetMappingsResponse(parser, action::newResponse);
+                listener.onResponse(getMappingsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
     protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
             throws IOException {
         ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
@@ -460,6 +488,50 @@ public class HttpClient extends AbstractClient {
             }
 
             final T response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
+            throws IOException {
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> indexMapBuilder = ImmutableOpenMap.builder();
+        while (parser.nextToken() != Token.END_OBJECT) {
+            ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
+            String index = parser.currentName();
+
+            ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+            ensureExpectedToken(Token.FIELD_NAME, parser.nextToken(), parser::getTokenLocation); // mappings
+
+            ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+            ImmutableOpenMap.Builder<String, MappingMetaData> typeMapBuilder = ImmutableOpenMap.builder();
+            while (parser.nextToken() != Token.END_OBJECT) {
+                ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
+                String type = parser.currentName();
+
+                ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+                Map<String, Object> mapping = parser.map();
+                typeMapBuilder.put(type, new MappingMetaData(type, mapping));
+            }
+
+            ensureExpectedToken(Token.END_OBJECT, parser.nextToken(), parser::getTokenLocation);
+            indexMapBuilder.put(index, typeMapBuilder.build());
+        }
+        ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = indexMapBuilder.build();
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeVInt(mappings.size());
+            for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (ObjectObjectCursor<String, MappingMetaData> typeEntry : indexEntry.value) {
+                    out.writeString(typeEntry.key);
+                    typeEntry.value.writeTo(out);
+                }
+            }
+
+            final GetMappingsResponse response = newResponse.get();
             response.readFrom(out.toStreamInput());
             return response;
         }

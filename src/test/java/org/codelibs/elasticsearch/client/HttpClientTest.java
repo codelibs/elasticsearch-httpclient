@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
@@ -14,13 +15,17 @@ import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
@@ -288,5 +293,46 @@ public class HttpClientTest {
             assertTrue(res.isAcknowledged());
         }
 
+    }
+
+    @Test
+    void test_get_mappings() throws Exception {
+        String index = "get_mappings1";
+        String type = "test_type";
+        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
+                .startObject()//
+                .startObject("properties")//
+                .startObject("test_prop")//
+                .field("type", "text")//
+                .endObject()//
+                .endObject()//
+                .endObject();
+        String source = mappingBuilder.string();
+        Map<String, Object> mappingMap = XContentHelper.convertToMap(mappingBuilder.bytes(), true, XContentType.JSON).v2();
+        MappingMetaData mappingMetaData = new MappingMetaData(type, mappingMap);
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setType(type).setSource(source, XContentType.JSON).execute().actionGet();
+
+        client.admin().indices().prepareGetMappings(index).execute(wrap(res -> {
+            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = res.getMappings();
+            assertTrue(mappings.containsKey(index));
+            assertTrue(mappings.get(index).containsKey(type));
+            assertEquals(mappings.get(index).get(type), mappingMetaData);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetMappingsResponse res = client.admin().indices().prepareGetMappings(index).execute().actionGet();
+            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = res.getMappings();
+            assertTrue(mappings.containsKey(index));
+            assertTrue(mappings.get(index).containsKey(type));
+            assertEquals(mappings.get(index).get(type), mappingMetaData);
+        }
     }
 }
