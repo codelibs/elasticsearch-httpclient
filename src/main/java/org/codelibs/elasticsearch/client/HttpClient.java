@@ -40,6 +40,9 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -150,6 +153,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<IndicesAliasesResponse> actionListener = (ActionListener<IndicesAliasesResponse>) listener;
             processIndicesAliasesAction((IndicesAliasesAction) action, (IndicesAliasesRequest) request, actionListener);
+        } else if (PutMappingAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<PutMappingResponse> actionListener = (ActionListener<PutMappingResponse>) listener;
+            processPutMappingAction((PutMappingAction) action, (PutMappingRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -181,7 +189,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
             // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
             // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
-            // org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction
             // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
             // org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction
             // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
@@ -361,8 +368,7 @@ public class HttpClient extends AbstractClient {
         try {
             XContentBuilder builder = XContentFactory.jsonBuilder().startObject().startArray("actions");
             for (AliasActions aliasAction : request.getAliasActions()) {
-                builder.startObject();
-                builder.startObject(aliasAction.actionType().toString().toLowerCase());
+                builder.startObject().startObject(aliasAction.actionType().toString().toLowerCase());
                 builder.array("indices", aliasAction.indices());
                 builder.array("aliases", aliasAction.aliases());
                 if (aliasAction.filter() != null)
@@ -388,6 +394,22 @@ public class HttpClient extends AbstractClient {
             }
         }, listener::onFailure);
 
+    }
+
+    protected void processPutMappingAction(final PutMappingAction action, final PutMappingRequest request,
+            final ActionListener<PutMappingResponse> listener) {
+        getCurlRequest(PUT, "/_mapping/" + request.type(), request.indices()).body(request.source()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final PutMappingResponse putMappingResponse = getAcknowledgedResponse(parser, action::newResponse);
+                listener.onResponse(putMappingResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
     }
 
     protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
