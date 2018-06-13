@@ -14,6 +14,7 @@ import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -71,8 +72,9 @@ public class HttpClientTest {
     void test_refresh() throws InterruptedException {
 
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareRefresh().execute(wrap(res -> {
-            assertEquals(0, res.getTotalShards());
+        client.admin().indices().prepareCreate("refresh").execute().actionGet();
+        client.admin().indices().prepareRefresh("refresh").execute(wrap(res -> {
+            assertEquals(res.getStatus(), RestStatus.OK);
             latch.countDown();
         }, e -> {
             e.printStackTrace();
@@ -82,8 +84,8 @@ public class HttpClientTest {
         latch.await();
 
         {
-            RefreshResponse res = client.admin().indices().prepareRefresh().execute().actionGet();
-            assertEquals(0, res.getTotalShards());
+            RefreshResponse res = client.admin().indices().prepareRefresh("refresh").execute().actionGet();
+            assertEquals(res.getStatus(), RestStatus.OK);
         }
 
     }
