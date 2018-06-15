@@ -539,11 +539,21 @@ public class HttpClient extends AbstractClient {
 
     protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse)
             throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        ensureExpectedToken(Token.FIELD_NAME, parser.nextToken(), parser::getTokenLocation);
-        ensureExpectedToken(Token.VALUE_BOOLEAN, parser.nextToken(), parser::getTokenLocation);
-        boolean acknowledged = parser.booleanValue();
-        ensureExpectedToken(Token.END_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        boolean acknowledged = false;
+
+        String currentFieldName = null;
+        Token token = parser.nextToken();
+        if (token != null) {
+            while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                if (token == Token.FIELD_NAME) {
+                    currentFieldName = parser.currentName();
+                } else if (token == Token.VALUE_BOOLEAN) {
+                    if (ACKNOWLEDGED_FIELD.match(currentFieldName)) {
+                        acknowledged = parser.booleanValue();
+                    }
+                }
+            }
+        }
 
         try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
             out.writeBoolean(acknowledged);
