@@ -15,6 +15,7 @@ import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
@@ -373,6 +374,28 @@ public class HttpClientTest {
             assertTrue(mappings.containsKey(index));
             assertTrue(mappings.get(index).containsKey(type));
             assertEquals(mappings.get(index).get(type), mappingMetaData);
+        }
+    }
+
+    @Test
+    void test_flush() throws Exception {
+        String index = "flush";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareFlush(index).execute(wrap(res -> {
+            assertEquals(res.getStatus(), RestStatus.OK);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            FlushResponse res = client.admin().indices().prepareFlush(index).execute().actionGet();
+            assertEquals(res.getStatus(), RestStatus.OK);
         }
     }
 }

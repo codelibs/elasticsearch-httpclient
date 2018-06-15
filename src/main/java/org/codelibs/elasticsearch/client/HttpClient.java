@@ -43,6 +43,9 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushAction;
+import org.elasticsearch.action.admin.indices.flush.FlushRequest;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
@@ -188,6 +191,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<GetMappingsResponse> actionListener = (ActionListener<GetMappingsResponse>) listener;
             processGetMappingsAction((GetMappingsAction) action, (GetMappingsRequest) request, actionListener);
+        } else if (FlushAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.flush.FlushAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<FlushResponse> actionListener = (ActionListener<FlushResponse>) listener;
+            processFlushAction((FlushAction) action, (FlushRequest) request, actionListener);
         } else {
             // org.elasticsearch.action.search.ClearScrollAction
             // org.elasticsearch.action.search.MultiSearchAction
@@ -201,7 +209,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
             // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.indices.flush.FlushAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
             // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
             // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
@@ -470,6 +477,22 @@ public class HttpClient extends AbstractClient {
                 listener.onFailure(e);
             }
         }, listener::onFailure);
+    }
+
+    protected void processFlushAction(final FlushAction action, final FlushRequest request, final ActionListener<FlushResponse> listener) {
+        getCurlRequest(POST, "/_flush", request.indices()).param("wait_if_ongoing", String.valueOf(request.waitIfOngoing()))
+                .param("force", String.valueOf(request.force())).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final FlushResponse flushResponse = getResponseFromXContent(parser, action::newResponse);
+                        listener.onResponse(flushResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
