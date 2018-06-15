@@ -15,6 +15,7 @@ import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -165,6 +166,45 @@ public class HttpClientTest {
             client.admin().indices().prepareCreate("delete_index2").execute().actionGet();
             DeleteIndexResponse res = client.admin().indices().prepareDelete("delete_index2").execute().actionGet();
             assertTrue(res.isAcknowledged());
+        }
+
+    }
+
+    @Test
+    void test_get_index() throws Exception {
+        String index = "get_index";
+        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
+                .startObject()//
+                .startObject("properties")//
+                .startObject("test_prop")//
+                .field("type", "text")//
+                .endObject()//
+                .endObject()//
+                .endObject();
+        String source = mappingBuilder.string();
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, "test_alias").execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setType("test_type").setSource(source, XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareGetIndex().addIndices(index).execute(wrap(res -> {
+            assertEquals(index, res.getIndices()[0]);
+            assertTrue(res.getAliases().containsKey(index));
+            assertTrue(res.getMappings().containsKey(index));
+            assertTrue(res.getSettings().containsKey(index));
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetIndexResponse res = client.admin().indices().prepareGetIndex().addIndices(index).execute().actionGet();
+            assertEquals(index, res.getIndices()[0]);
+            assertTrue(res.getAliases().containsKey(index));
+            assertTrue(res.getMappings().containsKey(index));
+            assertTrue(res.getSettings().containsKey(index));
         }
 
     }
