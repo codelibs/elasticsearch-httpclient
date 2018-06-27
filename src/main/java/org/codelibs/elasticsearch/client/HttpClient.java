@@ -43,6 +43,12 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushAction;
+import org.elasticsearch.action.admin.indices.flush.FlushRequest;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.get.GetIndexAction;
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
@@ -55,13 +61,29 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.elasticsearch.action.index.IndexAction;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.ClearScrollAction;
+import org.elasticsearch.action.search.ClearScrollRequest;
+import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.action.search.MultiSearchAction;
+import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+
 import org.elasticsearch.client.support.AbstractClient;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -86,6 +108,14 @@ public class HttpClient extends AbstractClient {
     protected static final ParseField STATUS_FIELD = new ParseField("status");
 
     protected static final ParseField REASON_FIELD = new ParseField("reason");
+
+    protected static final ParseField ACKNOWLEDGED_FIELD = new ParseField("acknowledged");
+
+    protected static final ParseField ALIASES_FIELD = new ParseField("aliases");
+
+    protected static final ParseField MAPPINGS_FIELD = new ParseField("mappings");
+
+    protected static final ParseField SETTINGS_FIELD = new ParseField("settings");
 
     protected static Function<String, CurlRequest> GET = s -> Curl.get(s);
 
@@ -141,6 +171,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<DeleteIndexResponse> actionListener = (ActionListener<DeleteIndexResponse>) listener;
             processDeleteIndexAction((DeleteIndexAction) action, (DeleteIndexRequest) request, actionListener);
+        } else if (GetIndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.get.GetIndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetIndexResponse> actionListener = (ActionListener<GetIndexResponse>) listener;
+            processGetIndexAction((GetIndexAction) action, (GetIndexRequest) request, actionListener);
         } else if (OpenIndexAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.indices.open.OpenIndexAction
             @SuppressWarnings("unchecked")
@@ -171,8 +206,17 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<GetMappingsResponse> actionListener = (ActionListener<GetMappingsResponse>) listener;
             processGetMappingsAction((GetMappingsAction) action, (GetMappingsRequest) request, actionListener);
-        } else {
+        } else if (FlushAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.flush.FlushAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<FlushResponse> actionListener = (ActionListener<FlushResponse>) listener;
+            processFlushAction((FlushAction) action, (FlushRequest) request, actionListener);
+        } else if (ClearScrollAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.search.ClearScrollAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ClearScrollResponse> actionListener = (ActionListener<ClearScrollResponse>) listener;
+            processClearScrollAction((ClearScrollAction) action, (ClearScrollRequest) request, actionListener);
+        } else {
             // org.elasticsearch.action.search.MultiSearchAction
             // org.elasticsearch.action.search.SearchScrollAction
             // org.elasticsearch.action.ingest.DeletePipelineAction
@@ -184,7 +228,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
             // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.indices.flush.FlushAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
             // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
             // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
@@ -205,7 +248,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
             // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
             // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
-            // org.elasticsearch.action.admin.indices.get.GetIndexAction
             // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
             // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
             // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
@@ -248,6 +290,27 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    protected void processClearScrollAction(final ClearScrollAction action, final ClearScrollRequest request,
+            final ActionListener<ClearScrollResponse> listener) {
+        try {
+            XContentBuilder builder =
+                    XContentFactory.jsonBuilder().startObject().array("scroll_id", request.getScrollIds().toArray(new String[0]))
+                            .endObject();
+            getCurlRequest(DELETE, "/_search/scroll").body(builder.string()).execute(response -> {
+                if (response.getHttpStatusCode() != 200) {
+                    throw new ElasticsearchException("Scroll ids are not found: " + response.getHttpStatusCode());
+                }
+                try (final InputStream in = response.getContentAsStream()) {
+                    final XContentParser parser = createParser(in);
+                    final ClearScrollResponse clearScrollResponse = ClearScrollResponse.fromXContent(parser);
+                    listener.onResponse(clearScrollResponse);
+                } catch (final Exception e) {
+                    listener.onFailure(e);
+                }
+            }, listener::onFailure);
+        } catch (IOException e) {}
+    }
+
     protected void processCreateIndexAction(final CreateIndexAction action, final CreateIndexRequest request,
             final ActionListener<CreateIndexResponse> listener) {
         String source = null;
@@ -267,6 +330,57 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
+    protected void processMultiSearchAction(final MultiSearchAction action, final MultiSearchRequest request,
+            final ActionListener<MultiSearchResponse> listener) {
+        try {
+            XContentBuilder builder = XContentFactory.jsonBuilder();
+            for (SearchRequest searchRequest : request.requests()) {
+                builder.startObject();
+                builder.array("index", searchRequest.indices());
+                builder.endObject();
+                builder.startObject();
+                builder.array("query", searchRequest.source().toString());
+                builder.endObject();
+            }
+
+            getCurlRequest(GET, "/_msearch")
+            //                .param("request_cache", )
+            //                .param("routing", )
+                    .body(builder.string()).execute(response -> {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
+                        }
+
+                        try (final InputStream in = response.getContentAsStream()) {
+                            final XContentParser parser = createParser(in);
+                            MultiSearchResponse multiSearchResponse = getMultiSearchResponseFromXContent(parser, action);
+                            listener.onResponse(multiSearchResponse);
+                        } catch (final Exception e) {
+                            listener.onFailure(e);
+                        }
+                    }, listener::onFailure);
+        } catch (Exception e) {
+            // todo
+        }
+    }
+
+    /* todo
+        protected void processFieldCapabilitiesAction(final FieldCapabilitiesAction action, final FieldCapabilitiesRequest request,
+                final ActionListener<FieldCapabilitiesResponse> listener) {
+            getCurlRequest(GET, "/_field_caps/" + String.join(",", request.types()), request.indices()).execute(response -> {
+                if (response.getHttpStatusCode() != 200) {
+                    throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                }
+                try (final InputStream in = response.getContentAsStream()) {
+                    final XContentParser parser = createParser(in);
+                    final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilities(parser, action::newResponse);
+                    listener.onResponse(getMappingsResponse);
+                } catch (final Exception e) {
+                    listener.onFailure(e);
+                }
+            }, listener::onFailure);
+        }
+    */
     protected void processDeleteIndexAction(final DeleteIndexAction action, final DeleteIndexRequest request,
             final ActionListener<DeleteIndexResponse> listener) {
         getCurlRequest(DELETE, "/", request.indices()).execute(response -> {
@@ -277,6 +391,22 @@ public class HttpClient extends AbstractClient {
                 final XContentParser parser = createParser(in);
                 final DeleteIndexResponse deleteIndexResponse = DeleteIndexResponse.fromXContent(parser);
                 listener.onResponse(deleteIndexResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected void processGetIndexAction(final GetIndexAction action, final GetIndexRequest request,
+            final ActionListener<GetIndexResponse> listener) {
+        getCurlRequest(GET, "/", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetIndexResponse getIndexResponse = getGetIndexResponse(parser, action::newResponse);
+                listener.onResponse(getIndexResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
             }
@@ -331,8 +461,7 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected void processSearchAction(final SearchAction action, final SearchRequest request,
-            final ActionListener<SearchResponse> listener) {
+    protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
         getCurlRequest(POST, "/_search", request.indices())
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
@@ -440,6 +569,22 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
+    protected void processFlushAction(final FlushAction action, final FlushRequest request, final ActionListener<FlushResponse> listener) {
+        getCurlRequest(POST, "/_flush", request.indices()).param("wait_if_ongoing", String.valueOf(request.waitIfOngoing()))
+                .param("force", String.valueOf(request.force())).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final FlushResponse flushResponse = getResponseFromXContent(parser, action::newResponse);
+                        listener.onResponse(flushResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
     protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
             throws IOException {
         ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
@@ -493,30 +638,88 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    protected GetIndexResponse getGetIndexResponse(final XContentParser parser, final Supplier<GetIndexResponse> newResponse)
+            throws IOException {
+        List<String> indices = new ArrayList<>();
+        ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
+        ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> mappingsMapBuilder = ImmutableOpenMap.builder();
+        ImmutableOpenMap.Builder<String, Settings> settingsMapBuilder = ImmutableOpenMap.builder();
+
+        String index = null;
+        XContentParser.Token token = parser.nextToken();
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                index = parser.currentName();
+                indices.add(index);
+            } else if (token == Token.START_OBJECT) {
+                while (parser.nextToken() == Token.FIELD_NAME) {
+                    String currentFieldName = parser.currentName();
+                    if (ALIASES_FIELD.match(currentFieldName)) {
+                        aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
+                    } else if (MAPPINGS_FIELD.match(currentFieldName)) {
+                        mappingsMapBuilder.put(index, getMappingsFromXContent(parser));
+                    } else if (SETTINGS_FIELD.match(currentFieldName)) {
+                        settingsMapBuilder.put(index, getSettingsFromXContent(parser));
+                    }
+                }
+            }
+        }
+
+        ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = mappingsMapBuilder.build();
+        ImmutableOpenMap<String, List<AliasMetaData>> aliases = aliasesMapBuilder.build();
+        ImmutableOpenMap<String, Settings> settings = settingsMapBuilder.build();
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeStringArray(indices.toArray(new String[indices.size()]));
+            out.writeVInt(mappings.size());
+            for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (ObjectObjectCursor<String, MappingMetaData> mappingEntry : indexEntry.value) {
+                    out.writeString(mappingEntry.key);
+                    mappingEntry.value.writeTo(out);
+                }
+            }
+            out.writeVInt(aliases.size());
+            for (ObjectObjectCursor<String, List<AliasMetaData>> indexEntry : aliases) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (AliasMetaData aliasEntry : indexEntry.value) {
+                    aliasEntry.writeTo(out);
+                }
+            }
+            out.writeVInt(settings.size());
+            for (ObjectObjectCursor<String, Settings> indexEntry : settings) {
+                out.writeString(indexEntry.key);
+                Settings.writeSettingsToStream(indexEntry.value, out);
+            }
+            final GetIndexResponse response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
     protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
             throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
         ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> indexMapBuilder = ImmutableOpenMap.builder();
-        while (parser.nextToken() != Token.END_OBJECT) {
-            ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
-            String index = parser.currentName();
 
-            ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-            ensureExpectedToken(Token.FIELD_NAME, parser.nextToken(), parser::getTokenLocation); // mappings
-
-            ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-            ImmutableOpenMap.Builder<String, MappingMetaData> typeMapBuilder = ImmutableOpenMap.builder();
-            while (parser.nextToken() != Token.END_OBJECT) {
-                ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
-                String type = parser.currentName();
-
-                ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-                Map<String, Object> mapping = parser.map();
-                typeMapBuilder.put(type, new MappingMetaData(type, mapping));
+        String index = null;
+        Token token = parser.nextToken();
+        if (token != null) {
+            while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                if (token == Token.FIELD_NAME) {
+                    index = parser.currentName();
+                } else if (token == Token.START_OBJECT) {
+                    while (parser.nextToken() == Token.FIELD_NAME) {
+                        if (MAPPINGS_FIELD.match(parser.currentName())) {
+                            indexMapBuilder.put(index, getMappingsFromXContent(parser));
+                            break;
+                        } else {
+                            parser.skipChildren();
+                        }
+                    }
+                }
             }
-
-            ensureExpectedToken(Token.END_OBJECT, parser.nextToken(), parser::getTokenLocation);
-            indexMapBuilder.put(index, typeMapBuilder.build());
         }
         ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = indexMapBuilder.build();
 
@@ -537,13 +740,72 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    protected MultiSearchResponse getMultiSearchResponseFromXContent(final XContentParser parser, final MultiSearchAction action)
+            throws IOException {
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeBytes(parser.text().getBytes());
+            final MultiSearchResponse response = action.newResponse();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected List<AliasMetaData> getAliasesFromXContent(final XContentParser parser) throws IOException {
+        List<AliasMetaData> aliases = new ArrayList<>();
+        Token token = parser.nextToken();
+        if (token == null) {
+            return aliases;
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                aliases.add(AliasMetaData.Builder.fromXContent(parser));
+            }
+        }
+        return aliases;
+    }
+
+    protected ImmutableOpenMap<String, MappingMetaData> getMappingsFromXContent(final XContentParser parser) throws IOException {
+        ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
+        String type = null;
+        Token token = parser.nextToken();
+        if (token == null) {
+            return mappingsBuilder.build();
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                type = parser.currentName();
+            } else if (token == Token.START_OBJECT) {
+                Map<String, Object> mapping = parser.mapOrdered();
+                mappingsBuilder.put(type, new MappingMetaData(type, mapping));
+            }
+        }
+        return mappingsBuilder.build();
+    }
+
+    protected Settings getSettingsFromXContent(final XContentParser parser) throws IOException {
+        if (parser.nextToken() == null) {
+            return Settings.EMPTY;
+        }
+        return Settings.fromXContent(parser);
+    }
+
     protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse)
             throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        ensureExpectedToken(Token.FIELD_NAME, parser.nextToken(), parser::getTokenLocation);
-        ensureExpectedToken(Token.VALUE_BOOLEAN, parser.nextToken(), parser::getTokenLocation);
-        boolean acknowledged = parser.booleanValue();
-        ensureExpectedToken(Token.END_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        boolean acknowledged = false;
+
+        String currentFieldName = null;
+        Token token = parser.nextToken();
+        if (token != null) {
+            while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                if (token == Token.FIELD_NAME) {
+                    currentFieldName = parser.currentName();
+                } else if (token == Token.VALUE_BOOLEAN) {
+                    if (ACKNOWLEDGED_FIELD.match(currentFieldName)) {
+                        acknowledged = parser.booleanValue();
+                    }
+                }
+            }
+        }
 
         try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
             out.writeBoolean(acknowledged);
