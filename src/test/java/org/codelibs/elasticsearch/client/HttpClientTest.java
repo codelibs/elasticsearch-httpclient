@@ -4,6 +4,7 @@ import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newCo
 import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.util.Map;
@@ -22,6 +23,10 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchRequestBuilder;
+import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.action.search.ClearScrollRequestBuilder;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -329,8 +334,9 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate("put_mapping2").execute().actionGet();
-            PutMappingResponse res = client.admin().indices().preparePutMapping("put_mapping2").setType("test_type")
-                    .setSource(source, XContentType.JSON).execute().actionGet();
+            PutMappingResponse res =
+                    client.admin().indices().preparePutMapping("put_mapping2").setType("test_type").setSource(source, XContentType.JSON)
+                            .execute().actionGet();
             assertTrue(res.isAcknowledged());
         }
 
@@ -396,6 +402,66 @@ public class HttpClientTest {
         {
             FlushResponse res = client.admin().indices().prepareFlush(index).execute().actionGet();
             assertEquals(res.getStatus(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_clear_scroll() {
+        String id = "";
+        CountDownLatch latch = new CountDownLatch(1);
+        //client.admin().indices().prepareCreate(index).execute().actionGet();
+        try {
+            client.prepareClearScroll().addScrollId(id).execute(wrap(res -> {
+                assertFalse(res.isSucceeded());
+                assertEquals(res.status(), RestStatus.OK);
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+            latch.await();
+        } catch (Exception e) {
+
+        }
+        {
+            ClearScrollResponse res = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+            assertEquals(res.status(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_multi_search() {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
+        SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "fess")).setSize(1);
+        try {
+            client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
+                long nbHits = 0;
+                for (MultiSearchResponse.Item item : res.getResponses()) {
+                    SearchResponse searchResponse = item.getResponse();
+                    nbHits += searchResponse.getHits().getTotalHits();
+                }
+                assertEquals(0, nbHits);
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+            latch.await();
+        } catch (Exception e) {
+
+        }
+        {
+            MultiSearchResponse res = client.prepareMultiSearch().add(srb1).add(srb2).execute().actionGet();
+            long nbHits = 0;
+            for (MultiSearchResponse.Item item : res.getResponses()) {
+                SearchResponse searchResponse = item.getResponse();
+                nbHits += searchResponse.getHits().getTotalHits();
+            }
+            assertEquals(0, nbHits);
         }
     }
 }

@@ -64,6 +64,12 @@ import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.ClearScrollAction;
+import org.elasticsearch.action.search.ClearScrollRequest;
+import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.action.search.MultiSearchAction;
+import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -196,9 +202,17 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<FlushResponse> actionListener = (ActionListener<FlushResponse>) listener;
             processFlushAction((FlushAction) action, (FlushRequest) request, actionListener);
-        } else {
+        } else if (ClearScrollAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.search.ClearScrollAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ClearScrollResponse> actionListener = (ActionListener<ClearScrollResponse>) listener;
+            processClearScrollAction((ClearScrollAction) action, (ClearScrollRequest) request, actionListener);
+        } else if (MultiSearchAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.search.MultiSearchAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<MultiSearchResponse> actionListener = (ActionListener<MultiSearchResponse>) listener;
+            processMultiSearchAction((MultiSearchAction) action, (MultiSearchRequest) request, actionListener);
+        } else {
             // org.elasticsearch.action.search.SearchScrollAction
             // org.elasticsearch.action.ingest.DeletePipelineAction
             // org.elasticsearch.action.ingest.PutPipelineAction
@@ -268,6 +282,74 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.delete.DeleteAction
             // org.elasticsearch.action.bulk.BulkAction
             throw new UnsupportedOperationException("Action: " + action.name());
+        }
+    }
+
+    protected void processClearScrollAction(final ClearScrollAction action, final ClearScrollRequest request,
+            final ActionListener<ClearScrollResponse> listener) {
+        String source = null;
+        try {
+            XContentBuilder builder =
+                    XContentFactory.jsonBuilder().startObject().array("scroll_id", request.getScrollIds().toArray(new String[0]))
+                            .endObject();
+            source = builder.string();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(DELETE, "/_search/scroll").body(source).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Scroll ids are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ClearScrollResponse clearScrollResponse = ClearScrollResponse.fromXContent(parser);
+                listener.onResponse(clearScrollResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected void processMultiSearchAction(final MultiSearchAction action, final MultiSearchRequest request,
+            final ActionListener<MultiSearchResponse> listener) {
+        String source = null;
+        try {
+            XContentBuilder builder = XContentFactory.jsonBuilder();
+            for (SearchRequest searchRequest : request.requests()) {
+                builder.startObject();
+                builder.array("index", searchRequest.indices());
+                builder.endObject();
+                builder.startObject();
+                builder.array("query", searchRequest.source().toString());
+                builder.endObject();
+            }
+            source = builder.string();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+
+        getCurlRequest(GET, "/_msearch").body(source).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
+            }
+
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                MultiSearchResponse multiSearchResponse = getMultiSearchResponseFromXContent(parser, action);
+                listener.onResponse(multiSearchResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected MultiSearchResponse getMultiSearchResponseFromXContent(final XContentParser parser, final MultiSearchAction action)
+            throws IOException {
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeBytes(parser.text().getBytes());
+            final MultiSearchResponse response = action.newResponse();
+            response.readFrom(out.toStreamInput());
+            return response;
         }
     }
 
@@ -370,8 +452,7 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected void processSearchAction(final SearchAction action, final SearchRequest request,
-            final ActionListener<SearchResponse> listener) {
+    protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
         getCurlRequest(POST, "/_search", request.indices())
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
