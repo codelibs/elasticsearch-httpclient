@@ -4,10 +4,20 @@ import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newCo
 import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.ArrayList;
+import java.util.List;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
@@ -15,6 +25,8 @@ import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -34,6 +46,26 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
+
+import org.elasticsearch.action.search.SearchAction;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchRequestBuilder;
+
+import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.action.search.ClearScrollRequestBuilder;
 
 public class HttpClientTest {
 
@@ -170,6 +202,45 @@ public class HttpClientTest {
     }
 
     @Test
+    void test_get_index() throws Exception {
+        String index = "get_index";
+        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
+                .startObject()//
+                .startObject("properties")//
+                .startObject("test_prop")//
+                .field("type", "text")//
+                .endObject()//
+                .endObject()//
+                .endObject();
+        String source = mappingBuilder.string();
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, "test_alias").execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setType("test_type").setSource(source, XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareGetIndex().addIndices(index).execute(wrap(res -> {
+            assertEquals(index, res.getIndices()[0]);
+            assertTrue(res.getAliases().containsKey(index));
+            assertTrue(res.getMappings().containsKey(index));
+            assertTrue(res.getSettings().containsKey(index));
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetIndexResponse res = client.admin().indices().prepareGetIndex().addIndices(index).execute().actionGet();
+            assertEquals(index, res.getIndices()[0]);
+            assertTrue(res.getAliases().containsKey(index));
+            assertTrue(res.getMappings().containsKey(index));
+            assertTrue(res.getSettings().containsKey(index));
+        }
+
+    }
+
+    @Test
     void test_open_index() throws InterruptedException {
 
         CountDownLatch latch = new CountDownLatch(1);
@@ -288,8 +359,9 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate("put_mapping2").execute().actionGet();
-            PutMappingResponse res = client.admin().indices().preparePutMapping("put_mapping2").setType("test_type")
-                    .setSource(source, XContentType.JSON).execute().actionGet();
+            PutMappingResponse res =
+                    client.admin().indices().preparePutMapping("put_mapping2").setType("test_type").setSource(source, XContentType.JSON)
+                            .execute().actionGet();
             assertTrue(res.isAcknowledged());
         }
 
@@ -333,6 +405,88 @@ public class HttpClientTest {
             assertTrue(mappings.containsKey(index));
             assertTrue(mappings.get(index).containsKey(type));
             assertEquals(mappings.get(index).get(type), mappingMetaData);
+        }
+    }
+
+    @Test
+    void test_flush() throws Exception {
+        String index = "flush";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareFlush(index).execute(wrap(res -> {
+            assertEquals(res.getStatus(), RestStatus.OK);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            FlushResponse res = client.admin().indices().prepareFlush(index).execute().actionGet();
+            assertEquals(res.getStatus(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_clear_scroll() {
+        String id = "";
+        CountDownLatch latch = new CountDownLatch(1);
+        //client.admin().indices().prepareCreate(index).execute().actionGet();
+        try {
+            client.prepareClearScroll().addScrollId(id).execute(wrap(res -> {
+                assertFalse(res.isSucceeded());
+                assertEquals(res.status(), RestStatus.OK);
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+            latch.await();
+        } catch (Exception e) {
+
+        }
+        {
+            ClearScrollResponse res = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+            assertEquals(res.status(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_multi_search() {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
+        SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "fess")).setSize(1);
+        try {
+            client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
+                long nbHits = 0;
+                for (MultiSearchResponse.Item item : res.getResponses()) {
+                    SearchResponse searchResponse = item.getResponse();
+                    nbHits += searchResponse.getHits().getTotalHits();
+                }
+                assertEquals(0, nbHits);
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+            latch.await();
+        } catch (Exception e) {
+
+        }
+        {
+            MultiSearchResponse res = client.prepareMultiSearch().add(srb1).add(srb2).execute().actionGet();
+            long nbHits = 0;
+            for (MultiSearchResponse.Item item : res.getResponses()) {
+                SearchResponse searchResponse = item.getResponse();
+                nbHits += searchResponse.getHits().getTotalHits();
+            }
+            assertEquals(0, nbHits);
         }
     }
 }
