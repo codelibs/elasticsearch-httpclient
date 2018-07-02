@@ -5,12 +5,14 @@ import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -24,6 +26,7 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.ClearScrollRequestBuilder;
@@ -36,6 +39,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.common.unit.TimeValue;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -405,11 +409,10 @@ public class HttpClientTest {
         }
     }
 
-    @Test
-    void test_clear_scroll() {
+    // todo
+    void test_clear_scroll() throws Exception {
         String id = "";
         CountDownLatch latch = new CountDownLatch(1);
-        //client.admin().indices().prepareCreate(index).execute().actionGet();
         try {
             client.prepareClearScroll().addScrollId(id).execute(wrap(res -> {
                 assertFalse(res.isSucceeded());
@@ -430,8 +433,26 @@ public class HttpClientTest {
         }
     }
 
+    // todo
+    void test_scroll() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        SearchResponse scrollResponse =
+                client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("")).setScroll(new TimeValue(60000)).setSize(1).execute()
+                        .actionGet();
+        String id = scrollResponse.getScrollId();
+        SearchHit[] hits;
+        do {
+            hits = scrollResponse.getHits().getHits();
+            scrollResponse = client.prepareSearchScroll(id).setScroll(new TimeValue(60000)).execute().actionGet();
+        } while (hits.length != 0);
+
+        ClearScrollResponse clearScrollResponse = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+        assertFalse(clearScrollResponse.isSucceeded());
+    }
+
     @Test
-    void test_multi_search() {
+    void test_multi_search() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
