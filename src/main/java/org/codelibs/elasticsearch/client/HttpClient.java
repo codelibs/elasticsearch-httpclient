@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -102,6 +103,8 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField INDEX_FIELD = new ParseField("index");
 
+    protected static final ParseField QUERY_FIELD = new ParseField("query");
+
     protected static final ParseField STATUS_FIELD = new ParseField("status");
 
     protected static final ParseField REASON_FIELD = new ParseField("reason");
@@ -125,6 +128,20 @@ public class HttpClient extends AbstractClient {
     protected static Function<String, CurlRequest> HEAD = s -> Curl.head(s);
 
     private String[] hosts;
+
+    protected enum ContentType {
+        JSON("application/json"), X_NDJSON("application/x-ndjson");
+
+        private final String value;
+
+        private ContentType(final String value) {
+            this.value = value;
+        }
+
+        public String getString() {
+            return this.value;
+        }
+    }
 
     public HttpClient(final Settings settings, final ThreadPool threadPool) {
         super(settings, threadPool);
@@ -325,17 +342,30 @@ public class HttpClient extends AbstractClient {
             final ActionListener<MultiSearchResponse> listener) {
         String source = null;
         try {
-            XContentBuilder builder = XContentFactory.jsonBuilder();
+            source = "";
             for (SearchRequest searchRequest : request.requests()) {
-                builder.startObject().array("index", searchRequest.indices()).endObject().startObject()
-                        .array("query", searchRequest.source().toString()).endObject();
+                /* todo the other headers(search_type,preference...etc)
+                String[] indices = searchRequest.indices();
+                if (indices != null && indices.length > 0) {
+                    for (int i = 0; i < indices.length; i++) {
+                        indices[i] = "\"" + indices[i] + "\"";
+                    }
+                    final StringBuilder idx = new StringBuilder();
+                    idx.append(String.join(",", indices));
+                    source += "{\"index\":" + idx.toString() + "}";
+                }
+                */
+                source += System.getProperty("line.separator");
+                final XContentParser parser =
+                        XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY,
+                                searchRequest.source().toString());
+                source += searchRequest.source().toString();
+                source += System.getProperty("line.separator");
             }
-            source = builder.string();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
-        getCurlRequest(POST, "/_msearch").body(source).execute(response -> {
+        getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
             }
@@ -868,6 +898,11 @@ public class HttpClient extends AbstractClient {
     }
 
     protected CurlRequest getCurlRequest(final Function<String, CurlRequest> method, final String path, final String... indices) {
+        return getCurlRequest(method, ContentType.JSON, path, indices);
+    }
+
+    protected CurlRequest getCurlRequest(final Function<String, CurlRequest> method, final ContentType contentType, final String path,
+            final String... indices) {
         final StringBuilder buf = new StringBuilder(100);
         buf.append(getHost());
         if (indices.length > 0) {
@@ -876,6 +911,6 @@ public class HttpClient extends AbstractClient {
         buf.append(path);
         // TODO other request headers
         // TODO threadPool
-        return method.apply(buf.toString()).header("Content-Type", "application/json").threadPool(ForkJoinPool.commonPool());
+        return method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(ForkJoinPool.commonPool());
     }
 }
