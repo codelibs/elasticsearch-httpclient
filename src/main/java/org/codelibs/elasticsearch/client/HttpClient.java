@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
@@ -76,23 +77,36 @@ import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.DefaultShardOperationFailedException;
 import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilities;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.get.GetAction;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -115,7 +129,21 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField MAPPINGS_FIELD = new ParseField("mappings");
 
+    protected static final ParseField FIELDS_FIELD = new ParseField("fields");
+
     protected static final ParseField SETTINGS_FIELD = new ParseField("settings");
+
+    protected static final ParseField TYPE_FIELD = new ParseField("type");
+
+    protected static final ParseField SEARCHABLE_FIELD = new ParseField("searchable");
+
+    protected static final ParseField AGGREGATABLE_FIELD = new ParseField("aggregatable");
+
+    protected static final ParseField INDICES_FIELD = new ParseField("indices");
+
+    protected static final ParseField NON_SEARCHABLE_INDICES_FIELD = new ParseField("non_searchable_indices");
+
+    protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
 
     protected static Function<String, CurlRequest> GET = s -> Curl.get(s);
 
@@ -240,7 +268,19 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
             processSearchScrollAction((SearchScrollAction) action, (SearchScrollRequest) request, actionListener);
+        } else if (FieldCapabilitiesAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction)
+            @SuppressWarnings("unchecked")
+            final ActionListener<FieldCapabilitiesResponse> actionListener = (ActionListener<FieldCapabilitiesResponse>) listener;
+            processFieldCapabilitiesAction((FieldCapabilitiesAction) action, (FieldCapabilitiesRequest) request, actionListener);
+        }
+        if (GetAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.get.GetAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetResponse> actionListener = (ActionListener<GetResponse>) listener;
+            processGetAction((GetAction) action, (GetRequest) request, actionListener);
         } else {
+
             // org.elasticsearch.action.ingest.DeletePipelineAction
             // org.elasticsearch.action.ingest.PutPipelineAction
             // org.elasticsearch.action.ingest.SimulatePipelineAction
@@ -300,10 +340,8 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
             // org.elasticsearch.action.index.IndexAction
-            // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction
             // org.elasticsearch.action.update.UpdateAction
             // org.elasticsearch.action.main.MainAction
-            // org.elasticsearch.action.get.GetAction
             // org.elasticsearch.action.get.MultiGetAction
             // org.elasticsearch.action.explain.ExplainAction
             // org.elasticsearch.action.delete.DeleteAction
@@ -344,27 +382,21 @@ public class HttpClient extends AbstractClient {
         try {
             source = "";
             for (SearchRequest searchRequest : request.requests()) {
-                /* todo the other headers(search_type,preference...etc)
-                String[] indices = searchRequest.indices();
-                if (indices != null && indices.length > 0) {
-                    for (int i = 0; i < indices.length; i++) {
-                        indices[i] = "\"" + indices[i] + "\"";
-                    }
-                    final StringBuilder idx = new StringBuilder();
-                    idx.append(String.join(",", indices));
-                    source += "{\"index\":" + idx.toString() + "}";
-                }
-                */
+                // TODO: headers(index,search_type,preference...etc
+
                 source += System.getProperty("line.separator");
-                final XContentParser parser =
-                        XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY,
-                                searchRequest.source().toString());
                 source += searchRequest.source().toString();
                 source += System.getProperty("line.separator");
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
+
+        // for debugging
+        //System.out.println("===========BODY===========");
+        //System.out.println(source);
+        //System.out.println("===========END OF BODY===========\n");
+
         getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
@@ -403,10 +435,103 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
+    void processFieldCapabilitiesAction(final FieldCapabilitiesAction action, final FieldCapabilitiesRequest request,
+            final ActionListener<FieldCapabilitiesResponse> listener) {
+        //System.out.println("indices :\n" + String.join(",", request.indices()));
+        //System.out.println("fields :\n" + String.join(",", request.fields()));
+        getCurlRequest(GET, "/_field_caps?fields=" + String.join(",", request.fields()), request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+
+                //System.out.println("[field_caps]parser object list:");
+                //printFieldCapabilitiesToken(parser);
+                final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponsefromXContent(parser);
+                listener.onResponse(fieldCapabilitiesResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    /* for debugging
+    void printFieldCapabilitiesToken(XContentParser parser) throws IOException {
+        parser.nextToken();
+        //        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        XContentParser.Token token;
+        int i = 0;
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+            //            XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, token, parser::getTokenLocation);
+            String currentFieldName = parser.currentName();
+            System.out.println("Token #" + i + ": " + currentFieldName);
+            i++;
+            if (currentFieldName != null) {
+                Map<String, FieldCapabilities> fcmap = parseTypeToCapabilities(parser, currentFieldName);
+                System.out.println("map keysets:");
+                for (String key : fcmap.keySet()) {
+                    System.out.println(key + " " + fcmap.get(key));
+                }
+            }
+        }
+    }
+*/
+    protected FieldCapabilitiesResponse getFieldCapabilitiesResponsefromXContent(XContentParser parser) {
+        final ParseField FIELDS_FIELD = new ParseField("fields");
+        @SuppressWarnings("unchecked")
+        final ConstructingObjectParser<FieldCapabilitiesResponse, Void> PARSER =
+                new ConstructingObjectParser<>("field_capabilities_response", true, a -> new FieldCapabilitiesResponse(
+                        ((List<Tuple<String, Map<String, FieldCapabilities>>>) a[0]).stream().collect(
+                                Collectors.toMap(Tuple::v1, Tuple::v2))));
+
+        PARSER.declareNamedObjects(ConstructingObjectParser.constructorArg(), (p, c, n) -> {
+            Map<String, FieldCapabilities> typeToCapabilities = parseTypeToCapabilities(p, n);
+            return new Tuple<>(n, typeToCapabilities);
+        }, FIELDS_FIELD);
+
+        return PARSER.parse(parser, null);
+    }
+
+    protected Map<String, FieldCapabilities> parseTypeToCapabilities(XContentParser parser, String name) throws IOException {
+        Map<String, FieldCapabilities> typeToCapabilities = new HashMap<>();
+
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        XContentParser.Token token;
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+            XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, token, parser::getTokenLocation);
+            String type = parser.currentName();
+            FieldCapabilities capabilities = getFieldCapabilitiesfromXContent(name, parser);
+            typeToCapabilities.put(type, capabilities);
+        }
+        return typeToCapabilities;
+    }
+
+    protected FieldCapabilities getFieldCapabilitiesfromXContent(String sname, XContentParser parser) throws IOException {
+
+        @SuppressWarnings("unchecked")
+        final ConstructingObjectParser<FieldCapabilities, String> PARSER =
+                new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> new FieldCapabilities(name, (String) a[0],
+                        (boolean) a[1], (boolean) a[2], a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null,
+                        a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null,
+                        a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null));
+
+        PARSER.declareString(ConstructingObjectParser.constructorArg(), TYPE_FIELD);
+        PARSER.declareBoolean(ConstructingObjectParser.constructorArg(), SEARCHABLE_FIELD);
+        PARSER.declareBoolean(ConstructingObjectParser.constructorArg(), AGGREGATABLE_FIELD);
+        PARSER.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), INDICES_FIELD);
+        PARSER.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), NON_SEARCHABLE_INDICES_FIELD);
+        PARSER.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), NON_AGGREGATABLE_INDICES_FIELD);
+
+        return PARSER.parse(parser, sname);
+    }
+
     protected void processBulkAction(final BulkAction action, final BulkRequest request, final ActionListener<BulkResponse> listener) {
         String source = null;
 
-        // todo
+        // TODO : parsing request
+
+
 
         getCurlRequest(POST, "/_bulk").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
@@ -416,6 +541,18 @@ public class HttpClient extends AbstractClient {
                 final XContentParser parser = createParser(in);
                 final BulkResponse bulkResponse = BulkResponse.fromXContent(parser);
                 listener.onResponse(bulkResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
+        getCurlRequest(GET, "/_doc/" + request.id()).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetResponse getResponse = GetResponse.fromXContent(parser);
+                listener.onResponse(getResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
             }

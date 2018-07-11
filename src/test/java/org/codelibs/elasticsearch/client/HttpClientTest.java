@@ -30,6 +30,8 @@ import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.ClearScrollRequestBuilder;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -433,13 +435,15 @@ public class HttpClientTest {
         }
     }
 
-    // todo
+    // TODO :
     void test_scroll() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
+        // assert ElasticserchException
         SearchResponse scrollResponse =
                 client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("")).setScroll(new TimeValue(60000)).setSize(1).execute()
                         .actionGet();
+
         String id = scrollResponse.getScrollId();
         SearchHit[] hits;
         do {
@@ -484,5 +488,23 @@ public class HttpClientTest {
             }
             assertEquals(0, nbHits);
         }
+    }
+
+    @Test
+    void test_field_caps() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.prepareFieldCaps().setFields("rating", "keyword").execute(wrap(res -> {
+            // TODO
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        // TODO
+        //        FieldCapabilitiesResponse response = client.prepareFieldCaps().setFields("rating").execute().actionGet();
     }
 }
