@@ -496,15 +496,42 @@ public class HttpClientTest {
 
         client.prepareFieldCaps().setFields("rating", "keyword").execute(wrap(res -> {
             // TODO
-            latch.countDown();
-        }, e -> {
-            e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
-        }));
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
         latch.await();
 
         // TODO
         //        FieldCapabilitiesResponse response = client.prepareFieldCaps().setFields("rating").execute().actionGet();
+    }
+
+    void test_index() throws Exception {
+    }
+
+    void test_update() throws Exception {
+    }
+
+    void test_get() throws Exception {
+    }
+
+    void test_multi_get() throws Exception {
+    }
+
+    void test_explain() throws Exception {
+    }
+
+    void test_delete() throws Exception {
+    }
+
+    void test_bulk() throws Exception {
+    }
+
+    void test_term_vectors() throws Exception {
+    }
+
+    void test_multi_term_vectors() throws Exception {
     }
 }
