@@ -4,12 +4,15 @@ import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newCo
 import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -22,6 +25,13 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.action.search.SearchRequestBuilder;
+import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.action.search.ClearScrollRequestBuilder;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -31,6 +41,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.common.unit.TimeValue;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -329,8 +340,9 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate("put_mapping2").execute().actionGet();
-            PutMappingResponse res = client.admin().indices().preparePutMapping("put_mapping2").setType("test_type")
-                    .setSource(source, XContentType.JSON).execute().actionGet();
+            PutMappingResponse res =
+                    client.admin().indices().preparePutMapping("put_mapping2").setType("test_type").setSource(source, XContentType.JSON)
+                            .execute().actionGet();
             assertTrue(res.isAcknowledged());
         }
 
@@ -397,5 +409,129 @@ public class HttpClientTest {
             FlushResponse res = client.admin().indices().prepareFlush(index).execute().actionGet();
             assertEquals(res.getStatus(), RestStatus.OK);
         }
+    }
+
+    // todo
+    void test_clear_scroll() throws Exception {
+        String id = "";
+        CountDownLatch latch = new CountDownLatch(1);
+        try {
+            client.prepareClearScroll().addScrollId(id).execute(wrap(res -> {
+                assertFalse(res.isSucceeded());
+                assertEquals(res.status(), RestStatus.OK);
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+            latch.await();
+        } catch (Exception e) {
+
+        }
+        {
+            ClearScrollResponse res = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+            assertEquals(res.status(), RestStatus.OK);
+        }
+    }
+
+    // TODO :
+    void test_scroll() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        // assert ElasticserchException
+        SearchResponse scrollResponse =
+                client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("")).setScroll(new TimeValue(60000)).setSize(1).execute()
+                        .actionGet();
+
+        String id = scrollResponse.getScrollId();
+        SearchHit[] hits;
+        do {
+            hits = scrollResponse.getHits().getHits();
+            scrollResponse = client.prepareSearchScroll(id).setScroll(new TimeValue(60000)).execute().actionGet();
+        } while (hits.length != 0);
+
+        ClearScrollResponse clearScrollResponse = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+        assertFalse(clearScrollResponse.isSucceeded());
+    }
+
+    @Test
+    void test_multi_search() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
+        SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "fess")).setSize(1);
+        try {
+            client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
+                long nbHits = 0;
+                for (MultiSearchResponse.Item item : res.getResponses()) {
+                    SearchResponse searchResponse = item.getResponse();
+                    nbHits += searchResponse.getHits().getTotalHits();
+                }
+                assertEquals(0, nbHits);
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+            latch.await();
+        } catch (Exception e) {
+
+        }
+        {
+            MultiSearchResponse res = client.prepareMultiSearch().add(srb1).add(srb2).execute().actionGet();
+            long nbHits = 0;
+            for (MultiSearchResponse.Item item : res.getResponses()) {
+                SearchResponse searchResponse = item.getResponse();
+                nbHits += searchResponse.getHits().getTotalHits();
+            }
+            assertEquals(0, nbHits);
+        }
+    }
+
+    @Test
+    void test_field_caps() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.prepareFieldCaps().setFields("rating", "keyword").execute(wrap(res -> {
+            // TODO
+                latch.countDown();
+            }, e -> {
+                e.printStackTrace();
+                assertTrue(false);
+                latch.countDown();
+            }));
+        latch.await();
+
+        // TODO
+        //        FieldCapabilitiesResponse response = client.prepareFieldCaps().setFields("rating").execute().actionGet();
+    }
+
+    void test_index() throws Exception {
+    }
+
+    void test_update() throws Exception {
+    }
+
+    void test_get() throws Exception {
+    }
+
+    void test_multi_get() throws Exception {
+    }
+
+    void test_explain() throws Exception {
+    }
+
+    void test_delete() throws Exception {
+    }
+
+    void test_bulk() throws Exception {
+    }
+
+    void test_term_vectors() throws Exception {
+    }
+
+    void test_multi_term_vectors() throws Exception {
     }
 }
