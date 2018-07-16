@@ -604,7 +604,6 @@ public class HttpClient extends AbstractClient {
                     break;
                 }
                 case 3: { // DELETE
-                    // TODO
                     break;
                 }
                 default:
@@ -630,6 +629,7 @@ public class HttpClient extends AbstractClient {
     }
 
     protected String getStringfromDocWriteRequest(DocWriteRequest<?> request) {
+        // TODO version and routing
         return "{" + request.opType().getLowercase() + "{" + _INDEX + ":" + request.index() + "," + _TYPE + ":" + request.type() + ","
                 + _ID + ":" + request.id() + "}}";
     }
