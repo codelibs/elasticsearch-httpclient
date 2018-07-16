@@ -180,15 +180,15 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField DETAILS = new ParseField("details");
 
-    protected static Function<String, CurlRequest> GET = Curl::get;
+    protected static final Function<String, CurlRequest> GET = Curl::get;
 
-    protected static Function<String, CurlRequest> POST = Curl::post;
+    protected static final Function<String, CurlRequest> POST = Curl::post;
 
-    protected static Function<String, CurlRequest> PUT = Curl::put;
+    protected static final Function<String, CurlRequest> PUT = Curl::put;
 
-    protected static Function<String, CurlRequest> DELETE = Curl::delete;
+    protected static final Function<String, CurlRequest> DELETE = Curl::delete;
 
-    protected static Function<String, CurlRequest> HEAD = Curl::head;
+    protected static final Function<String, CurlRequest> HEAD = Curl::head;
 
     private String[] hosts;
 
@@ -221,8 +221,7 @@ public class HttpClient extends AbstractClient {
 
     @Override
     public void close() {
-        // TODO Auto-generated method stub
-
+        // TODO thread pool management
     }
 
     @Override
@@ -545,7 +544,7 @@ public class HttpClient extends AbstractClient {
 
     protected FieldCapabilities getFieldCapabilitiesfromXContent(String sname, XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<FieldCapabilities, String> PARSER =
+        final ConstructingObjectParser<FieldCapabilities, String> objectParser =
                 new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> {
                     return newFieldCapabilities(name, (String) "test", (boolean) true, (boolean) true,
                             (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
@@ -553,14 +552,14 @@ public class HttpClient extends AbstractClient {
                             (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null));
                 });
 
-        PARSER.declareString(ConstructingObjectParser.constructorArg(), TYPE_FIELD);
-        PARSER.declareBoolean(ConstructingObjectParser.constructorArg(), SEARCHABLE_FIELD);
-        PARSER.declareBoolean(ConstructingObjectParser.constructorArg(), AGGREGATABLE_FIELD);
-        PARSER.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), INDICES_FIELD);
-        PARSER.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), NON_SEARCHABLE_INDICES_FIELD);
-        PARSER.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), NON_AGGREGATABLE_INDICES_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), TYPE_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), SEARCHABLE_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), AGGREGATABLE_FIELD);
+        objectParser.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), INDICES_FIELD);
+        objectParser.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), NON_SEARCHABLE_INDICES_FIELD);
+        objectParser.declareStringArray(ConstructingObjectParser.optionalConstructorArg(), NON_AGGREGATABLE_INDICES_FIELD);
 
-        return PARSER.parse(parser, sname);
+        return objectParser.parse(parser, sname);
     }
 
     protected FieldCapabilities newFieldCapabilities(String name, String type, boolean isSearchable, boolean isAggregatable,
@@ -580,13 +579,15 @@ public class HttpClient extends AbstractClient {
         // http://ndjson.org/
         StringBuilder buf = new StringBuilder(10000);
         try {
+            @SuppressWarnings("rawtypes")
             List<DocWriteRequest> bulkRequests = request.requests();
-            for (DocWriteRequest req : bulkRequests) {
+            for (@SuppressWarnings("rawtypes")
+            DocWriteRequest req : bulkRequests) {
                 buf.append(getStringfromDocWriteRequest(req));
                 buf.append('\n');
                 switch (req.opType().getId()) {
                 case 0: { // INDEX
-                    buf.append(XContentHelper.convertToJson(((IndexRequest) req).source(), false));
+                    buf.append(XContentHelper.convertToJson(((IndexRequest) req).source(), false, XContentType.JSON));
                     buf.append('\n');
                     break;
                 }
@@ -628,7 +629,7 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected String getStringfromDocWriteRequest(DocWriteRequest request) {
+    protected String getStringfromDocWriteRequest(DocWriteRequest<?> request) {
         return "{" + request.opType().getLowercase() + "{" + _INDEX + ":" + request.index() + "," + _TYPE + ":" + request.type() + ","
                 + _ID + ":" + request.id() + "}}";
     }
@@ -652,7 +653,7 @@ public class HttpClient extends AbstractClient {
         String source = null;
 
         try {
-            source = XContentHelper.convertToJson(request.source(), false);
+            source = XContentHelper.convertToJson(request.source(), false, XContentType.JSON);
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -719,13 +720,13 @@ public class HttpClient extends AbstractClient {
 
     protected ExplainResponse getExplainResponsefromXContent(XContentParser parser) {
 
-        final ConstructingObjectParser<ExplainResponse, Boolean> PARSER =
+        final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
                 new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
                         (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
 
-        PARSER.declareString(ConstructingObjectParser.constructorArg(), _INDEX);
-        PARSER.declareString(ConstructingObjectParser.constructorArg(), _TYPE);
-        PARSER.declareString(ConstructingObjectParser.constructorArg(), _ID);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID);
         final ConstructingObjectParser<Explanation, Boolean> explanationParser =
                 new ConstructingObjectParser<>("explanation", true, arg -> {
                     if ((float) arg[0] > 0) {
@@ -737,11 +738,11 @@ public class HttpClient extends AbstractClient {
         explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE);
         explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION);
         explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS);
-        PARSER.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION);
-        PARSER.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
                 new ParseField("get"));
 
-        return PARSER.apply(parser, true);
+        return objectParser.apply(parser, true);
     }
 
     protected void processDeleteAction(final DeleteAction action, final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
