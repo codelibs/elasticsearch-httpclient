@@ -8,30 +8,29 @@ import static org.elasticsearch.rest.action.RestActions.TOTAL_FIELD;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.Collection;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.lucene.search.Explanation;
-import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
-
+import org.codelibs.curl.Curl;
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
-import org.codelibs.elasticsearch.client.net.Curl;
-import org.codelibs.elasticsearch.client.net.CurlRequest;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.ShardOperationFailedException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -66,54 +65,56 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.ClearScrollAction;
-import org.elasticsearch.action.search.ClearScrollRequest;
-import org.elasticsearch.action.search.ClearScrollResponse;
-import org.elasticsearch.action.search.MultiSearchAction;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.action.search.SearchScrollRequest;
-import org.elasticsearch.action.support.DefaultShardOperationFailedException;
-import org.elasticsearch.action.support.broadcast.BroadcastResponse;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.action.index.IndexAction;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
-import org.elasticsearch.action.fieldcaps.FieldCapabilities;
-import org.elasticsearch.action.update.UpdateAction;
-import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.action.update.UpdateResponse;
-import org.elasticsearch.action.explain.ExplainAction;
-import org.elasticsearch.action.explain.ExplainRequest;
-import org.elasticsearch.action.explain.ExplainResponse;
-import org.elasticsearch.action.delete.DeleteAction;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteAction;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.explain.ExplainAction;
+import org.elasticsearch.action.explain.ExplainRequest;
+import org.elasticsearch.action.explain.ExplainResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilities;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.action.get.GetAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetAction;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
+import org.elasticsearch.action.index.IndexAction;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.ClearScrollAction;
+import org.elasticsearch.action.search.ClearScrollRequest;
+import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.action.search.MultiSearchAction;
+import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchAction;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.action.support.DefaultShardOperationFailedException;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.update.UpdateAction;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -121,15 +122,13 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParserUtils;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.index.get.GetResult;
-
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.threadpool.ThreadPool;
+
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 public class HttpClient extends AbstractClient {
 
@@ -181,15 +180,15 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField DETAILS = new ParseField("details");
 
-    protected static Function<String, CurlRequest> GET = s -> Curl.get(s);
+    protected static Function<String, CurlRequest> GET = Curl::get;
 
-    protected static Function<String, CurlRequest> POST = s -> Curl.post(s);
+    protected static Function<String, CurlRequest> POST = Curl::post;
 
-    protected static Function<String, CurlRequest> PUT = s -> Curl.put(s);
+    protected static Function<String, CurlRequest> PUT = Curl::put;
 
-    protected static Function<String, CurlRequest> DELETE = s -> Curl.delete(s);
+    protected static Function<String, CurlRequest> DELETE = Curl::delete;
 
-    protected static Function<String, CurlRequest> HEAD = s -> Curl.head(s);
+    protected static Function<String, CurlRequest> HEAD = Curl::head;
 
     private String[] hosts;
 
@@ -411,7 +410,7 @@ public class HttpClient extends AbstractClient {
             XContentBuilder builder =
                     XContentFactory.jsonBuilder().startObject().array("scroll_id", request.getScrollIds().toArray(new String[0]))
                             .endObject();
-            source = builder.string();
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }
@@ -458,7 +457,8 @@ public class HttpClient extends AbstractClient {
             final ActionListener<SearchResponse> listener) {
         String source = null;
         try {
-            source = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
+            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -488,7 +488,7 @@ public class HttpClient extends AbstractClient {
                 final XContentParser parser = createParser(in);
 
                 // TODO: implementing getFieldCapabilitiesResponsefromXContent()
-                final FieldCapabilitiesResponse fieldCapabilitiesResponse = null; //getFieldCapabilitiesResponsefromXContent(parser);
+                final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponsefromXContent(parser);
                 listener.onResponse(fieldCapabilitiesResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -497,19 +497,36 @@ public class HttpClient extends AbstractClient {
     }
 
     protected FieldCapabilitiesResponse getFieldCapabilitiesResponsefromXContent(XContentParser parser) {
-        final ParseField FIELDS_FIELD = new ParseField("fields");
+        // workaround fix
+        final ParseField fieldsField = new ParseField("fields");
         @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<FieldCapabilitiesResponse, Void> PARSER =
-                new ConstructingObjectParser<>("field_capabilities_response", true, a -> new FieldCapabilitiesResponse(
-                        ((List<Tuple<String, Map<String, FieldCapabilities>>>) a[0]).stream().collect(
+        final ConstructingObjectParser<FieldCapabilitiesResponse, Void> objectParser =
+                new ConstructingObjectParser<>("field_capabilities_response", true,
+                        a -> newFieldCapabilitiesResponse(((List<Tuple<String, Map<String, FieldCapabilities>>>) a[0]).stream().collect(
                                 Collectors.toMap(Tuple::v1, Tuple::v2))));
 
-        PARSER.declareNamedObjects(ConstructingObjectParser.constructorArg(), (p, c, n) -> {
+        objectParser.declareNamedObjects(ConstructingObjectParser.constructorArg(), (p, c, n) -> {
             Map<String, FieldCapabilities> typeToCapabilities = parseTypeToCapabilities(p, n);
             return new Tuple<>(n, typeToCapabilities);
-        }, FIELDS_FIELD);
+        }, fieldsField);
 
-        return PARSER.parse(parser, null);
+        try {
+            return objectParser.parse(parser, null);
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse FieldCapabilitiesResponse.", e);
+        }
+    }
+
+    protected FieldCapabilitiesResponse newFieldCapabilitiesResponse(Map<String, Map<String, FieldCapabilities>> map) {
+        Class<FieldCapabilitiesResponse> clazz = FieldCapabilitiesResponse.class;
+        Class<?>[] types = { Map.class };
+        try {
+            Constructor<FieldCapabilitiesResponse> constructor = clazz.getConstructor(types);
+            constructor.setAccessible(true);
+            return constructor.newInstance(map);
+        } catch (Exception e) {
+            throw new ElasticsearchException("Failed to create FieldCapabilitiesResponse.", e);
+        }
     }
 
     protected Map<String, FieldCapabilities> parseTypeToCapabilities(XContentParser parser, String name) throws IOException {
@@ -529,10 +546,12 @@ public class HttpClient extends AbstractClient {
     protected FieldCapabilities getFieldCapabilitiesfromXContent(String sname, XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<FieldCapabilities, String> PARSER =
-                new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> new FieldCapabilities(name, (String) "test",
-                        (boolean) true, (boolean) true, (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
-                        (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
-                        (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null)));
+                new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> {
+                    return newFieldCapabilities(name, (String) "test", (boolean) true, (boolean) true,
+                            (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
+                            (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
+                            (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null));
+                });
 
         PARSER.declareString(ConstructingObjectParser.constructorArg(), TYPE_FIELD);
         PARSER.declareBoolean(ConstructingObjectParser.constructorArg(), SEARCHABLE_FIELD);
@@ -544,33 +563,58 @@ public class HttpClient extends AbstractClient {
         return PARSER.parse(parser, sname);
     }
 
+    protected FieldCapabilities newFieldCapabilities(String name, String type, boolean isSearchable, boolean isAggregatable,
+            String[] indices, String[] nonSearchableIndices, String[] nonAggregatableIndices) {
+        Class<FieldCapabilities> clazz = FieldCapabilities.class;
+        Class<?>[] types = { String.class, String.class, boolean.class, boolean.class, String[].class, String[].class, String[].class };
+        try {
+            Constructor<FieldCapabilities> constructor = clazz.getConstructor(types);
+            constructor.setAccessible(true);
+            return constructor.newInstance(name, type, isSearchable, isAggregatable, indices, nonSearchableIndices, nonAggregatableIndices);
+        } catch (Exception e) {
+            throw new ElasticsearchException("Failed to create ConstructingObjectParser.", e);
+        }
+    }
+
     protected void processBulkAction(final BulkAction action, final BulkRequest request, final ActionListener<BulkResponse> listener) {
-        String source = null;
+        // http://ndjson.org/
+        StringBuilder buf = new StringBuilder(10000);
         try {
             List<DocWriteRequest> bulkRequests = request.requests();
             for (DocWriteRequest req : bulkRequests) {
-                source += getStringfromDocWriteRequest(req);
-                source += System.getProperty("line.separator");
+                buf.append(getStringfromDocWriteRequest(req));
+                buf.append('\n');
                 switch (req.opType().getId()) {
-                case 0: // INDEX
-                    source += XContentHelper.convertToJson(((IndexRequest) req).source(), false);
-                    source += System.getProperty("line.separator");
-                case 1: // CREATE
-                    source += ((CreateIndexRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
-                    source += System.getProperty("line.separator");
-                case 2: // UPDATE
-                    source += ((UpdateRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
-                    source += System.getProperty("line.separator");
-                case 3: // DELETE
-                    // do nothing
-                    ;
+                case 0: { // INDEX
+                    buf.append(XContentHelper.convertToJson(((IndexRequest) req).source(), false));
+                    buf.append('\n');
+                    break;
+                }
+                case 1: { // CREATE
+                    XContentBuilder builder = ((CreateIndexRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+                    buf.append(BytesReference.bytes(builder).utf8ToString());
+                    buf.append('\n');
+                    break;
+                }
+                case 2: { // UPDATE
+                    XContentBuilder builder = ((UpdateRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+                    buf.append(BytesReference.bytes(builder).utf8ToString());
+                    buf.append('\n');
+                    break;
+                }
+                case 3: { // DELETE
+                    // TODO
+                    break;
+                }
+                default:
+                    break;
                 }
             }
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
 
-        getCurlRequest(POST, "/_bulk").body(source).execute(response -> {
+        getCurlRequest(POST, "/_bulk").body(buf.toString()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
             }
@@ -630,7 +674,8 @@ public class HttpClient extends AbstractClient {
     protected void processUpdateAction(final UpdateAction action, final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
         String source = null;
         try {
-            source = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
+            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -654,7 +699,7 @@ public class HttpClient extends AbstractClient {
         try {
             XContentBuilder builder =
                     XContentFactory.jsonBuilder().startObject().field(QUERY_FIELD.getPreferredName(), request.query()).endObject();
-            source = builder.string();
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -718,7 +763,8 @@ public class HttpClient extends AbstractClient {
             final ActionListener<MultiGetResponse> listener) {
         String source = null;
         try {
-            source = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
+            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -740,7 +786,8 @@ public class HttpClient extends AbstractClient {
             final ActionListener<CreateIndexResponse> listener) {
         String source = null;
         try {
-            source = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS).string();
+            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -895,7 +942,7 @@ public class HttpClient extends AbstractClient {
                 builder.endObject().endObject();
             }
             builder.endArray().endObject();
-            source = builder.string();
+            source = BytesReference.bytes(builder).utf8ToString();
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
@@ -973,7 +1020,7 @@ public class HttpClient extends AbstractClient {
             if (token == Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
             } else if (token == Token.START_ARRAY) {
-                if (FAILURES_FIELD.match(currentFieldName)) {
+                if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
                         if (token != XContentParser.Token.START_OBJECT) {
                             throw new ElasticsearchException("failures array element should include an object");
@@ -984,11 +1031,11 @@ public class HttpClient extends AbstractClient {
                     parser.skipChildren();
                 }
             } else if (token.isValue()) {
-                if (TOTAL_FIELD.match(currentFieldName)) {
+                if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     totalShards = parser.intValue();
-                } else if (SUCCESSFUL_FIELD.match(currentFieldName)) {
+                } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     successfulShards = parser.intValue();
-                } else if (FAILED_FIELD.match(currentFieldName)) {
+                } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     failedShards = parser.intValue();
                 } else {
                     parser.skipChildren();
@@ -1028,11 +1075,11 @@ public class HttpClient extends AbstractClient {
             } else if (token == Token.START_OBJECT) {
                 while (parser.nextToken() == Token.FIELD_NAME) {
                     String currentFieldName = parser.currentName();
-                    if (ALIASES_FIELD.match(currentFieldName)) {
+                    if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
-                    } else if (MAPPINGS_FIELD.match(currentFieldName)) {
+                    } else if (MAPPINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         mappingsMapBuilder.put(index, getMappingsFromXContent(parser));
-                    } else if (SETTINGS_FIELD.match(currentFieldName)) {
+                    } else if (SETTINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         settingsMapBuilder.put(index, getSettingsFromXContent(parser));
                     }
                 }
@@ -1085,7 +1132,7 @@ public class HttpClient extends AbstractClient {
                     index = parser.currentName();
                 } else if (token == Token.START_OBJECT) {
                     while (parser.nextToken() == Token.FIELD_NAME) {
-                        if (MAPPINGS_FIELD.match(parser.currentName())) {
+                        if (MAPPINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
                             indexMapBuilder.put(index, getMappingsFromXContent(parser));
                             break;
                         } else {
@@ -1164,7 +1211,7 @@ public class HttpClient extends AbstractClient {
                 if (token == Token.FIELD_NAME) {
                     currentFieldName = parser.currentName();
                 } else if (token == Token.VALUE_BOOLEAN) {
-                    if (ACKNOWLEDGED_FIELD.match(currentFieldName)) {
+                    if (ACKNOWLEDGED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         acknowledged = parser.booleanValue();
                     }
                 }
@@ -1188,11 +1235,11 @@ public class HttpClient extends AbstractClient {
             if (token == Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
             } else if (token.isValue()) {
-                if (SHARD_FIELD.match(currentFieldName)) {
+                if (SHARD_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     shardId = parser.intValue();
-                } else if (INDEX_FIELD.match(currentFieldName)) {
+                } else if (INDEX_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     index = parser.text();
-                } else if (REASON_FIELD.match(currentFieldName)) {
+                } else if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     reason = ElasticsearchException.fromXContent(parser);
                 } else {
                     parser.skipChildren();
@@ -1204,7 +1251,7 @@ public class HttpClient extends AbstractClient {
 
     protected XContentParser createParser(final InputStream in) throws IOException {
         final XContent xContent = XContentFactory.xContent(XContentType.JSON);
-        return xContent.createParser(NamedXContentRegistry.EMPTY, in);
+        return xContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, in);
     }
 
     protected String getHost() {
