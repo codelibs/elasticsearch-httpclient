@@ -635,14 +635,38 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
-        getCurlRequest(GET, "/" + request.type() + "/" + request.id()).execute(response -> {
+        getCurlRequest(GET, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .param("preference", request.preference()).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final GetResponse getResponse = GetResponse.fromXContent(parser);
+                        listener.onResponse(getResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected void processMultiGetAction(final MultiGetAction action, final MultiGetRequest request,
+            final ActionListener<MultiGetResponse> listener) {
+        String source = null;
+        try {
+            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(GET, "/_mget").body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 if (response.getHttpStatusCode() != 200) {
                     throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
                 }
                 final XContentParser parser = createParser(in);
-                final GetResponse getResponse = GetResponse.fromXContent(parser);
-                listener.onResponse(getResponse);
+                final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
+                listener.onResponse(multiGetResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
             }
@@ -658,18 +682,19 @@ public class HttpClient extends AbstractClient {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
 
-        getCurlRequest(PUT, "/" + request.type() + "/" + request.id()).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
-                listener.onResponse(indexResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing()).body(source)
+                .execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
+                        listener.onResponse(indexResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processUpdateAction(final UpdateAction action, final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
@@ -680,18 +705,20 @@ public class HttpClient extends AbstractClient {
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update").body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
-                listener.onResponse(updateResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index()).param("routing", request.routing())
+                .param("retry_on_conflict", String.valueOf(request.retryOnConflict())).param("version", String.valueOf(request.version()))
+                .body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
+                        listener.onResponse(updateResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processExplainAction(final ExplainAction action, final ExplainRequest request,
@@ -704,18 +731,19 @@ public class HttpClient extends AbstractClient {
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain").body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final ExplainResponse explainResponse = getExplainResponsefromXContent(parser);
-                listener.onResponse(explainResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index()).param("routing", request.routing())
+                .param("preference", request.preference()).body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final ExplainResponse explainResponse = getExplainResponsefromXContent(parser);
+                        listener.onResponse(explainResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected ExplainResponse getExplainResponsefromXContent(XContentParser parser) {
@@ -746,41 +774,19 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processDeleteAction(final DeleteAction action, final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
-        getCurlRequest(DELETE, "/" + request.type() + "/" + request.id()).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
-                listener.onResponse(deleteResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
-    }
-
-    protected void processMultiGetAction(final MultiGetAction action, final MultiGetRequest request,
-            final ActionListener<MultiGetResponse> listener) {
-        String source = null;
-        try {
-            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
-            source = BytesReference.bytes(builder).utf8ToString();
-        } catch (IOException e) {
-            throw new ElasticsearchException("Failed to parse a request.", e);
-        }
-        getCurlRequest(GET, "/_mget").body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
-                listener.onResponse(multiGetResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        getCurlRequest(DELETE, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .param("version", String.valueOf(request.version())).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
+                        listener.onResponse(deleteResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processCreateIndexAction(final CreateIndexAction action, final CreateIndexRequest request,
