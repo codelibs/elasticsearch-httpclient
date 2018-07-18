@@ -5,12 +5,14 @@ import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.codelibs.curl.CurlException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -26,6 +28,13 @@ import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -506,25 +515,60 @@ public class HttpClientTest {
     }
     */
 
-    void test_index() throws Exception {
+    @Test
+    void test_crud0() throws Exception {
+        final String index = "test_index";
+        final String type = "test_type";
+        final String id = "1";
+
+        // Create a document
+        final IndexResponse indexResponse =
+                client.prepareIndex(index, type, id)
+                        .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"message\":\"test\"" + "}",
+                                XContentType.JSON).execute().actionGet();
+        assertEquals(Result.CREATED, indexResponse.getResult());
+
+        /*Search the document
+        SearchResponse searchResponse =
+                client.prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+        System.out.println("number of hits : " + searchResponse.getHits().getTotalHits());
+        */
+
+        // Get the document
+        final GetResponse getResponse = client.prepareGet(index, type, id).execute().actionGet();
+        assertTrue(getResponse.isExists());
+
+        // Update the document
+        final UpdateResponse updateResponse = client.prepareUpdate(index, type, id).setDoc("foo", "bar").execute().actionGet();
+        assertEquals(Result.UPDATED, updateResponse.getResult());
+
+        // Delete the documents
+        final DeleteResponse deleteResponse = client.prepareDelete(index, type, id).execute().actionGet();
+        assertEquals(RestStatus.OK, deleteResponse.status());
+
+        // check the document deleted
+        assertThrows(CurlException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
     }
 
-    void test_update() throws Exception {
-    }
+    void test_crud1() throws Exception {
 
-    void test_get() throws Exception {
-    }
+        final long NUM = 10;
+        final String index = "test_index";
+        final String type = "test_type";
 
-    void test_multi_get() throws Exception {
+        // Create documents
+        final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk();
+        for (int i = 1; i <= NUM; i++) {
+            bulkRequestBuilder.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
+                    "{" + "index" + ":" + "{" + "_index" + ":" + index + "," + "_type" + ":" + type + "," + "_id" + ":\""
+                            + String.valueOf(i) + "\"}}", XContentType.JSON));
+        }
+        final BulkResponse bulkResponse = bulkRequestBuilder.execute().actionGet();
+        assertFalse(bulkResponse.hasFailures());
+
     }
 
     void test_explain() throws Exception {
-    }
-
-    void test_delete() throws Exception {
-    }
-
-    void test_bulk() throws Exception {
     }
 
     void test_term_vectors() throws Exception {

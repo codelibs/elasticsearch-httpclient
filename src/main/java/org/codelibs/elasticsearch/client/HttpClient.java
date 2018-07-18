@@ -170,6 +170,10 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField _ID = new ParseField("_id");
 
+    protected static final ParseField _ROUTING = new ParseField("_routing");
+
+    protected static final ParseField _VERSION = new ParseField("_version");
+
     protected static final ParseField MATCHED = new ParseField("matched");
 
     protected static final ParseField EXPLANATION = new ParseField("explanation");
@@ -302,6 +306,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
             processSearchScrollAction((SearchScrollAction) action, (SearchScrollRequest) request, actionListener);
+        } else if (IndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.index.IndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<IndexResponse> actionListener = (ActionListener<IndexResponse>) listener;
+            processIndexAction((IndexAction) action, (IndexRequest) request, actionListener);
         } else if (FieldCapabilitiesAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction)
             @SuppressWarnings("unchecked")
@@ -629,9 +638,9 @@ public class HttpClient extends AbstractClient {
     }
 
     protected String getStringfromDocWriteRequest(DocWriteRequest<?> request) {
-        // TODO version and routing
-        return "{" + request.opType().getLowercase() + "{" + _INDEX + ":" + request.index() + "," + _TYPE + ":" + request.type() + ","
-                + _ID + ":" + request.id() + "}}";
+        return "{" + request.opType().getLowercase() + ":" + "{" + _INDEX + ":" + request.index() + "," + _TYPE + ":" + request.type()
+                + "," + _ID + ":" + request.id() + "," + _ROUTING + ":" + request.routing() + "," + _VERSION + ":" + request.version()
+                + "}}";
     }
 
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
@@ -682,10 +691,10 @@ public class HttpClient extends AbstractClient {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
 
-        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing()).body(source)
-                .execute(response -> {
+        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())//.param("op_type", "create")
+                .body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
-                        if (response.getHttpStatusCode() != 200) {
+                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
                             throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
                         }
                         final XContentParser parser = createParser(in);
@@ -705,11 +714,12 @@ public class HttpClient extends AbstractClient {
         } catch (IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
+
         getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index()).param("routing", request.routing())
                 .param("retry_on_conflict", String.valueOf(request.retryOnConflict())).param("version", String.valueOf(request.version()))
                 .body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
-                        if (response.getHttpStatusCode() != 200) {
+                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
                             throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
                         }
                         final XContentParser parser = createParser(in);
@@ -890,7 +900,7 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        getCurlRequest(POST, "/_search", request.indices())
+        getCurlRequest(POST, (request.types() != null ? "/" + String.join(",", request.types()) : "") + "/_search", request.indices())
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
                 .execute(response -> {
