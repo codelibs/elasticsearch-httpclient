@@ -18,6 +18,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.logging.Logger;
 
 import org.apache.lucene.search.Explanation;
 import org.codelibs.curl.Curl;
@@ -131,6 +132,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 public class HttpClient extends AbstractClient {
+
+    static final Logger logger = Logger.getLogger(HttpClient.class.getName());
 
     protected static final ParseField SHARD_FIELD = new ParseField("shard");
 
@@ -638,9 +641,9 @@ public class HttpClient extends AbstractClient {
     }
 
     protected String getStringfromDocWriteRequest(DocWriteRequest<?> request) {
-        return "{" + request.opType().getLowercase() + ":" + "{" + _INDEX + ":" + request.index() + "," + _TYPE + ":" + request.type()
-                + "," + _ID + ":" + request.id() + "," + _ROUTING + ":" + request.routing() + "," + _VERSION + ":" + request.version()
-                + "}}";
+        return "{\"" + request.opType().getLowercase() + "\":" + "{\"" + _INDEX + "\":\"" + request.index() + "\",\"" + _TYPE + "\":\""
+                + request.type() + "\",\"" + _ID + "\":\"" + request.id() + "\",\"" + _ROUTING + "\":\"" + request.routing() + "\",\""
+                + _VERSION + "\":\"" + request.version() + "\"}}";
     }
 
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
@@ -691,7 +694,8 @@ public class HttpClient extends AbstractClient {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
 
-        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())//.param("op_type", "create")
+        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+        //.param("op_type", "create")
                 .body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
                         if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
@@ -891,7 +895,8 @@ public class HttpClient extends AbstractClient {
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final RefreshResponse refreshResponse = getResponseFromXContent(parser, action::newResponse);
+                //                final RefreshResponse refreshResponse = getResponseFromXContent(parser);
+                final RefreshResponse refreshResponse = RefreshResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -900,7 +905,11 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        getCurlRequest(POST, (request.types() != null ? "/" + String.join(",", request.types()) : "") + "/_search", request.indices())
+        getCurlRequest(POST,
+                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
+                request.indices())
+                .param("scroll",
+                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
                 .execute(response -> {
@@ -1015,7 +1024,8 @@ public class HttpClient extends AbstractClient {
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final FlushResponse flushResponse = getResponseFromXContent(parser, action::newResponse);
+                        //                        final FlushResponse flushResponse = getResponseFromXContent(parser, action::newResponse);
+                        final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
                         listener.onResponse(flushResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
@@ -1287,6 +1297,7 @@ public class HttpClient extends AbstractClient {
             buf.append('/').append(String.join(",", indices));
         }
         buf.append(path);
+        // logger.info("url : " + buf.toString());
         // TODO other request headers
         // TODO threadPool
         return method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(ForkJoinPool.commonPool());

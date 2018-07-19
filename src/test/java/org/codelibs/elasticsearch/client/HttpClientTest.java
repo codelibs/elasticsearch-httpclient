@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Logger;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.codelibs.curl.CurlException;
@@ -30,11 +31,16 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetRequestBuilder;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.explain.ExplainResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -54,6 +60,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class HttpClientTest {
+    static final Logger logger = Logger.getLogger(HttpClientTest.class.getName());
 
     static ElasticsearchClusterRunner runner;
 
@@ -124,9 +131,10 @@ public class HttpClientTest {
 
     @Test
     void test_search() throws InterruptedException {
-
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
+
+        client.admin().indices().prepareCreate("test").execute().actionGet();
+        client.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
             assertEquals(0, res.getHits().getTotalHits());
             latch.countDown();
         }, e -> {
@@ -137,7 +145,7 @@ public class HttpClientTest {
         latch.await();
 
         {
-            SearchResponse res = client.prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+            SearchResponse res = client.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
             assertEquals(0, res.getHits().getTotalHits());
         }
 
@@ -416,56 +424,51 @@ public class HttpClientTest {
         }
     }
 
-    // todo
-    void test_clear_scroll() throws Exception {
-        String id = "";
-        CountDownLatch latch = new CountDownLatch(1);
-        try {
-            client.prepareClearScroll().addScrollId(id).execute(wrap(res -> {
-                assertFalse(res.isSucceeded());
-                assertEquals(res.status(), RestStatus.OK);
-                latch.countDown();
-            }, e -> {
-                e.printStackTrace();
-                assertTrue(false);
-                latch.countDown();
-            }));
-            latch.await();
-        } catch (Exception e) {
-
-        }
-        {
-            ClearScrollResponse res = client.prepareClearScroll().addScrollId(id).execute().actionGet();
-            assertEquals(res.status(), RestStatus.OK);
-        }
-    }
-
-    // TODO :
+    @Test
     void test_scroll() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
 
-        // assert ElasticserchException
+        CountDownLatch latch = new CountDownLatch(1);
+        final long NUM = 2;
+        final String index = "test_scroll";
+        final String type = "test_type";
+
+        final BulkRequestBuilder bulkRequestBuilder1 = client.prepareBulk();
+        for (int i = 1; i <= NUM; i++) {
+            bulkRequestBuilder1.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
+                    "{ \"test\" :" + "\"test" + String.valueOf(i) + "\" }", XContentType.JSON));
+        }
+        bulkRequestBuilder1.execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
         SearchResponse scrollResponse =
-                client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("")).setScroll(new TimeValue(60000)).setSize(1).execute()
+                client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).setScroll(new TimeValue(60000)).setSize(1).execute()
                         .actionGet();
 
         String id = scrollResponse.getScrollId();
-        SearchHit[] hits;
-        do {
-            hits = scrollResponse.getHits().getHits();
+        SearchHit[] hits = scrollResponse.getHits().getHits();
+        while (hits.length != 0) {
+            assertEquals(1, hits.length);
             scrollResponse = client.prepareSearchScroll(id).setScroll(new TimeValue(60000)).execute().actionGet();
-        } while (hits.length != 0);
+            hits = scrollResponse.getHits().getHits();
+        }
 
-        ClearScrollResponse clearScrollResponse = client.prepareClearScroll().addScrollId(id).execute().actionGet();
-        assertFalse(clearScrollResponse.isSucceeded());
+        // Test CrealScroll
+        ClearScrollResponse res = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+        assertEquals(res.status(), RestStatus.OK);
+
+        final BulkRequestBuilder bulkRequestBuilder2 = client.prepareBulk();
+        for (int i = 1; i <= NUM; i++) {
+            bulkRequestBuilder2.add(client.prepareDelete(index, type, String.valueOf(i)));
+        }
+        bulkRequestBuilder2.execute().actionGet();
     }
 
     @Test
     void test_multi_search() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
 
+        CountDownLatch latch = new CountDownLatch(1);
         SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
-        SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "fess")).setSize(1);
+        SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "test")).setSize(1);
         try {
             client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
                 long nbHits = 0;
@@ -476,14 +479,14 @@ public class HttpClientTest {
                 assertEquals(0, nbHits);
                 latch.countDown();
             }, e -> {
-                e.printStackTrace();
-                assertTrue(false);
                 latch.countDown();
             }));
             latch.await();
         } catch (Exception e) {
-
+            e.printStackTrace();
+            assertTrue(false);
         }
+
         {
             MultiSearchResponse res = client.prepareMultiSearch().add(srb1).add(srb2).execute().actionGet();
             long nbHits = 0;
@@ -493,6 +496,125 @@ public class HttpClientTest {
             }
             assertEquals(0, nbHits);
         }
+    }
+
+    @Test
+    void test_crud0() throws Exception {
+
+        final String index = "test_index";
+        final String type = "test_type";
+        final String id = "1";
+
+        // Create a document
+        final IndexResponse indexResponse =
+                client.prepareIndex(index, type, id)
+                        .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                        .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                                XContentType.JSON).execute().actionGet();
+        assertTrue((Result.CREATED == indexResponse.getResult()) || (Result.UPDATED == indexResponse.getResult()));
+
+        // Refresh index to search
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        // Search the document
+        final SearchResponse searchResponse =
+                client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).setSize(0).execute().actionGet();
+        assertEquals(1, searchResponse.getHits().getTotalHits());
+
+        // Get the document
+        final GetResponse getResponse = client.prepareGet(index, type, id).execute().actionGet();
+        assertTrue(getResponse.isExists());
+
+        // Update the document
+        final UpdateResponse updateResponse = client.prepareUpdate(index, type, id).setDoc("foo", "bar").execute().actionGet();
+        assertEquals(Result.UPDATED, updateResponse.getResult());
+
+        // Delete the document
+        final DeleteResponse deleteResponse = client.prepareDelete(index, type, id).execute().actionGet();
+        assertEquals(RestStatus.OK, deleteResponse.status());
+
+        // check the document deleted
+        assertThrows(CurlException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
+        // final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet(); // CurlException
+        // assertFalse(getResponse.isExists());
+    }
+
+    @Test
+    void test_crud1() throws Exception {
+
+        final long NUM = 10;
+        final String index = "test_bulk_multi";
+        final String type = "test_type";
+
+        // Create documents with Bulk API
+        final BulkRequestBuilder bulkRequestBuilder1 = client.prepareBulk();
+        for (int i = 1; i <= NUM; i++) {
+            bulkRequestBuilder1.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
+                    "{ \"test\" :" + "\"test" + String.valueOf(i) + "\" }", XContentType.JSON));
+        }
+        final BulkResponse bulkResponse1 = bulkRequestBuilder1.execute().actionGet();
+        assertFalse(bulkResponse1.hasFailures());
+
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        // Search the documents
+        final SearchResponse searchResponse1 = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+        assertEquals(NUM, searchResponse1.getHits().getTotalHits());
+
+        // Get the documents with MultiGet API
+        MultiGetRequestBuilder mgetRequestBuilder = client.prepareMultiGet();
+        for (int i = 1; i <= NUM; i++) {
+            mgetRequestBuilder.add(new MultiGetRequest.Item(index, type, String.valueOf(i)));
+        }
+        final MultiGetResponse mgetResponse = mgetRequestBuilder.execute().actionGet();
+        assertEquals(NUM, mgetResponse.getResponses().length);
+
+        // Delete a document
+        final DeleteResponse deleteResponse = client.prepareDelete(index, type, "1").execute().actionGet();
+        assertEquals(RestStatus.OK, deleteResponse.status());
+
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        final SearchResponse searchResponse2 = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+        assertEquals(NUM - 1, searchResponse2.getHits().getTotalHits());
+
+        // Delete all the documents with Bulk API
+        final BulkRequestBuilder bulkRequestBuilder2 = client.prepareBulk();
+        for (int i = 2; i <= NUM; i++) {
+            bulkRequestBuilder2.add(client.prepareDelete(index, type, String.valueOf(i)));
+        }
+        final BulkResponse bulkResponse2 = bulkRequestBuilder2.execute().actionGet();
+        assertFalse(bulkResponse2.hasFailures());
+    }
+
+    @Test
+    void test_explain() throws Exception {
+
+        CountDownLatch latch = new CountDownLatch(1);
+        final String index = "test_explain";
+        final String type = "test_type";
+        final String id = "1";
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+        client.prepareExplain(index, type, id).setQuery(QueryBuilders.termQuery("text", "test")).execute(wrap(res -> {
+            assertTrue(res.hasExplanation());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ExplainResponse explainRespose =
+                    client.prepareExplain(index, type, id).setQuery(QueryBuilders.termQuery("text", "test")).execute().actionGet();
+            assertTrue(explainRespose.hasExplanation());
+        }
+
     }
 
     /*
@@ -515,60 +637,22 @@ public class HttpClientTest {
     }
     */
 
-    @Test
-    void test_crud0() throws Exception {
-        final String index = "test_index";
-        final String type = "test_type";
-        final String id = "1";
-
-        // Create a document
-        final IndexResponse indexResponse =
-                client.prepareIndex(index, type, id)
-                        .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"message\":\"test\"" + "}",
-                                XContentType.JSON).execute().actionGet();
-        assertEquals(Result.CREATED, indexResponse.getResult());
-
-        /*Search the document
-        SearchResponse searchResponse =
-                client.prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
-        System.out.println("number of hits : " + searchResponse.getHits().getTotalHits());
-        */
-
-        // Get the document
-        final GetResponse getResponse = client.prepareGet(index, type, id).execute().actionGet();
-        assertTrue(getResponse.isExists());
-
-        // Update the document
-        final UpdateResponse updateResponse = client.prepareUpdate(index, type, id).setDoc("foo", "bar").execute().actionGet();
-        assertEquals(Result.UPDATED, updateResponse.getResult());
-
-        // Delete the documents
-        final DeleteResponse deleteResponse = client.prepareDelete(index, type, id).execute().actionGet();
-        assertEquals(RestStatus.OK, deleteResponse.status());
-
-        // check the document deleted
-        assertThrows(CurlException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
+    void test_index() throws Exception {
     }
 
-    void test_crud1() throws Exception {
-
-        final long NUM = 10;
-        final String index = "test_index";
-        final String type = "test_type";
-
-        // Create documents
-        final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk();
-        for (int i = 1; i <= NUM; i++) {
-            bulkRequestBuilder.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
-                    "{" + "index" + ":" + "{" + "_index" + ":" + index + "," + "_type" + ":" + type + "," + "_id" + ":\""
-                            + String.valueOf(i) + "\"}}", XContentType.JSON));
-        }
-        final BulkResponse bulkResponse = bulkRequestBuilder.execute().actionGet();
-        assertFalse(bulkResponse.hasFailures());
-
+    void test_get() throws Exception {
     }
 
-    void test_explain() throws Exception {
+    void test_multi_get() throws Exception {
+    }
+
+    void test_update() throws Exception {
+    }
+
+    void test_delete() throws Exception {
+    }
+
+    void test_bulk() throws Exception {
     }
 
     void test_term_vectors() throws Exception {
@@ -576,4 +660,5 @@ public class HttpClientTest {
 
     void test_multi_term_vectors() throws Exception {
     }
+
 }
