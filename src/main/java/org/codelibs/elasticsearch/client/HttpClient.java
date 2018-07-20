@@ -167,25 +167,23 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
 
-    protected static final ParseField _INDEX = new ParseField("_index");
+    protected static final ParseField _INDEX_FIELD = new ParseField("_index");
 
-    protected static final ParseField _TYPE = new ParseField("_type");
+    protected static final ParseField _TYPE_FIELD = new ParseField("_type");
 
-    protected static final ParseField _ID = new ParseField("_id");
+    protected static final ParseField _ID_FIELD = new ParseField("_id");
 
-    protected static final ParseField _ROUTING = new ParseField("_routing");
+    protected static final ParseField _ROUTING_FIELD = new ParseField("_routing");
 
-    protected static final ParseField _VERSION = new ParseField("_version");
+    protected static final ParseField _VERSION_FIELD = new ParseField("_version");
 
-    protected static final ParseField MATCHED = new ParseField("matched");
+    protected static final ParseField EXPLANATION_FIELD = new ParseField("explanation");
 
-    protected static final ParseField EXPLANATION = new ParseField("explanation");
+    protected static final ParseField VALUE_FIELD = new ParseField("value");
 
-    protected static final ParseField VALUE = new ParseField("value");
+    protected static final ParseField DESCRIPTION_FIELD = new ParseField("description");
 
-    protected static final ParseField DESCRIPTION = new ParseField("description");
-
-    protected static final ParseField DETAILS = new ParseField("details");
+    protected static final ParseField DETAILS_FIELD = new ParseField("details");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -410,6 +408,7 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
             // org.elasticsearch.action.main.MainAction
+
             throw new UnsupportedOperationException("Action: " + action.name());
         }
     }
@@ -497,8 +496,6 @@ public class HttpClient extends AbstractClient {
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-
-                // TODO: implementing getFieldCapabilitiesResponsefromXContent()
                 final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponsefromXContent(parser);
                 listener.onResponse(fieldCapabilitiesResponse);
             } catch (final Exception e) {
@@ -641,9 +638,9 @@ public class HttpClient extends AbstractClient {
     }
 
     protected String getStringfromDocWriteRequest(DocWriteRequest<?> request) {
-        return "{\"" + request.opType().getLowercase() + "\":" + "{\"" + _INDEX + "\":\"" + request.index() + "\",\"" + _TYPE + "\":\""
-                + request.type() + "\",\"" + _ID + "\":\"" + request.id() + "\",\"" + _ROUTING + "\":\"" + request.routing() + "\",\""
-                + _VERSION + "\":\"" + request.version() + "\"}}";
+        return "{\"" + request.opType().getLowercase() + "\":" + "{\"" + _INDEX_FIELD + "\":\"" + request.index() + "\",\"" + _TYPE_FIELD
+                + "\":\"" + request.type() + "\",\"" + _ID_FIELD + "\":\"" + request.id() + "\",\"" + _ROUTING_FIELD + "\":\""
+                + request.routing() + "\",\"" + _VERSION_FIELD + "\":\"" + request.version() + "\"}}";
     }
 
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
@@ -651,7 +648,7 @@ public class HttpClient extends AbstractClient {
                 .param("preference", request.preference()).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
                         if (response.getHttpStatusCode() != 200) {
-                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                            throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
                         }
                         final XContentParser parser = createParser(in);
                         final GetResponse getResponse = GetResponse.fromXContent(parser);
@@ -766,9 +763,9 @@ public class HttpClient extends AbstractClient {
                 new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
                         (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
 
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID_FIELD);
         final ConstructingObjectParser<Explanation, Boolean> explanationParser =
                 new ConstructingObjectParser<>("explanation", true, arg -> {
                     if ((float) arg[0] > 0) {
@@ -777,10 +774,10 @@ public class HttpClient extends AbstractClient {
                         return Explanation.noMatch((String) arg[1], (Collection<Explanation>) arg[2]);
                     }
                 });
-        explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE);
-        explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION);
-        explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION);
+        explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE_FIELD);
+        explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION_FIELD);
+        explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION_FIELD);
         objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
                 new ParseField("get"));
 
@@ -928,7 +925,7 @@ public class HttpClient extends AbstractClient {
 
     protected void processIndicesExistsAction(final IndicesExistsAction action, final IndicesExistsRequest request,
             final ActionListener<IndicesExistsResponse> listener) {
-        getCurlRequest(HEAD, "", request.indices()).execute(response -> {
+        getCurlRequest(GET, "", request.indices()).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {
             case 200:
@@ -947,7 +944,6 @@ public class HttpClient extends AbstractClient {
                 listener.onFailure(e);
             }
         }, listener::onFailure);
-
     }
 
     protected void processIndicesAliasesAction(final IndicesAliasesAction action, final IndicesAliasesRequest request,
@@ -1297,7 +1293,6 @@ public class HttpClient extends AbstractClient {
             buf.append('/').append(String.join(",", indices));
         }
         buf.append(path);
-        // logger.info("url : " + buf.toString());
         // TODO other request headers
         // TODO threadPool
         return method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(ForkJoinPool.commonPool());

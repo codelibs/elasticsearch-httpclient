@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.codelibs.curl.CurlException;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -109,10 +110,11 @@ public class HttpClientTest {
 
     @Test
     void test_refresh() throws InterruptedException {
-
+        final String index = "test_refresh";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("refresh").execute().actionGet();
-        client.admin().indices().prepareRefresh("refresh").execute(wrap(res -> {
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareRefresh(index).execute(wrap(res -> {
             assertEquals(res.getStatus(), RestStatus.OK);
             latch.countDown();
         }, e -> {
@@ -123,18 +125,18 @@ public class HttpClientTest {
         latch.await();
 
         {
-            RefreshResponse res = client.admin().indices().prepareRefresh("refresh").execute().actionGet();
-            assertEquals(res.getStatus(), RestStatus.OK);
+            RefreshResponse refreshResponse = client.admin().indices().prepareRefresh(index).execute().actionGet();
+            assertEquals(refreshResponse.getStatus(), RestStatus.OK);
         }
-
     }
 
     @Test
     void test_search() throws InterruptedException {
+        final String index = "test_search";
         CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
 
-        client.admin().indices().prepareCreate("test").execute().actionGet();
-        client.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
+        client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
             assertEquals(0, res.getHits().getTotalHits());
             latch.countDown();
         }, e -> {
@@ -145,17 +147,18 @@ public class HttpClientTest {
         latch.await();
 
         {
-            SearchResponse res = client.prepareSearch("test").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
-            assertEquals(0, res.getHits().getTotalHits());
+            SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+            assertEquals(0, searchResponse.getHits().getTotalHits());
         }
-
     }
 
     @Test
     void test_create_index() throws InterruptedException {
-
+        final String index1 = "test_create_index1";
+        final String index2 = "test_create_index2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("create_index1").execute(wrap(res -> {
+
+        client.admin().indices().prepareCreate(index1).execute(wrap(res -> {
             assertTrue(res.isAcknowledged());
             latch.countDown();
         }, e -> {
@@ -166,18 +169,19 @@ public class HttpClientTest {
         latch.await();
 
         {
-            CreateIndexResponse res = client.admin().indices().prepareCreate("create_index2").execute().actionGet();
-            assertTrue(res.isAcknowledged());
+            CreateIndexResponse createIndexResponse = client.admin().indices().prepareCreate(index2).execute().actionGet();
+            assertTrue(createIndexResponse.isAcknowledged());
         }
-
     }
 
     @Test
     void test_delete_index() throws InterruptedException {
-
+        final String index1 = "test_delete_index1";
+        final String index2 = "test_delete_index2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("delete_index1").execute().actionGet();
-        client.admin().indices().prepareDelete("delete_index1").execute(wrap(res -> {
+        client.admin().indices().prepareCreate(index1).execute().actionGet();
+
+        client.admin().indices().prepareDelete(index1).execute(wrap(res -> {
             assertTrue(res.isAcknowledged());
             latch.countDown();
         }, e -> {
@@ -188,16 +192,17 @@ public class HttpClientTest {
         latch.await();
 
         {
-            client.admin().indices().prepareCreate("delete_index2").execute().actionGet();
-            DeleteIndexResponse res = client.admin().indices().prepareDelete("delete_index2").execute().actionGet();
-            assertTrue(res.isAcknowledged());
+            client.admin().indices().prepareCreate(index2).execute().actionGet();
+            DeleteIndexResponse deleteIndexResponse = client.admin().indices().prepareDelete(index2).execute().actionGet();
+            assertTrue(deleteIndexResponse.isAcknowledged());
         }
-
     }
 
     @Test
-    void test_get_index() throws Exception {
-        String index = "get_index";
+    void test_get_index() throws IOException, InterruptedException {
+        final String index = "test_get_index";
+        final String type = "test_type";
+        final String alias = "test_alias";
         final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
                 .startObject()//
                 .startObject("properties")//
@@ -206,11 +211,12 @@ public class HttpClientTest {
                 .endObject()//
                 .endObject()//
                 .endObject();
-        String source = BytesReference.bytes(mappingBuilder).utf8ToString();
+        final String source = BytesReference.bytes(mappingBuilder).utf8ToString();
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
-        client.admin().indices().prepareAliases().addAlias(index, "test_alias").execute().actionGet();
-        client.admin().indices().preparePutMapping(index).setType("test_type").setSource(source, XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setType(type).setSource(source, XContentType.JSON).execute().actionGet();
+
         client.admin().indices().prepareGetIndex().addIndices(index).execute(wrap(res -> {
             assertEquals(index, res.getIndices()[0]);
             assertTrue(res.getAliases().containsKey(index));
@@ -225,21 +231,22 @@ public class HttpClientTest {
         latch.await();
 
         {
-            GetIndexResponse res = client.admin().indices().prepareGetIndex().addIndices(index).execute().actionGet();
-            assertEquals(index, res.getIndices()[0]);
-            assertTrue(res.getAliases().containsKey(index));
-            assertTrue(res.getMappings().containsKey(index));
-            assertTrue(res.getSettings().containsKey(index));
+            GetIndexResponse getIndexResponse = client.admin().indices().prepareGetIndex().addIndices(index).execute().actionGet();
+            assertEquals(index, getIndexResponse.getIndices()[0]);
+            assertTrue(getIndexResponse.getAliases().containsKey(index));
+            assertTrue(getIndexResponse.getMappings().containsKey(index));
+            assertTrue(getIndexResponse.getSettings().containsKey(index));
         }
-
     }
 
     @Test
     void test_open_index() throws InterruptedException {
-
+        final String index1 = "test_open_index1";
+        final String index2 = "test_open_index2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("open_index1").execute().actionGet();
-        client.admin().indices().prepareOpen("open_index1").execute(wrap(res -> {
+        client.admin().indices().prepareCreate(index1).execute().actionGet();
+
+        client.admin().indices().prepareOpen(index1).execute(wrap(res -> {
             assertTrue(res.isAcknowledged());
             latch.countDown();
         }, e -> {
@@ -250,19 +257,20 @@ public class HttpClientTest {
         latch.await();
 
         {
-            client.admin().indices().prepareCreate("open_index2").execute().actionGet();
-            OpenIndexResponse res = client.admin().indices().prepareOpen("open_index2").execute().actionGet();
-            assertTrue(res.isAcknowledged());
+            client.admin().indices().prepareCreate(index2).execute().actionGet();
+            OpenIndexResponse openIndexResponse = client.admin().indices().prepareOpen(index2).execute().actionGet();
+            assertTrue(openIndexResponse.isAcknowledged());
         }
-
     }
 
     @Test
     void test_close_index() throws InterruptedException {
-
+        final String index1 = "test_close_index1";
+        final String index2 = "test_close_index2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("close_index1").execute().actionGet();
-        client.admin().indices().prepareClose("close_index1").execute(wrap(res -> {
+        client.admin().indices().prepareCreate(index1).execute().actionGet();
+
+        client.admin().indices().prepareClose(index1).execute(wrap(res -> {
             assertTrue(res.isAcknowledged());
             latch.countDown();
         }, e -> {
@@ -273,19 +281,20 @@ public class HttpClientTest {
         latch.await();
 
         {
-            client.admin().indices().prepareCreate("close_index2").execute().actionGet();
-            CloseIndexResponse res = client.admin().indices().prepareClose("close_index2").execute().actionGet();
-            assertTrue(res.isAcknowledged());
+            client.admin().indices().prepareCreate(index2).execute().actionGet();
+            CloseIndexResponse closeIndexResponse = client.admin().indices().prepareClose(index2).execute().actionGet();
+            assertTrue(closeIndexResponse.isAcknowledged());
         }
-
     }
 
     @Test
     void test_indices_exists() throws InterruptedException {
-
+        final String index1 = "test_indices_exists1";
+        final String index2 = "test_indices_exists2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("indices_exists").execute().actionGet();
-        client.admin().indices().prepareExists("indices_exists").execute(wrap(res -> {
+        client.admin().indices().prepareCreate(index1).execute().actionGet();
+
+        client.admin().indices().prepareExists(index1).execute(wrap(res -> {
             assertTrue(res.isExists());
             latch.countDown();
         }, e -> {
@@ -296,20 +305,22 @@ public class HttpClientTest {
         latch.await();
 
         {
-            IndicesExistsResponse res = client.admin().indices().prepareExists("indices_exists").execute().actionGet();
-            assertTrue(res.isExists());
-            res = client.admin().indices().prepareExists("indices_exists_not").execute().actionGet();
-            assertTrue(!res.isExists());
+            IndicesExistsResponse indicesExistsResponse = client.admin().indices().prepareExists(index1).execute().actionGet();
+            assertTrue(indicesExistsResponse.isExists());
+            indicesExistsResponse = client.admin().indices().prepareExists(index2).execute().actionGet();
+            assertFalse(indicesExistsResponse.isExists());
         }
-
     }
 
     @Test
     void test_indices_aliases() throws InterruptedException {
-
+        final String index = "test_indices_aliases";
+        final String alias1 = "test_alias1";
+        final String alias2 = "test_alias2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("indices_aliases").execute().actionGet();
-        client.admin().indices().prepareAliases().addAlias("indices_aliases", "test_alias1").execute(wrap(res -> {
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareAliases().addAlias(index, alias1).execute(wrap(res -> {
             assertTrue(res.isAcknowledged());
             latch.countDown();
         }, e -> {
@@ -320,59 +331,50 @@ public class HttpClientTest {
         latch.await();
 
         {
-            IndicesAliasesResponse res =
-                    client.admin().indices().prepareAliases().addAlias("indices_aliases", "test_alias2").execute().actionGet();
-            assertTrue(res.isAcknowledged());
+            IndicesAliasesResponse indicesAliasesResponse =
+                    client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
+            assertTrue(indicesAliasesResponse.isAcknowledged());
         }
-
     }
 
     @Test
-    void test_put_mapping() throws Exception {
-        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
-                .startObject()//
-                .startObject("properties")//
-                .startObject("test_prop")//
-                .field("type", "text")//
-                .endObject()//
-                .endObject()//
-                .endObject();
-        String source = BytesReference.bytes(mappingBuilder).utf8ToString();
+    void test_put_mapping() throws IOException, InterruptedException {
+        final String index1 = "test_put_mapping1";
+        final String index2 = "test_put_mapping2";
+        final String type = "test_type";
+        final XContentBuilder mappingBuilder =
+                XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("test_prop").field("type", "text")
+                        .endObject().endObject().endObject();
+        final String source = BytesReference.bytes(mappingBuilder).utf8ToString();
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate("put_mapping1").execute().actionGet();
-        client.admin().indices().preparePutMapping("put_mapping1").setType("test_type").setSource(source, XContentType.JSON)
-                .execute(wrap(res -> {
-                    assertTrue(res.isAcknowledged());
-                    latch.countDown();
-                }, e -> {
-                    e.printStackTrace();
-                    assertTrue(false);
-                    latch.countDown();
-                }));
+        client.admin().indices().prepareCreate(index1).execute().actionGet();
+
+        client.admin().indices().preparePutMapping(index1).setType(type).setSource(source, XContentType.JSON).execute(wrap(res -> {
+            assertTrue(res.isAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
         latch.await();
 
         {
-            client.admin().indices().prepareCreate("put_mapping2").execute().actionGet();
-            PutMappingResponse res =
-                    client.admin().indices().preparePutMapping("put_mapping2").setType("test_type").setSource(source, XContentType.JSON)
-                            .execute().actionGet();
-            assertTrue(res.isAcknowledged());
+            client.admin().indices().prepareCreate(index2).execute().actionGet();
+            PutMappingResponse putMappingResponse =
+                    client.admin().indices().preparePutMapping(index2).setType(type).setSource(source, XContentType.JSON).execute()
+                            .actionGet();
+            assertTrue(putMappingResponse.isAcknowledged());
         }
-
     }
 
     @Test
     void test_get_mappings() throws Exception {
-        String index = "get_mappings1";
-        String type = "test_type";
-        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
-                .startObject()//
-                .startObject("properties")//
-                .startObject("test_prop")//
-                .field("type", "text")//
-                .endObject()//
-                .endObject()//
-                .endObject();
+        final String index = "test_get_mappings1";
+        final String type = "test_type";
+        final XContentBuilder mappingBuilder =
+                XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("test_prop").field("type", "text")
+                        .endObject().endObject().endObject();
         String source = BytesReference.bytes(mappingBuilder).utf8ToString();
         Map<String, Object> mappingMap = XContentHelper.convertToMap(BytesReference.bytes(mappingBuilder), true, XContentType.JSON).v2();
         MappingMetaData mappingMetaData = new MappingMetaData(type, mappingMap);
@@ -394,8 +396,8 @@ public class HttpClientTest {
         latch.await();
 
         {
-            GetMappingsResponse res = client.admin().indices().prepareGetMappings(index).execute().actionGet();
-            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = res.getMappings();
+            GetMappingsResponse getMappingsResponse = client.admin().indices().prepareGetMappings(index).execute().actionGet();
+            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = getMappingsResponse.getMappings();
             assertTrue(mappings.containsKey(index));
             assertTrue(mappings.get(index).containsKey(type));
             assertEquals(mappings.get(index).get(type), mappingMetaData);
@@ -404,7 +406,7 @@ public class HttpClientTest {
 
     @Test
     void test_flush() throws Exception {
-        String index = "flush";
+        final String index = "test_flush";
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
 
@@ -425,13 +427,10 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_scroll() throws Exception {
-
-        CountDownLatch latch = new CountDownLatch(1);
+    void test_scroll() throws IOException, InterruptedException {
         final long NUM = 2;
         final String index = "test_scroll";
         final String type = "test_type";
-
         final BulkRequestBuilder bulkRequestBuilder1 = client.prepareBulk();
         for (int i = 1; i <= NUM; i++) {
             bulkRequestBuilder1.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
@@ -439,11 +438,9 @@ public class HttpClientTest {
         }
         bulkRequestBuilder1.execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
-
         SearchResponse scrollResponse =
                 client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).setScroll(new TimeValue(60000)).setSize(1).execute()
                         .actionGet();
-
         String id = scrollResponse.getScrollId();
         SearchHit[] hits = scrollResponse.getHits().getHits();
         while (hits.length != 0) {
@@ -452,23 +449,17 @@ public class HttpClientTest {
             hits = scrollResponse.getHits().getHits();
         }
 
-        // Test CrealScroll
-        ClearScrollResponse res = client.prepareClearScroll().addScrollId(id).execute().actionGet();
-        assertEquals(res.status(), RestStatus.OK);
-
-        final BulkRequestBuilder bulkRequestBuilder2 = client.prepareBulk();
-        for (int i = 1; i <= NUM; i++) {
-            bulkRequestBuilder2.add(client.prepareDelete(index, type, String.valueOf(i)));
-        }
-        bulkRequestBuilder2.execute().actionGet();
+        // Test CrealScroll API
+        ClearScrollResponse clearScrollResponse = client.prepareClearScroll().addScrollId(id).execute().actionGet();
+        assertTrue(clearScrollResponse.isSucceeded());
     }
 
     @Test
-    void test_multi_search() throws Exception {
-
+    void test_multi_search() throws IOException, InterruptedException {
+        final SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
+        final SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "test")).setSize(1);
         CountDownLatch latch = new CountDownLatch(1);
-        SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
-        SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "test")).setSize(1);
+
         try {
             client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
                 long nbHits = 0;
@@ -499,9 +490,8 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_crud0() throws Exception {
-
-        final String index = "test_index";
+    void test_crud0() throws IOException {
+        final String index = "test_crud_index";
         final String type = "test_type";
         final String id = "1";
 
@@ -534,14 +524,13 @@ public class HttpClientTest {
         assertEquals(RestStatus.OK, deleteResponse.status());
 
         // check the document deleted
-        assertThrows(CurlException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
+        assertThrows(ElasticsearchException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
         // final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet(); // CurlException
         // assertFalse(getResponse.isExists());
     }
 
     @Test
-    void test_crud1() throws Exception {
-
+    void test_crud1() throws IOException {
         final long NUM = 10;
         final String index = "test_bulk_multi";
         final String type = "test_type";
@@ -554,7 +543,6 @@ public class HttpClientTest {
         }
         final BulkResponse bulkResponse1 = bulkRequestBuilder1.execute().actionGet();
         assertFalse(bulkResponse1.hasFailures());
-
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         // Search the documents
@@ -588,17 +576,17 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_explain() throws Exception {
-
-        CountDownLatch latch = new CountDownLatch(1);
+    void test_explain() throws IOException, InterruptedException {
         final String index = "test_explain";
         final String type = "test_type";
         final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
         client.prepareIndex(index, type, id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
                         XContentType.JSON).execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
+
         client.prepareExplain(index, type, id).setQuery(QueryBuilders.termQuery("text", "test")).execute(wrap(res -> {
             assertTrue(res.hasExplanation());
             latch.countDown();
@@ -614,7 +602,6 @@ public class HttpClientTest {
                     client.prepareExplain(index, type, id).setQuery(QueryBuilders.termQuery("text", "test")).execute().actionGet();
             assertTrue(explainRespose.hasExplanation());
         }
-
     }
 
     /*
@@ -636,29 +623,4 @@ public class HttpClientTest {
         //        FieldCapabilitiesResponse response = client.prepareFieldCaps().setFields("rating").execute().actionGet();
     }
     */
-
-    void test_index() throws Exception {
-    }
-
-    void test_get() throws Exception {
-    }
-
-    void test_multi_get() throws Exception {
-    }
-
-    void test_update() throws Exception {
-    }
-
-    void test_delete() throws Exception {
-    }
-
-    void test_bulk() throws Exception {
-    }
-
-    void test_term_vectors() throws Exception {
-    }
-
-    void test_multi_term_vectors() throws Exception {
-    }
-
 }
