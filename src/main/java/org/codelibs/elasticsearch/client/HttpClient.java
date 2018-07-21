@@ -18,6 +18,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.logging.Logger;
 
 import org.apache.lucene.search.Explanation;
 import org.codelibs.curl.Curl;
@@ -132,6 +133,8 @@ import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 public class HttpClient extends AbstractClient {
 
+    static final Logger logger = Logger.getLogger(HttpClient.class.getName());
+
     protected static final ParseField SHARD_FIELD = new ParseField("shard");
 
     protected static final ParseField INDEX_FIELD = new ParseField("index");
@@ -164,21 +167,23 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
 
-    protected static final ParseField _INDEX = new ParseField("_index");
+    protected static final ParseField _INDEX_FIELD = new ParseField("_index");
 
-    protected static final ParseField _TYPE = new ParseField("_type");
+    protected static final ParseField _TYPE_FIELD = new ParseField("_type");
 
-    protected static final ParseField _ID = new ParseField("_id");
+    protected static final ParseField _ID_FIELD = new ParseField("_id");
 
-    protected static final ParseField MATCHED = new ParseField("matched");
+    protected static final ParseField _ROUTING_FIELD = new ParseField("_routing");
 
-    protected static final ParseField EXPLANATION = new ParseField("explanation");
+    protected static final ParseField _VERSION_FIELD = new ParseField("_version");
 
-    protected static final ParseField VALUE = new ParseField("value");
+    protected static final ParseField EXPLANATION_FIELD = new ParseField("explanation");
 
-    protected static final ParseField DESCRIPTION = new ParseField("description");
+    protected static final ParseField VALUE_FIELD = new ParseField("value");
 
-    protected static final ParseField DETAILS = new ParseField("details");
+    protected static final ParseField DESCRIPTION_FIELD = new ParseField("description");
+
+    protected static final ParseField DETAILS_FIELD = new ParseField("details");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -302,6 +307,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
             processSearchScrollAction((SearchScrollAction) action, (SearchScrollRequest) request, actionListener);
+        } else if (IndexAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.index.IndexAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<IndexResponse> actionListener = (ActionListener<IndexResponse>) listener;
+            processIndexAction((IndexAction) action, (IndexRequest) request, actionListener);
         } else if (FieldCapabilitiesAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction)
             @SuppressWarnings("unchecked")
@@ -398,6 +408,7 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
             // org.elasticsearch.action.main.MainAction
+
             throw new UnsupportedOperationException("Action: " + action.name());
         }
     }
@@ -485,8 +496,6 @@ public class HttpClient extends AbstractClient {
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-
-                // TODO: implementing getFieldCapabilitiesResponsefromXContent()
                 final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponsefromXContent(parser);
                 listener.onResponse(fieldCapabilitiesResponse);
             } catch (final Exception e) {
@@ -629,135 +638,25 @@ public class HttpClient extends AbstractClient {
     }
 
     protected String getStringfromDocWriteRequest(DocWriteRequest<?> request) {
-        // TODO version and routing
-        return "{" + request.opType().getLowercase() + "{" + _INDEX + ":" + request.index() + "," + _TYPE + ":" + request.type() + ","
-                + _ID + ":" + request.id() + "}}";
+        return "{\"" + request.opType().getLowercase() + "\":" + "{\"" + _INDEX_FIELD + "\":\"" + request.index() + "\",\"" + _TYPE_FIELD
+                + "\":\"" + request.type() + "\",\"" + _ID_FIELD + "\":\"" + request.id() + "\",\"" + _ROUTING_FIELD + "\":\""
+                + request.routing() + "\",\"" + _VERSION_FIELD + "\":\"" + request.version() + "\"}}";
     }
 
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
-        getCurlRequest(GET, "/" + request.type() + "/" + request.id()).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final GetResponse getResponse = GetResponse.fromXContent(parser);
-                listener.onResponse(getResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
-    }
-
-    protected void processIndexAction(final IndexAction action, final IndexRequest request, final ActionListener<IndexResponse> listener) {
-        String source = null;
-
-        try {
-            source = XContentHelper.convertToJson(request.source(), false, XContentType.JSON);
-        } catch (IOException e) {
-            throw new ElasticsearchException("Failed to parse a request.", e);
-        }
-
-        getCurlRequest(PUT, "/" + request.type() + "/" + request.id()).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
-                listener.onResponse(indexResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
-    }
-
-    protected void processUpdateAction(final UpdateAction action, final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
-        String source = null;
-        try {
-            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
-            source = BytesReference.bytes(builder).utf8ToString();
-        } catch (IOException e) {
-            throw new ElasticsearchException("Failed to parse a request.", e);
-        }
-        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update").body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
-                listener.onResponse(updateResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
-    }
-
-    protected void processExplainAction(final ExplainAction action, final ExplainRequest request,
-            final ActionListener<ExplainResponse> listener) {
-        String source = null;
-        try {
-            XContentBuilder builder =
-                    XContentFactory.jsonBuilder().startObject().field(QUERY_FIELD.getPreferredName(), request.query()).endObject();
-            source = BytesReference.bytes(builder).utf8ToString();
-        } catch (IOException e) {
-            throw new ElasticsearchException("Failed to parse a request.", e);
-        }
-        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain").body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final ExplainResponse explainResponse = getExplainResponsefromXContent(parser);
-                listener.onResponse(explainResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
-    }
-
-    protected ExplainResponse getExplainResponsefromXContent(XContentParser parser) {
-
-        final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
-                new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
-                        (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
-
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID);
-        final ConstructingObjectParser<Explanation, Boolean> explanationParser =
-                new ConstructingObjectParser<>("explanation", true, arg -> {
-                    if ((float) arg[0] > 0) {
-                        return Explanation.match((float) arg[0], (String) arg[1], (Collection<Explanation>) arg[2]);
-                    } else {
-                        return Explanation.noMatch((String) arg[1], (Collection<Explanation>) arg[2]);
+        getCurlRequest(GET, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .param("preference", request.preference()).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final GetResponse getResponse = GetResponse.fromXContent(parser);
+                        listener.onResponse(getResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
                     }
-                });
-        explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE);
-        explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION);
-        explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
-                new ParseField("get"));
-
-        return objectParser.apply(parser, true);
-    }
-
-    protected void processDeleteAction(final DeleteAction action, final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
-        getCurlRequest(DELETE, "/" + request.type() + "/" + request.id()).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
-                listener.onResponse(deleteResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                }, listener::onFailure);
     }
 
     protected void processMultiGetAction(final MultiGetAction action, final MultiGetRequest request,
@@ -781,6 +680,124 @@ public class HttpClient extends AbstractClient {
                 listener.onFailure(e);
             }
         }, listener::onFailure);
+    }
+
+    protected void processIndexAction(final IndexAction action, final IndexRequest request, final ActionListener<IndexResponse> listener) {
+        String source = null;
+
+        try {
+            source = XContentHelper.convertToJson(request.source(), false, XContentType.JSON);
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+
+        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+        //.param("op_type", "create")
+                .body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
+                        listener.onResponse(indexResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected void processUpdateAction(final UpdateAction action, final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
+        String source = null;
+        try {
+            XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+
+        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index()).param("routing", request.routing())
+                .param("retry_on_conflict", String.valueOf(request.retryOnConflict())).param("version", String.valueOf(request.version()))
+                .body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
+                        listener.onResponse(updateResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected void processExplainAction(final ExplainAction action, final ExplainRequest request,
+            final ActionListener<ExplainResponse> listener) {
+        String source = null;
+        try {
+            XContentBuilder builder =
+                    XContentFactory.jsonBuilder().startObject().field(QUERY_FIELD.getPreferredName(), request.query()).endObject();
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index()).param("routing", request.routing())
+                .param("preference", request.preference()).body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final ExplainResponse explainResponse = getExplainResponsefromXContent(parser);
+                        listener.onResponse(explainResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected ExplainResponse getExplainResponsefromXContent(XContentParser parser) {
+
+        final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
+                new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
+                        (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
+
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID_FIELD);
+        final ConstructingObjectParser<Explanation, Boolean> explanationParser =
+                new ConstructingObjectParser<>("explanation", true, arg -> {
+                    if ((float) arg[0] > 0) {
+                        return Explanation.match((float) arg[0], (String) arg[1], (Collection<Explanation>) arg[2]);
+                    } else {
+                        return Explanation.noMatch((String) arg[1], (Collection<Explanation>) arg[2]);
+                    }
+                });
+        explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE_FIELD);
+        explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION_FIELD);
+        explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
+                new ParseField("get"));
+
+        return objectParser.apply(parser, true);
+    }
+
+    protected void processDeleteAction(final DeleteAction action, final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
+        getCurlRequest(DELETE, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .param("version", String.valueOf(request.version())).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
+                        listener.onResponse(deleteResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processCreateIndexAction(final CreateIndexAction action, final CreateIndexRequest request,
@@ -875,7 +892,8 @@ public class HttpClient extends AbstractClient {
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final RefreshResponse refreshResponse = getResponseFromXContent(parser, action::newResponse);
+                //                final RefreshResponse refreshResponse = getResponseFromXContent(parser);
+                final RefreshResponse refreshResponse = RefreshResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -884,7 +902,11 @@ public class HttpClient extends AbstractClient {
     }
 
     protected void processSearchAction(final SearchAction action, final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        getCurlRequest(POST, "/_search", request.indices())
+        getCurlRequest(POST,
+                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
+                request.indices())
+                .param("scroll",
+                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
                 .execute(response -> {
@@ -903,7 +925,7 @@ public class HttpClient extends AbstractClient {
 
     protected void processIndicesExistsAction(final IndicesExistsAction action, final IndicesExistsRequest request,
             final ActionListener<IndicesExistsResponse> listener) {
-        getCurlRequest(HEAD, "", request.indices()).execute(response -> {
+        getCurlRequest(GET, "", request.indices()).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {
             case 200:
@@ -922,7 +944,6 @@ public class HttpClient extends AbstractClient {
                 listener.onFailure(e);
             }
         }, listener::onFailure);
-
     }
 
     protected void processIndicesAliasesAction(final IndicesAliasesAction action, final IndicesAliasesRequest request,
@@ -999,7 +1020,8 @@ public class HttpClient extends AbstractClient {
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final FlushResponse flushResponse = getResponseFromXContent(parser, action::newResponse);
+                        //                        final FlushResponse flushResponse = getResponseFromXContent(parser, action::newResponse);
+                        final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
                         listener.onResponse(flushResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
