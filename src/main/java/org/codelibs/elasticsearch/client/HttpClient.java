@@ -97,6 +97,9 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.main.MainAction;
+import org.elasticsearch.action.main.MainRequest;
+import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.action.search.ClearScrollAction;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.ClearScrollResponse;
@@ -371,9 +374,13 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<ForceMergeResponse> actionListener = (ActionListener<ForceMergeResponse>) listener;
             processForceMergeAction((ForceMergeAction) action, (ForceMergeRequest) request, actionListener);
+        } else if (MainAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.main.MainAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<MainResponse> actionListener = (ActionListener<MainResponse>) listener;
+            processMainAction((MainAction) action, (MainRequest) request, actionListener);
         } else {
 
-            // org.elasticsearch.action.main.MainAction
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
@@ -434,6 +441,22 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processMainAction(final MainAction action, final MainRequest request, final ActionListener<MainResponse> listener) {
+
+        getCurlRequest(GET, "/_xpack").execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final MainResponse mainResponse = MainResponse.fromXContent(parser);
+                listener.onResponse(mainResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
     }
 
     protected void processUpdateSettingsAction(final UpdateSettingsAction action, final UpdateSettingsRequest request,
