@@ -66,6 +66,9 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -347,9 +350,13 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<ExplainResponse> actionListener = (ActionListener<ExplainResponse>) listener;
             processExplainAction((ExplainAction) action, (ExplainRequest) request, actionListener);
+        } else if (UpdateSettingsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<UpdateSettingsResponse> actionListener = (ActionListener<UpdateSettingsResponse>) listener;
+            processUpdateSettingsAction((UpdateSettingsAction) action, (UpdateSettingsRequest) request, actionListener);
         } else {
 
-            // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
             // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
             // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
             // org.elasticsearch.action.main.MainAction
@@ -413,6 +420,30 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processUpdateSettingsAction(final UpdateSettingsAction action, final UpdateSettingsRequest request,
+            final ActionListener<UpdateSettingsResponse> listener) {
+        String source = null;
+        try {
+            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(PUT, "/_settings", request.indices()).param("preserve_existing", String.valueOf(request.isPreserveExisting()))
+                .body(source).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);
+                        listener.onResponse(updateSettingsResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processClearScrollAction(final ClearScrollAction action, final ClearScrollRequest request,

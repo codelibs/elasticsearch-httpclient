@@ -26,6 +26,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -645,6 +646,37 @@ public class HttpClientTest {
             assertEquals(capabilities1.indices().length, 1);
             final FieldCapabilities capabilities2 = fieldCapabilitiesResponse.getField(field1).get("text");
             assertEquals(capabilities2.indices().length, 1);
+        }
+    }
+
+    @Test
+    void test_update_settings() throws Exception {
+        final String index = "test_update_settings";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareUpdateSettings(index).setSettings(Settings.builder().put("index.number_of_replicas", 0))
+                .execute(wrap(res -> {
+                    assertTrue(res.isAcknowledged());
+                    latch.countDown();
+                }, e -> {
+                    e.printStackTrace();
+                    assertTrue(false);
+                    latch.countDown();
+                }));
+        latch.await();
+
+        {
+            UpdateSettingsResponse updateSettingsResponse =
+                    client.admin().indices().prepareUpdateSettings(index)
+                            .setSettings(Settings.builder().put("index.number_of_replicas", 0)).execute().actionGet();
+            assertTrue(updateSettingsResponse.isAcknowledged());
         }
     }
 }
