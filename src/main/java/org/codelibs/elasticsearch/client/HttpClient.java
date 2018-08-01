@@ -69,6 +69,12 @@ import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -355,10 +361,18 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<UpdateSettingsResponse> actionListener = (ActionListener<UpdateSettingsResponse>) listener;
             processUpdateSettingsAction((UpdateSettingsAction) action, (UpdateSettingsRequest) request, actionListener);
+        } else if (GetSettingsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetSettingsResponse> actionListener = (ActionListener<GetSettingsResponse>) listener;
+            processGetSettingsAction((GetSettingsAction) action, (GetSettingsRequest) request, actionListener);
+        } else if (ForceMergeAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ForceMergeResponse> actionListener = (ActionListener<ForceMergeResponse>) listener;
+            processForceMergeAction((ForceMergeAction) action, (ForceMergeRequest) request, actionListener);
         } else {
 
-            // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
-            // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
             // org.elasticsearch.action.main.MainAction
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
@@ -431,6 +445,7 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
+
         getCurlRequest(PUT, "/_settings", request.indices()).param("preserve_existing", String.valueOf(request.isPreserveExisting()))
                 .body(source).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
@@ -440,6 +455,90 @@ public class HttpClient extends AbstractClient {
                         final XContentParser parser = createParser(in);
                         final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);
                         listener.onResponse(updateSettingsResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected void processGetSettingsAction(final GetSettingsAction action, final GetSettingsRequest request,
+            final ActionListener<GetSettingsResponse> listener) {
+        // TODO: Deal with  ElasticsearchException[Indices are not found: 400]
+        getCurlRequest(GET, "/_settings", request.indices()).param("human_readable", String.valueOf(request.humanReadable())).execute(
+                response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final GetSettingsResponse getSettingsResponse = getGetSettingsResponsefromXContent(parser);
+                        listener.onResponse(getSettingsResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected GetSettingsResponse getGetSettingsResponsefromXContent(final XContentParser parser) throws IOException {
+        final HashMap<String, Settings> indexToSettings = new HashMap<>();
+
+        if (parser.currentToken() == null) {
+            parser.nextToken();
+        }
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.currentToken(), parser::getTokenLocation);
+        parser.nextToken();
+
+        while (!parser.isClosed()) {
+            if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
+                parseIndexEntry(parser, indexToSettings);
+            } else if (parser.currentToken() == XContentParser.Token.START_ARRAY) {
+                parser.skipChildren();
+            } else {
+                parser.nextToken();
+            }
+        }
+
+        final ImmutableOpenMap<String, Settings> settingsMap =
+                ImmutableOpenMap.<String, Settings> builder().putAll(indexToSettings).build();
+
+        return new GetSettingsResponse(settingsMap);
+    }
+
+    protected void parseIndexEntry(final XContentParser parser, final Map<String, Settings> indexToSettings) throws IOException {
+        final String indexName = parser.currentName();
+        parser.nextToken();
+        while (!parser.isClosed() && parser.currentToken() != XContentParser.Token.END_OBJECT) {
+            parseSettingsField(parser, indexName, indexToSettings);
+        }
+    }
+
+    protected void parseSettingsField(final XContentParser parser, final String currentIndexName,
+            final Map<String, Settings> indexToSettings) throws IOException {
+
+        if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
+            if (SETTINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
+                indexToSettings.put(currentIndexName, Settings.fromXContent(parser));
+            } else {
+                parser.skipChildren();
+            }
+        } else if (parser.currentToken() == XContentParser.Token.START_ARRAY) {
+            parser.skipChildren();
+        }
+        parser.nextToken();
+    }
+
+    protected void processForceMergeAction(final ForceMergeAction action, final ForceMergeRequest request,
+            final ActionListener<ForceMergeResponse> listener) {
+        getCurlRequest(POST, "/_forcemerge", request.indices()).param("max_num_segments", String.valueOf(request.maxNumSegments()))
+                .param("only_expunge_deletes", String.valueOf(request.onlyExpungeDeletes()))
+                .param("flush", String.valueOf(request.flush())).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ForceMergeResponse forceMergeResponse = ForceMergeResponse.fromXContent(parser);
+                        listener.onResponse(forceMergeResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
                     }

@@ -27,6 +27,8 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -677,6 +679,62 @@ public class HttpClientTest {
                     client.admin().indices().prepareUpdateSettings(index)
                             .setSettings(Settings.builder().put("index.number_of_replicas", 0)).execute().actionGet();
             assertTrue(updateSettingsResponse.isAcknowledged());
+        }
+    }
+
+    // TODO: fix processGetSettingsAction
+    void test_get_settings() throws Exception {
+        final String index = "test_get_settings";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareGetSettings(index).execute(wrap(res -> {
+            assertTrue(res.getSetting(index, "index.number_of_shards") != null);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetSettingsResponse getSettingsResponse = client.admin().indices().prepareGetSettings(index).execute().actionGet();
+            assertTrue(getSettingsResponse.getSetting(index, "index.number_of_shards") != null);
+        }
+    }
+
+    @Test
+    void test_force_merge() throws Exception {
+        final String index = "test_force_merge";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareForceMerge(index).execute(wrap(res -> {
+            assertEquals(res.getStatus(), RestStatus.OK);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ForceMergeResponse forceMergeResponse = client.admin().indices().prepareForceMerge(index).execute().actionGet();
+            assertEquals(forceMergeResponse.getStatus(), RestStatus.OK);
         }
     }
 }
