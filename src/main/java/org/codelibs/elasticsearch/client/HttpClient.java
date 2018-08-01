@@ -489,7 +489,6 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    // TODO
     void processFieldCapabilitiesAction(final FieldCapabilitiesAction action, final FieldCapabilitiesRequest request,
             final ActionListener<FieldCapabilitiesResponse> listener) {
         getCurlRequest(GET, "/_field_caps?fields=" + String.join(",", request.fields()), request.indices()).execute(response -> {
@@ -531,7 +530,7 @@ public class HttpClient extends AbstractClient {
         final Class<FieldCapabilitiesResponse> clazz = FieldCapabilitiesResponse.class;
         final Class<?>[] types = { Map.class };
         try {
-            final Constructor<FieldCapabilitiesResponse> constructor = clazz.getConstructor(types);
+            final Constructor<FieldCapabilitiesResponse> constructor = clazz.getDeclaredConstructor(types);
             constructor.setAccessible(true);
             return constructor.newInstance(map);
         } catch (final Exception e) {
@@ -557,8 +556,9 @@ public class HttpClient extends AbstractClient {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<FieldCapabilities, String> objectParser =
                 new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> {
-                    return newFieldCapabilities(name, "test", true, true, (a[3] != null ? ((List<String>) a[3]).toArray(new String[0])
-                            : null), (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
+                    return newFieldCapabilities(name, (String) a[0], true, true,
+                            (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
+                            (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
                             (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null));
                 });
 
@@ -578,7 +578,7 @@ public class HttpClient extends AbstractClient {
         final Class<?>[] types =
                 { String.class, String.class, boolean.class, boolean.class, String[].class, String[].class, String[].class };
         try {
-            final Constructor<FieldCapabilities> constructor = clazz.getConstructor(types);
+            final Constructor<FieldCapabilities> constructor = clazz.getDeclaredConstructor(types);
             constructor.setAccessible(true);
             return constructor.newInstance(name, type, isSearchable, isAggregatable, indices, nonSearchableIndices, nonAggregatableIndices);
         } catch (final Exception e) {

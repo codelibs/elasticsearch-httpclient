@@ -41,6 +41,8 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilities;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -108,7 +110,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_refresh() throws InterruptedException {
+    void test_refresh() throws Exception {
         final String index = "test_refresh";
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
@@ -130,7 +132,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_search() throws InterruptedException {
+    void test_search() throws Exception {
         final String index = "test_search";
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
@@ -152,7 +154,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_create_index() throws InterruptedException {
+    void test_create_index() throws Exception {
         final String index1 = "test_create_index1";
         final String index2 = "test_create_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -174,7 +176,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_delete_index() throws InterruptedException {
+    void test_delete_index() throws Exception {
         final String index1 = "test_delete_index1";
         final String index2 = "test_delete_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -198,7 +200,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_get_index() throws IOException, InterruptedException {
+    void test_get_index() throws Exception {
         final String index = "test_get_index";
         final String type = "test_type";
         final String alias = "test_alias";
@@ -239,7 +241,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_open_index() throws InterruptedException {
+    void test_open_index() throws Exception {
         final String index1 = "test_open_index1";
         final String index2 = "test_open_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -263,7 +265,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_close_index() throws InterruptedException {
+    void test_close_index() throws Exception {
         final String index1 = "test_close_index1";
         final String index2 = "test_close_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -287,7 +289,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_indices_exists() throws InterruptedException {
+    void test_indices_exists() throws Exception {
         final String index1 = "test_indices_exists1";
         final String index2 = "test_indices_exists2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -312,7 +314,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_indices_aliases() throws InterruptedException {
+    void test_indices_aliases() throws Exception {
         final String index = "test_indices_aliases";
         final String alias1 = "test_alias1";
         final String alias2 = "test_alias2";
@@ -337,7 +339,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_put_mapping() throws IOException, InterruptedException {
+    void test_put_mapping() throws Exception {
         final String index1 = "test_put_mapping1";
         final String index2 = "test_put_mapping2";
         final String type = "test_type";
@@ -426,7 +428,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_scroll() throws IOException, InterruptedException {
+    void test_scroll() throws Exception {
         final long NUM = 2;
         final String index = "test_scroll";
         final String type = "test_type";
@@ -454,7 +456,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_multi_search() throws IOException, InterruptedException {
+    void test_multi_search() throws Exception {
         final SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
         final SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "test")).setSize(1);
         CountDownLatch latch = new CountDownLatch(1);
@@ -489,7 +491,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_crud0() throws IOException {
+    void test_crud0() throws Exception {
         final String index = "test_crud_index";
         final String type = "test_type";
         final String id = "1";
@@ -529,7 +531,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_crud1() throws IOException {
+    void test_crud1() throws Exception {
         final long NUM = 10;
         final String index = "test_bulk_multi";
         final String type = "test_type";
@@ -575,7 +577,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_explain() throws IOException, InterruptedException {
+    void test_explain() throws Exception {
         final String index = "test_explain";
         final String type = "test_type";
         final String id = "1";
@@ -603,23 +605,46 @@ public class HttpClientTest {
         }
     }
 
-    /*
     @Test
     void test_field_caps() throws Exception {
+        final String index0 = "test_field_caps0";
+        final String index1 = "test_field_caps1";
+        final String type = "test_type";
+        final String id = "1";
+        final String field0 = "user";
+        final String field1 = "content";
         CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index0, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":1" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.prepareIndex(index1, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
 
-        client.prepareFieldCaps().setFields("rating", "keyword").execute(wrap(res -> {
-            // TODO
-                latch.countDown();
-            }, e -> {
-                e.printStackTrace();
-                assertTrue(false);
-                latch.countDown();
-            }));
+        client.admin().indices().prepareRefresh(index0).execute().actionGet();
+        client.admin().indices().prepareRefresh(index1).execute().actionGet();
+
+        client.prepareFieldCaps().setFields(field0).execute(wrap(res -> {
+            assertTrue(res.getField(field0) != null);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
         latch.await();
 
-        // TODO
-        //        FieldCapabilitiesResponse response = client.prepareFieldCaps().setFields("rating").execute().actionGet();
+        {
+            final FieldCapabilitiesResponse fieldCapabilitiesResponse =
+                    client.prepareFieldCaps().setFields(field0, field1).execute().actionGet();
+            final FieldCapabilities capabilities0 = fieldCapabilitiesResponse.getField(field0).get("text");
+            assertEquals(capabilities0.getName(), field0);
+            final FieldCapabilities capabilities1 = fieldCapabilitiesResponse.getField(field1).get("long");
+            assertEquals(capabilities1.indices().length, 1);
+            final FieldCapabilities capabilities2 = fieldCapabilitiesResponse.getField(field1).get("text");
+            assertEquals(capabilities2.indices().length, 1);
+        }
     }
-    */
 }
