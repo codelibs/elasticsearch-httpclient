@@ -443,9 +443,10 @@ public class HttpClient extends AbstractClient {
         }
     }
 
-    protected void processMainAction(final MainAction action, final MainRequest request, final ActionListener<MainResponse> listener) {
+    protected
 
-        getCurlRequest(GET, "/_xpack").execute(response -> {
+    protected void processMainAction(final MainAction action, final MainRequest request, final ActionListener<MainResponse> listener) {
+        getCurlRequest(POST, "/_xpack").execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
             }
@@ -486,20 +487,18 @@ public class HttpClient extends AbstractClient {
 
     protected void processGetSettingsAction(final GetSettingsAction action, final GetSettingsRequest request,
             final ActionListener<GetSettingsResponse> listener) {
-        // TODO: Deal with  ElasticsearchException[Indices are not found: 400]
-        getCurlRequest(GET, "/_settings", request.indices()).param("human_readable", String.valueOf(request.humanReadable())).execute(
-                response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
-                    }
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final GetSettingsResponse getSettingsResponse = getGetSettingsResponsefromXContent(parser);
-                        listener.onResponse(getSettingsResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(e);
-                    }
-                }, listener::onFailure);
+        getCurlRequest(GET, "/_settings", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetSettingsResponse getSettingsResponse = getGetSettingsResponsefromXContent(parser);
+                listener.onResponse(getSettingsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
     }
 
     protected GetSettingsResponse getGetSettingsResponsefromXContent(final XContentParser parser) throws IOException {
