@@ -46,6 +46,9 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.action.fieldcaps.FieldCapabilities;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.elasticsearch.action.main.MainAction;
+import org.elasticsearch.action.main.MainRequest;
+import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -682,7 +685,7 @@ public class HttpClientTest {
         }
     }
 
-    // TODO: fix processGetSettingsAction
+    @Test
     void test_get_settings() throws Exception {
         final String index = "test_get_settings";
         final String type = "test_type";
@@ -737,4 +740,14 @@ public class HttpClientTest {
             assertEquals(forceMergeResponse.getStatus(), RestStatus.OK);
         }
     }
+
+    // TODO:  [ERROR]org.elasticsearch.ElasticsearchException: Indices are not found: 400
+    void test_info() throws Exception {
+        {
+            MainResponse mainResponse = client.execute(MainAction.INSTANCE, new MainRequest()).actionGet();
+            assertTrue(mainResponse.isAvailable());
+        }
+    }
+
+
 }
