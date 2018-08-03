@@ -15,6 +15,8 @@ import java.util.logging.Logger;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse.Result;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -50,15 +52,18 @@ import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.junit.jupiter.api.AfterAll;
@@ -741,6 +746,31 @@ public class HttpClientTest {
         }
     }
 
+    @Test
+    void test_cluster_update_settings() throws Exception {
+        final ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest();
+        final String transientSettingKey = RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey();
+        final int transientSettingValue = 40000000;
+        final Settings transientSettings = Settings.builder().put(transientSettingKey, transientSettingValue, ByteSizeUnit.BYTES).build();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.admin().cluster().prepareUpdateSettings().setTransientSettings(transientSettings).execute(wrap(res -> {
+            assertTrue(res.isAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ClusterUpdateSettingsResponse clusterUpdateSettingsResponse =
+                    client.admin().cluster().prepareUpdateSettings().setTransientSettings(transientSettings).execute().actionGet();
+            assertTrue(clusterUpdateSettingsResponse.isAcknowledged());
+        }
+    }
+
     // TODO:  [ERROR]org.elasticsearch.ElasticsearchException: Indices are not found: 400
     void test_info() throws Exception {
         {
@@ -748,6 +778,4 @@ public class HttpClientTest {
             assertTrue(mainResponse.isAvailable());
         }
     }
-
-
 }

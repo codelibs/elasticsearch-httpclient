@@ -32,6 +32,9 @@ import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -379,6 +382,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<MainResponse> actionListener = (ActionListener<MainResponse>) listener;
             processMainAction((MainAction) action, (MainRequest) request, actionListener);
+        } else if (ClusterUpdateSettingsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ClusterUpdateSettingsResponse> actionListener = (ActionListener<ClusterUpdateSettingsResponse>) listener;
+            processClusterUpdateSettingsAction((ClusterUpdateSettingsAction) action, (ClusterUpdateSettingsRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
@@ -387,7 +395,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
             // org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction
-            // org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction
             // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
 
             // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
@@ -443,7 +450,29 @@ public class HttpClient extends AbstractClient {
         }
     }
 
-    protected
+    protected void processClusterUpdateSettingsAction(final ClusterUpdateSettingsAction action, final ClusterUpdateSettingsRequest request,
+            final ActionListener<ClusterUpdateSettingsResponse> listener) {
+        String source = null;
+        try {
+            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+
+        getCurlRequest(PUT, "/_cluster/settings").body(source).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ClusterUpdateSettingsResponse clusterUpdateSettingsResponse = ClusterUpdateSettingsResponse.fromXContent(parser);
+                listener.onResponse(clusterUpdateSettingsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
 
     protected void processMainAction(final MainAction action, final MainRequest request, final ActionListener<MainResponse> listener) {
         getCurlRequest(POST, "/_xpack").execute(response -> {
