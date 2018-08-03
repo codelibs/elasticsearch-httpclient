@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse.Result;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
@@ -52,7 +53,6 @@ import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
-import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -748,7 +748,6 @@ public class HttpClientTest {
 
     @Test
     void test_cluster_update_settings() throws Exception {
-        final ClusterUpdateSettingsRequest request = new ClusterUpdateSettingsRequest();
         final String transientSettingKey = RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey();
         final int transientSettingValue = 40000000;
         final Settings transientSettings = Settings.builder().put(transientSettingKey, transientSettingValue, ByteSizeUnit.BYTES).build();
@@ -768,6 +767,26 @@ public class HttpClientTest {
             ClusterUpdateSettingsResponse clusterUpdateSettingsResponse =
                     client.admin().cluster().prepareUpdateSettings().setTransientSettings(transientSettings).execute().actionGet();
             assertTrue(clusterUpdateSettingsResponse.isAcknowledged());
+        }
+    }
+
+    @Test
+    void test_cluster_health() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.admin().cluster().prepareHealth().execute(wrap(res -> {
+            assertEquals(res.getClusterName(), clusterName);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ClusterHealthResponse custerHealthResponse = client.admin().cluster().prepareHealth().execute().actionGet();
+            assertEquals(custerHealthResponse.getClusterName(), clusterName);
         }
     }
 

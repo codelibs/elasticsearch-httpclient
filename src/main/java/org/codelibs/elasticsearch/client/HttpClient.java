@@ -7,6 +7,7 @@ import static org.elasticsearch.rest.action.RestActions.SUCCESSFUL_FIELD;
 import static org.elasticsearch.rest.action.RestActions.TOTAL_FIELD;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -32,6 +33,9 @@ import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
@@ -121,6 +125,9 @@ import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.support.AbstractClient;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.cluster.health.ClusterIndexHealth;
+import org.elasticsearch.cluster.health.ClusterStateHealth;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.ParseField;
@@ -128,6 +135,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -151,54 +159,46 @@ public class HttpClient extends AbstractClient {
     protected static final Logger logger = Logger.getLogger(HttpClient.class.getName());
 
     protected static final ParseField SHARD_FIELD = new ParseField("shard");
-
     protected static final ParseField INDEX_FIELD = new ParseField("index");
-
     protected static final ParseField QUERY_FIELD = new ParseField("query");
-
     protected static final ParseField STATUS_FIELD = new ParseField("status");
-
     protected static final ParseField REASON_FIELD = new ParseField("reason");
-
     protected static final ParseField ACKNOWLEDGED_FIELD = new ParseField("acknowledged");
-
     protected static final ParseField ALIASES_FIELD = new ParseField("aliases");
-
     protected static final ParseField MAPPINGS_FIELD = new ParseField("mappings");
-
     protected static final ParseField FIELDS_FIELD = new ParseField("fields");
-
     protected static final ParseField SETTINGS_FIELD = new ParseField("settings");
-
     protected static final ParseField TYPE_FIELD = new ParseField("type");
-
     protected static final ParseField SEARCHABLE_FIELD = new ParseField("searchable");
-
     protected static final ParseField AGGREGATABLE_FIELD = new ParseField("aggregatable");
-
     protected static final ParseField INDICES_FIELD = new ParseField("indices");
-
     protected static final ParseField NON_SEARCHABLE_INDICES_FIELD = new ParseField("non_searchable_indices");
-
     protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
-
     protected static final ParseField _INDEX_FIELD = new ParseField("_index");
-
     protected static final ParseField _TYPE_FIELD = new ParseField("_type");
-
     protected static final ParseField _ID_FIELD = new ParseField("_id");
-
     protected static final ParseField _ROUTING_FIELD = new ParseField("_routing");
-
     protected static final ParseField _VERSION_FIELD = new ParseField("_version");
-
     protected static final ParseField EXPLANATION_FIELD = new ParseField("explanation");
-
     protected static final ParseField VALUE_FIELD = new ParseField("value");
-
     protected static final ParseField DESCRIPTION_FIELD = new ParseField("description");
-
     protected static final ParseField DETAILS_FIELD = new ParseField("details");
+    protected static final ParseField CLUSTER_NAME_FIELD = new ParseField("cluster_name");
+    protected static final ParseField TIMED_OUT_FIELD = new ParseField("timed_out");
+    protected static final ParseField NUMBER_OF_NODES_FIELD = new ParseField("number_of_nodes");
+    protected static final ParseField NUMBER_OF_DATA_NODES_FIELD = new ParseField("number_of_data_nodes");
+    protected static final ParseField NUMBER_OF_PENDING_TASKS_FIELD = new ParseField("number_of_pending_tasks");
+    protected static final ParseField NUMBER_OF_IN_FLIGHT_FETCH_FIELD = new ParseField("number_of_in_flight_fetch");
+    protected static final ParseField DELAYED_UNASSIGNED_SHARDS_FIELD = new ParseField("delayed_unassigned_shards");
+    protected static final ParseField TASK_MAX_WAIT_TIME_IN_QUEUE_FIELD = new ParseField("task_max_waiting_in_queue");
+    protected static final ParseField TASK_MAX_WAIT_TIME_IN_QUEUE_IN_MILLIS_FIELD = new ParseField("task_max_waiting_in_queue_millis");
+    protected static final ParseField ACTIVE_SHARDS_PERCENT_AS_NUMBER_FIELD = new ParseField("active_shards_percent_as_number");
+    protected static final ParseField ACTIVE_SHARDS_PERCENT_FIELD = new ParseField("active_shards_percent");
+    protected static final ParseField ACTIVE_PRIMARY_SHARDS_FIELD = new ParseField("active_primary_shards");
+    protected static final ParseField ACTIVE_SHARDS_FIELD = new ParseField("active_shards");
+    protected static final ParseField RELOCATING_SHARDS_FIELD = new ParseField("relocating_shards");
+    protected static final ParseField INITIALIZING_SHARDS_FIELD = new ParseField("initializing_shards");
+    protected static final ParseField UNASSIGNED_SHARDS_FIELD = new ParseField("unassigned_shards");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -387,10 +387,14 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<ClusterUpdateSettingsResponse> actionListener = (ActionListener<ClusterUpdateSettingsResponse>) listener;
             processClusterUpdateSettingsAction((ClusterUpdateSettingsAction) action, (ClusterUpdateSettingsRequest) request, actionListener);
+        } else if (ClusterHealthAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ClusterHealthResponse> actionListener = (ActionListener<ClusterHealthResponse>) listener;
+            processClusterHealthAction((ClusterHealthAction) action, (ClusterHealthRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
-            // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
             // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
@@ -448,6 +452,120 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processClusterHealthAction(final ClusterHealthAction action, final ClusterHealthRequest request,
+            final ActionListener<ClusterHealthResponse> listener) {
+        String wait_for_status = null;
+        try {
+            if (request.waitForStatus() != null) {
+                final ClusterHealthStatus clusterHealthStatus = ClusterHealthStatus.fromValue(request.waitForStatus().value());
+                wait_for_status = clusterHealthStatus.toString().toLowerCase();
+            }
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+
+        getCurlRequest(GET, "/_cluster/health" + (request.indices() == null ? "" : "/" + String.join(",", request.indices())))
+                .param("wait_for_status", wait_for_status)
+                .param("wait_for_no_relocating_shards", String.valueOf(request.waitForNoRelocatingShards()))
+                .param("wait_for_no_initializing_shards", String.valueOf(request.waitForNoInitializingShards()))
+                .param("wait_for_active_shards", (request.waitForActiveShards() == null ? null : request.waitForActiveShards().toString()))
+                .param("wait_for_nodes", request.waitForNodes())
+                .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponsefromXContent(parser);
+                        listener.onResponse(clusterHealthResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected ClusterHealthResponse getClusterHealthResponsefromXContent(final XContentParser parser) throws IOException {
+        final ConstructingObjectParser<ClusterHealthResponse, Void> objectParser =
+                new ConstructingObjectParser<>("cluster_health_response", true, parsedObjects -> {
+                    try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                        int i = 0;
+
+                        // ClusterStateHealth fields
+                        final int numberOfNodes = (int) parsedObjects[i++];
+                        final int numberOfDataNodes = (int) parsedObjects[i++];
+                        final int activeShards = (int) parsedObjects[i++];
+                        final int relocatingShards = (int) parsedObjects[i++];
+                        final int activePrimaryShards = (int) parsedObjects[i++];
+                        final int initializingShards = (int) parsedObjects[i++];
+                        final int unassignedShards = (int) parsedObjects[i++];
+                        final double activeShardsPercent = (double) parsedObjects[i++];
+                        final String statusStr = (String) parsedObjects[i++];
+                        final ClusterHealthStatus clusterHealthStatus = ClusterHealthStatus.fromString(statusStr);
+
+                        @SuppressWarnings("unchecked")
+                        final List<ClusterIndexHealth> indexList = null;
+                        final int indices_size = (indexList != null && !indexList.isEmpty() ? indexList.size() : 0);
+
+                        // ClusterHealthResponse fields
+                        final String clusterName = (String) parsedObjects[i++];
+                        final int numberOfPendingTasks = (int) parsedObjects[i++];
+                        final int numberOfInFlightFetch = (int) parsedObjects[i++];
+                        final int delayedUnassignedShards = (int) parsedObjects[i++];
+                        final TimeValue taskMaxWaitingTime = new TimeValue((long) parsedObjects[i++]);
+                        final boolean timedOut = (boolean) parsedObjects[i];
+
+                        out.writeString(clusterName);
+                        out.writeByte(clusterHealthStatus.value());
+
+                        // write ClusterStateHealth to out
+                        out.writeVInt(activePrimaryShards);
+                        out.writeVInt(activeShards);
+                        out.writeVInt(relocatingShards);
+                        out.writeVInt(initializingShards);
+                        out.writeVInt(unassignedShards);
+                        out.writeVInt(numberOfNodes);
+                        out.writeVInt(numberOfDataNodes);
+                        out.writeByte(clusterHealthStatus.value());
+                        out.writeVInt(indices_size);
+                        for (int j = 0; j < indices_size; j++) {
+                            indexList.get(i).writeTo(out);
+                        }
+                        out.writeDouble(activeShardsPercent);
+
+                        out.writeInt(numberOfPendingTasks);
+                        out.writeBoolean(timedOut);
+                        out.writeInt(numberOfInFlightFetch);
+                        out.writeInt(delayedUnassignedShards);
+                        out.writeTimeValue(taskMaxWaitingTime);
+
+                        return ClusterHealthResponse.readResponseFrom(out.toStreamInput());
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+
+        // ClusterStateHealth fields
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_NODES_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_DATA_NODES_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), ACTIVE_SHARDS_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), RELOCATING_SHARDS_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), ACTIVE_PRIMARY_SHARDS_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), INITIALIZING_SHARDS_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), UNASSIGNED_SHARDS_FIELD);
+        objectParser.declareDouble(ConstructingObjectParser.constructorArg(), ACTIVE_SHARDS_PERCENT_AS_NUMBER_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), STATUS_FIELD);
+
+        // ClusterHealthResponse fields
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), CLUSTER_NAME_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_PENDING_TASKS_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_IN_FLIGHT_FETCH_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), DELAYED_UNASSIGNED_SHARDS_FIELD);
+        objectParser.declareLong(ConstructingObjectParser.constructorArg(), TASK_MAX_WAIT_TIME_IN_QUEUE_IN_MILLIS_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), TIMED_OUT_FIELD);
+
+        return objectParser.apply(parser, null);
     }
 
     protected void processClusterUpdateSettingsAction(final ClusterUpdateSettingsAction action, final ClusterUpdateSettingsRequest request,
