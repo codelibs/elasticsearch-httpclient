@@ -159,45 +159,85 @@ public class HttpClient extends AbstractClient {
     protected static final Logger logger = Logger.getLogger(HttpClient.class.getName());
 
     protected static final ParseField SHARD_FIELD = new ParseField("shard");
+
     protected static final ParseField INDEX_FIELD = new ParseField("index");
+
     protected static final ParseField QUERY_FIELD = new ParseField("query");
+
     protected static final ParseField STATUS_FIELD = new ParseField("status");
+
     protected static final ParseField REASON_FIELD = new ParseField("reason");
+
     protected static final ParseField ACKNOWLEDGED_FIELD = new ParseField("acknowledged");
+
     protected static final ParseField ALIASES_FIELD = new ParseField("aliases");
+
     protected static final ParseField MAPPINGS_FIELD = new ParseField("mappings");
+
     protected static final ParseField FIELDS_FIELD = new ParseField("fields");
+
     protected static final ParseField SETTINGS_FIELD = new ParseField("settings");
+
     protected static final ParseField TYPE_FIELD = new ParseField("type");
+
     protected static final ParseField SEARCHABLE_FIELD = new ParseField("searchable");
+
     protected static final ParseField AGGREGATABLE_FIELD = new ParseField("aggregatable");
+
     protected static final ParseField INDICES_FIELD = new ParseField("indices");
+
     protected static final ParseField NON_SEARCHABLE_INDICES_FIELD = new ParseField("non_searchable_indices");
+
     protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
+
     protected static final ParseField _INDEX_FIELD = new ParseField("_index");
+
     protected static final ParseField _TYPE_FIELD = new ParseField("_type");
+
     protected static final ParseField _ID_FIELD = new ParseField("_id");
+
     protected static final ParseField _ROUTING_FIELD = new ParseField("_routing");
+
     protected static final ParseField _VERSION_FIELD = new ParseField("_version");
+
     protected static final ParseField EXPLANATION_FIELD = new ParseField("explanation");
+
     protected static final ParseField VALUE_FIELD = new ParseField("value");
+
     protected static final ParseField DESCRIPTION_FIELD = new ParseField("description");
+
     protected static final ParseField DETAILS_FIELD = new ParseField("details");
+
     protected static final ParseField CLUSTER_NAME_FIELD = new ParseField("cluster_name");
+
     protected static final ParseField TIMED_OUT_FIELD = new ParseField("timed_out");
+
     protected static final ParseField NUMBER_OF_NODES_FIELD = new ParseField("number_of_nodes");
+
     protected static final ParseField NUMBER_OF_DATA_NODES_FIELD = new ParseField("number_of_data_nodes");
+
     protected static final ParseField NUMBER_OF_PENDING_TASKS_FIELD = new ParseField("number_of_pending_tasks");
+
     protected static final ParseField NUMBER_OF_IN_FLIGHT_FETCH_FIELD = new ParseField("number_of_in_flight_fetch");
+
     protected static final ParseField DELAYED_UNASSIGNED_SHARDS_FIELD = new ParseField("delayed_unassigned_shards");
+
     protected static final ParseField TASK_MAX_WAIT_TIME_IN_QUEUE_FIELD = new ParseField("task_max_waiting_in_queue");
+
     protected static final ParseField TASK_MAX_WAIT_TIME_IN_QUEUE_IN_MILLIS_FIELD = new ParseField("task_max_waiting_in_queue_millis");
+
     protected static final ParseField ACTIVE_SHARDS_PERCENT_AS_NUMBER_FIELD = new ParseField("active_shards_percent_as_number");
+
     protected static final ParseField ACTIVE_SHARDS_PERCENT_FIELD = new ParseField("active_shards_percent");
+
     protected static final ParseField ACTIVE_PRIMARY_SHARDS_FIELD = new ParseField("active_primary_shards");
+
     protected static final ParseField ACTIVE_SHARDS_FIELD = new ParseField("active_shards");
+
     protected static final ParseField RELOCATING_SHARDS_FIELD = new ParseField("relocating_shards");
+
     protected static final ParseField INITIALIZING_SHARDS_FIELD = new ParseField("initializing_shards");
+
     protected static final ParseField UNASSIGNED_SHARDS_FIELD = new ParseField("unassigned_shards");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
