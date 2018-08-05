@@ -18,6 +18,7 @@ import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
+import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -787,6 +788,32 @@ public class HttpClientTest {
         {
             ClusterHealthResponse custerHealthResponse = client.admin().cluster().prepareHealth().execute().actionGet();
             assertEquals(custerHealthResponse.getClusterName(), clusterName);
+        }
+    }
+
+    @Test
+    void test_aliases_exist() throws Exception {
+        final String index = "test_aliases_exist";
+        final String alias1 = "test_alias1";
+        final String alias2 = "test_alias2";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareAliases().addAlias(index, alias1).execute().actionGet();
+        client.admin().indices().prepareAliasesExist(alias1).execute(wrap(res -> {
+            assertTrue(res.isExists());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
+            AliasesExistResponse aliasesExistResponse = client.admin().indices().prepareAliasesExist(alias2).execute().actionGet();
+            assertTrue(aliasesExistResponse.isExists());
         }
     }
 
