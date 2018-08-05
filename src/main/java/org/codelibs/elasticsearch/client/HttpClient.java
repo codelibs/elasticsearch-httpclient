@@ -39,6 +39,9 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
+import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction;
+import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -432,11 +435,15 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<ClusterHealthResponse> actionListener = (ActionListener<ClusterHealthResponse>) listener;
             processClusterHealthAction((ClusterHealthAction) action, (ClusterHealthRequest) request, actionListener);
+        } else if (AliasesExistAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<AliasesExistResponse> actionListener = (ActionListener<AliasesExistResponse>) listener;
+            processAliasesExistAction((AliasesExistAction) action, (GetAliasesRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
-            // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
             // org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction
             // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
@@ -494,6 +501,29 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    protected void processAliasesExistAction(final AliasesExistAction action, final GetAliasesRequest request,
+            final ActionListener<AliasesExistResponse> listener) {
+        getCurlRequest(HEAD, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
+            boolean exists = false;
+            switch (response.getHttpStatusCode()) {
+            case 200:
+                exists = true;
+                break;
+            case 404:
+                exists = false;
+                break;
+            default:
+                throw new ElasticsearchException("Unexpected status: " + response.getHttpStatusCode());
+            }
+            try {
+                final AliasesExistResponse aliasesExistResponse = new AliasesExistResponse(exists);
+                listener.onResponse(aliasesExistResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
     protected void processClusterHealthAction(final ClusterHealthAction action, final ClusterHealthRequest request,
             final ActionListener<ClusterHealthResponse> listener) {
         String wait_for_status = null;
@@ -545,6 +575,8 @@ public class HttpClient extends AbstractClient {
                         final ClusterHealthStatus clusterHealthStatus = ClusterHealthStatus.fromString(statusStr);
 
                         @SuppressWarnings("unchecked")
+                        // Can be absent if LEVEL == 'cluster'
+                        // null because no level option in 6.3
                         final List<ClusterIndexHealth> indexList = null;
                         final int indices_size = (indexList != null && !indexList.isEmpty() ? indexList.size() : 0);
 
