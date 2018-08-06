@@ -18,6 +18,7 @@ import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
+import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
@@ -847,6 +848,27 @@ public class HttpClientTest {
                     client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true)
                             .setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
             assertTrue(validateQueryResponse.isValid());
+        }
+    }
+
+    @Test
+    void test_pending_cluster_tasks() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.admin().cluster().preparePendingClusterTasks().execute(wrap(res -> {
+            assertTrue(res.getPendingTasks() != null);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            PendingClusterTasksResponse pendingClusterTasksResponse =
+                    client.admin().cluster().preparePendingClusterTasks().execute().actionGet();
+            assertTrue(pendingClusterTasksResponse.getPendingTasks() != null);
         }
     }
 
