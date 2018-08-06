@@ -279,6 +279,8 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField EXECUTING_FIELD = new ParseField("executing");
 
+    protected static final ParseField GET_FIELD = new ParseField("get");
+
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
     protected static final Function<String, CurlRequest> POST = Curl::post;
@@ -1170,7 +1172,6 @@ public class HttpClient extends AbstractClient {
 
     protected FieldCapabilitiesResponse getFieldCapabilitiesResponsefromXContent(final XContentParser parser) {
         // workaround fix
-        final ParseField fieldsField = new ParseField("fields");
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<FieldCapabilitiesResponse, Void> objectParser =
                 new ConstructingObjectParser<>("field_capabilities_response", true,
@@ -1180,7 +1181,7 @@ public class HttpClient extends AbstractClient {
         objectParser.declareNamedObjects(ConstructingObjectParser.constructorArg(), (p, c, n) -> {
             final Map<String, FieldCapabilities> typeToCapabilities = parseTypeToCapabilities(p, n);
             return new Tuple<>(n, typeToCapabilities);
-        }, fieldsField);
+        }, FIELDS_FIELD);
 
         try {
             return objectParser.parse(parser, null);
@@ -1434,7 +1435,7 @@ public class HttpClient extends AbstractClient {
         objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID_FIELD);
         objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), getExplanationParser(), EXPLANATION_FIELD);
         objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
-                new ParseField("get"));
+                GET_FIELD);
 
         return objectParser.apply(parser, true);
     }
