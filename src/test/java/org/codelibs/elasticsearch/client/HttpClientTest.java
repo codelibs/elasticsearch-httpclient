@@ -25,6 +25,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
@@ -32,7 +33,7 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
+import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -814,6 +815,38 @@ public class HttpClientTest {
             client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
             AliasesExistResponse aliasesExistResponse = client.admin().indices().prepareAliasesExist(alias2).execute().actionGet();
             assertTrue(aliasesExistResponse.isExists());
+        }
+    }
+
+    @Test
+    void test_validate_query() throws Exception {
+        final String index = "test_validate_query";
+        final String type = "test_type";
+        final String id = "0";
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true).setQuery(QueryBuilders.matchAllQuery())
+                .execute(wrap(res -> {
+                    assertTrue(res.isValid());
+                    latch.countDown();
+                }, e -> {
+                    e.printStackTrace();
+                    assertTrue(false);
+                    latch.countDown();
+                }));
+        latch.await();
+
+        {
+            ValidateQueryResponse validateQueryResponse =
+                    client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true)
+                            .setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+            assertTrue(validateQueryResponse.isValid());
         }
     }
 

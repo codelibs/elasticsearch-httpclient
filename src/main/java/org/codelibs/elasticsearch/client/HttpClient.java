@@ -11,7 +11,9 @@ import java.io.UncheckedIOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +63,9 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRespon
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
@@ -82,9 +87,10 @@ import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRespons
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
+import org.elasticsearch.action.admin.indices.validate.query.QueryExplanation;
+import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
+import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryRequest;
+import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryResponse;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -242,6 +248,14 @@ public class HttpClient extends AbstractClient {
     protected static final ParseField INITIALIZING_SHARDS_FIELD = new ParseField("initializing_shards");
 
     protected static final ParseField UNASSIGNED_SHARDS_FIELD = new ParseField("unassigned_shards");
+
+    protected static final ParseField EXPLANATIONS_FIELD = new ParseField("explanations");
+
+    protected static final ParseField VALID_FIELD = new ParseField("valid");
+
+    protected static final ParseField _SHARDS_FIELD = new ParseField("_shards");
+
+    protected static final ParseField ERROR_FIELD = new ParseField("error");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -440,13 +454,17 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<AliasesExistResponse> actionListener = (ActionListener<AliasesExistResponse>) listener;
             processAliasesExistAction((AliasesExistAction) action, (GetAliasesRequest) request, actionListener);
+        } else if (ValidateQueryAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ValidateQueryResponse> actionListener = (ActionListener<ValidateQueryResponse>) listener;
+            processValidateQueryAction((ValidateQueryAction) action, (ValidateQueryRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
             // org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction
-            // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
 
             // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
             // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
@@ -499,6 +517,102 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processValidateQueryAction(final ValidateQueryAction action, final ValidateQueryRequest request,
+            final ActionListener<ValidateQueryResponse> listener) {
+        String source = null;
+        try {
+            final XContentBuilder builder =
+                    XContentFactory.jsonBuilder().startObject().field(QUERY_FIELD.getPreferredName(), request.query()).endObject();
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+
+        getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
+                request.indices())
+                .param("explain", String.valueOf(request.explain()))
+                .param("rewrite", String.valueOf(request.rewrite()))
+                .param("all_shards", String.valueOf(request.allShards()))
+                .body(source)
+                .execute(
+                        response -> {
+                            if (response.getHttpStatusCode() != 200) {
+                                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                            }
+                            try (final InputStream in = response.getContentAsStream()) {
+                                final XContentParser parser = createParser(in);
+                                final ValidateQueryResponse validateQueryResponse =
+                                        getValidateQueryResponsefromXContent(parser, action::newResponse);
+                                listener.onResponse(validateQueryResponse);
+                            } catch (final Exception e) {
+                                listener.onFailure(e);
+                            }
+                        }, listener::onFailure);
+    }
+
+    protected ValidateQueryResponse getValidateQueryResponsefromXContent(final XContentParser parser,
+            final Supplier<ValidateQueryResponse> newResponse) throws IOException {
+        @SuppressWarnings("unchecked")
+        final ConstructingObjectParser<ValidateQueryResponse, Void> objectParser =
+                new ConstructingObjectParser<>("validate_query", true, a -> {
+                    try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                        BroadcastResponse broadcastResponse = (a[0] != null ? (BroadcastResponse) a[0] : new BroadcastResponse());
+                        final boolean valid = (boolean) a[1];
+                        final List<QueryExplanation> queryExplanations =
+                                (a[2] != null ? (List<QueryExplanation>) a[2] : Collections.emptyList());
+
+                        broadcastResponse.writeTo(out);
+                        out.writeBoolean(valid);
+                        out.writeVInt(queryExplanations.size());
+                        for (QueryExplanation exp : queryExplanations) {
+                            exp.writeTo(out);
+                        }
+
+                        final ValidateQueryResponse response = newResponse.get();
+                        response.readFrom(out.toStreamInput());
+                        return response;
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), getBroadcastParser(), _SHARDS_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), VALID_FIELD);
+        objectParser.declareObjectArray(ConstructingObjectParser.optionalConstructorArg(), getQueryExplanationParser(), EXPLANATIONS_FIELD);
+        return objectParser.apply(parser, null);
+    }
+
+    protected ConstructingObjectParser getBroadcastParser() {
+        @SuppressWarnings("unchecked")
+        final ConstructingObjectParser<BroadcastResponse, Void> shardsParser =
+                new ConstructingObjectParser<>("_shards", true, arg -> new BroadcastResponse((int) arg[0], (int) arg[1], (int) arg[2],
+                        (List<DefaultShardOperationFailedException>) arg[3]));
+        shardsParser.declareInt(ConstructingObjectParser.constructorArg(), TOTAL_FIELD);
+        shardsParser.declareInt(ConstructingObjectParser.constructorArg(), SUCCESSFUL_FIELD);
+        shardsParser.declareInt(ConstructingObjectParser.constructorArg(), FAILED_FIELD);
+        shardsParser.declareObjectArray(ConstructingObjectParser.optionalConstructorArg(),
+                (p, c) -> DefaultShardOperationFailedException.fromXContent(p), FAILURES_FIELD);
+        return shardsParser;
+    }
+
+    protected ConstructingObjectParser getQueryExplanationParser() {
+        @SuppressWarnings("unchecked")
+        final ConstructingObjectParser<QueryExplanation, Void> objectParser =
+                new ConstructingObjectParser<>("query_explanation", true, a -> {
+                    int shard = QueryExplanation.RANDOM_SHARD;
+                    if (a[1] != null) {
+                        shard = (int) a[1];
+                    }
+                    return new QueryExplanation((String) a[0], shard, (boolean) a[2], (String) a[3], (String) a[4]);
+                });
+        objectParser.declareString(ConstructingObjectParser.optionalConstructorArg(), INDEX_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.optionalConstructorArg(), SHARD_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), VALID_FIELD);
+        objectParser.declareString(ConstructingObjectParser.optionalConstructorArg(), EXPLANATION_FIELD);
+        objectParser.declareString(ConstructingObjectParser.optionalConstructorArg(), ERROR_FIELD);
+        return objectParser;
     }
 
     protected void processAliasesExistAction(final AliasesExistAction action, final GetAliasesRequest request,
@@ -1133,7 +1247,6 @@ public class HttpClient extends AbstractClient {
     }
 
     protected ExplainResponse getExplainResponsefromXContent(final XContentParser parser) {
-
         final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
                 new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
                         (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
@@ -1141,6 +1254,14 @@ public class HttpClient extends AbstractClient {
         objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX_FIELD);
         objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE_FIELD);
         objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), getExplanationParser(), EXPLANATION_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
+                new ParseField("get"));
+
+        return objectParser.apply(parser, true);
+    }
+
+    protected ConstructingObjectParser getExplanationParser() {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<Explanation, Boolean> explanationParser =
                 new ConstructingObjectParser<>("explanation", true, arg -> {
@@ -1153,11 +1274,7 @@ public class HttpClient extends AbstractClient {
         explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE_FIELD);
         explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION_FIELD);
         explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS_FIELD);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), explanationParser, EXPLANATION_FIELD);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
-                new ParseField("get"));
-
-        return objectParser.apply(parser, true);
+        return explanationParser;
     }
 
     protected void processDeleteAction(final DeleteAction action, final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
