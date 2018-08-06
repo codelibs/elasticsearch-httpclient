@@ -601,7 +601,7 @@ public class HttpClient extends AbstractClient {
         return objectParser;
     }
 
-    protected Priority getPriorityFromString(String s) {
+    protected Priority getPriorityFromString(final String s) {
         byte value;
         switch (s) {
         case "IMMEDIATE": {
