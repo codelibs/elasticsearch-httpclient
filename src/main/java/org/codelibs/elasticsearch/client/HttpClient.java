@@ -46,7 +46,9 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -484,11 +486,15 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<PendingClusterTasksResponse> actionListener = (ActionListener<PendingClusterTasksResponse>) listener;
             processPendingClusterTasksAction((PendingClusterTasksAction) action, (PendingClusterTasksRequest) request, actionListener);
+        } else if (GetAliasesAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetAliasesResponse> actionListener = (ActionListener<GetAliasesResponse>) listener;
+            processGetAliasesAction((GetAliasesAction) action, (GetAliasesRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
             // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
-            // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
 
             // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
             // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
@@ -543,6 +549,62 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    protected void processGetAliasesAction(final GetAliasesAction action, final GetAliasesRequest request,
+            final ActionListener<GetAliasesResponse> listener) {
+        getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetAliasesResponse getAliasesResponse = getGetAliasesResponsefromXContent(parser, action::newResponse);
+                listener.onResponse(getAliasesResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected GetAliasesResponse getGetAliasesResponsefromXContent(final XContentParser parser,
+            final Supplier<GetAliasesResponse> newResponse) throws IOException {
+        @SuppressWarnings("unchecked")
+        final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
+
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        XContentParser.Token token;
+        String index = null;
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                index = parser.currentName();
+            } else if (token == Token.START_OBJECT) {
+                while (parser.nextToken() == Token.FIELD_NAME) {
+                    final String currentFieldName = parser.currentName();
+                    if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                        aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
+                    } else {
+                        parser.skipChildren();
+                    }
+                }
+            }
+        }
+
+        final ImmutableOpenMap<String, List<AliasMetaData>> aliases = aliasesMapBuilder.build();
+
+        try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeVInt(aliases.size());
+            for (ObjectObjectCursor<String, List<AliasMetaData>> entry : aliases) {
+                out.writeString(entry.key);
+                out.writeVInt(entry.value.size());
+                for (AliasMetaData aliasMetaData : entry.value) {
+                    aliasMetaData.writeTo(out);
+                }
+            }
+            final GetAliasesResponse response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
     protected void processPendingClusterTasksAction(final PendingClusterTasksAction action, final PendingClusterTasksRequest request,
             final ActionListener<PendingClusterTasksResponse> listener) {
         getCurlRequest(GET, "/_cluster/pending_tasks").execute(
@@ -553,7 +615,7 @@ public class HttpClient extends AbstractClient {
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final PendingClusterTasksResponse pendingClusterTasksResponse =
-                                getPendingClusterTasksResponse(parser, action::newResponse);
+                                getPendingClusterTasksResponsefromXContent(parser, action::newResponse);
                         listener.onResponse(pendingClusterTasksResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
@@ -561,12 +623,12 @@ public class HttpClient extends AbstractClient {
                 }, listener::onFailure);
     }
 
-    protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser,
+    protected PendingClusterTasksResponse getPendingClusterTasksResponsefromXContent(final XContentParser parser,
             final Supplier<PendingClusterTasksResponse> newResponse) throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<PendingClusterTasksResponse, Void> objectParser =
                 new ConstructingObjectParser<>("pending_cluster_tasks", true, a -> {
-                    try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                    try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
                         final List<PendingClusterTask> pendingClusterTasks = (a[0] != null ? (List<PendingClusterTask>) a[0] : null);
 
                         out.writeVInt(pendingClusterTasks.size());
@@ -674,7 +736,7 @@ public class HttpClient extends AbstractClient {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<ValidateQueryResponse, Void> objectParser =
                 new ConstructingObjectParser<>("validate_query", true, a -> {
-                    try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                    try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
                         BroadcastResponse broadcastResponse = (a[0] != null ? (BroadcastResponse) a[0] : new BroadcastResponse());
                         final boolean valid = (boolean) a[1];
                         final List<QueryExplanation> queryExplanations =
@@ -790,7 +852,7 @@ public class HttpClient extends AbstractClient {
     protected ClusterHealthResponse getClusterHealthResponsefromXContent(final XContentParser parser) throws IOException {
         final ConstructingObjectParser<ClusterHealthResponse, Void> objectParser =
                 new ConstructingObjectParser<>("cluster_health_response", true, parsedObjects -> {
-                    try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                    try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
                         int i = 0;
 
                         // ClusterStateHealth fields
@@ -986,7 +1048,6 @@ public class HttpClient extends AbstractClient {
 
     protected void parseSettingsField(final XContentParser parser, final String currentIndexName,
             final Map<String, Settings> indexToSettings) throws IOException {
-
         if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
             if (SETTINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
                 indexToSettings.put(currentIndexName, Settings.fromXContent(parser));

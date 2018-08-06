@@ -20,6 +20,7 @@ import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequ
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -56,6 +57,7 @@ import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -869,6 +871,34 @@ public class HttpClientTest {
             PendingClusterTasksResponse pendingClusterTasksResponse =
                     client.admin().cluster().preparePendingClusterTasks().execute().actionGet();
             assertTrue(pendingClusterTasksResponse.getPendingTasks() != null);
+        }
+    }
+
+    @Test
+    void test_get_aliases() throws Exception {
+        final String index = "test_get_aliases";
+        final String alias1 = "test_alias1";
+        final String alias2 = "test_alias2";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, alias1).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareGetAliases().setIndices(index).setAliases(alias1).execute(wrap(res -> {
+            assertTrue(res.getAliases().size() == 1);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
+            GetAliasesResponse getAliasesResponse =
+                    client.admin().indices().prepareGetAliases().setIndices(index).setAliases(alias1).execute().actionGet();
+            assertTrue(getAliasesResponse.getAliases().size() == 1);
         }
     }
 
