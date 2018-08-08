@@ -626,7 +626,6 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        
         getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""), request.getAlias())
                 .param("dry_run", (request.isDryRun() ? "" : null)).body(source).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {

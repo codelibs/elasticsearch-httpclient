@@ -993,7 +993,7 @@ public class HttpClientTest {
         }
     }
 
-    // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 400
+    @Test
     void test_rollover() throws Exception {
         final String index = "test_rollover";
         final String alias = "test_rollover_alias1";
@@ -1002,7 +1002,7 @@ public class HttpClientTest {
         client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
-        client.admin().indices().prepareRolloverIndex(alias).execute(wrap(res -> {
+        client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new1").execute(wrap(res -> {
             assertTrue(res.isShardsAcknowledged());
             latch.countDown();
         }, e -> {
@@ -1014,10 +1014,12 @@ public class HttpClientTest {
 
         {
             RolloverResponse rolloverResponse =
-                    client.admin().indices().prepareRolloverIndex(alias).addMaxIndexDocsCondition(1000).execute().actionGet();
+                    client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new2").execute().actionGet();
             assertTrue(rolloverResponse.isShardsAcknowledged());
         }
     }
+
+
 
     // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 500
     void test_shrink() throws Exception {
