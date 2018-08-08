@@ -147,6 +147,8 @@ import org.elasticsearch.cluster.health.ClusterIndexHealth;
 import org.elasticsearch.cluster.health.ClusterStateHealth;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.service.PendingClusterTask;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -170,6 +172,10 @@ import org.elasticsearch.common.xcontent.XContentParserUtils;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.get.GetResult;
+import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.indices.flush.ShardsSyncedFlushResult;
+import org.elasticsearch.indices.flush.SyncedFlushService;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
@@ -290,7 +296,19 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField FAILED_FIELD = new ParseField("failed");
 
-    protected static final ParseField FAILED_FIELD = new ParseField("failures");
+    protected static final ParseField FAILURES_FIELD = new ParseField("failures");
+
+    protected static final ParseField STATE_FIELD = new ParseField("state");
+
+    protected static final ParseField PRIMARY_FIELD = new ParseField("primary");
+
+    protected static final ParseField NODE_FIELD = new ParseField("node");
+
+    protected static final ParseField RELOCATING_NODE_FIELD = new ParseField("relocating_node");
+
+    protected static final ParseField EXPECTED_SHARD_SIZE_IN_BYTES_FIELD = new ParseField("expected_shard_size_in_bytes");
+
+    protected static final ParseField ROUTING_FIELD = new ParseField("routing");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -566,6 +584,7 @@ public class HttpClient extends AbstractClient {
         }
     }
 
+    // syncedFlushResponse is imcomplete
     protected void processSyncedFlushAction(final SyncedFlushAction action, final SyncedFlushRequest request,
             final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
@@ -574,8 +593,7 @@ public class HttpClient extends AbstractClient {
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final SyncedFlushResponse syncedFlushResponse = null; //getSyncedFlushResponsefromXContent(parser, action::newResponse);
-                logger.info(response.getContentAsString());
+                final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponsefromXContent(parser, action::newResponse);
                 listener.onResponse(syncedFlushResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -584,7 +602,7 @@ public class HttpClient extends AbstractClient {
     }
 
     protected SyncedFlushResponse getSyncedFlushResponsefromXContent(final XContentParser parser,
-            final Supplier<SyncedFlushResponse> newResponse) {
+            final Supplier<SyncedFlushResponse> newResponse) throws IOException {
         // ShardCounts
         int totalShards = 0;
         int successfulShards = 0;
@@ -594,32 +612,30 @@ public class HttpClient extends AbstractClient {
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
         XContentParser.Token token;
-        String index = null, currentFieldName = ;
+        String index = null;
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == Token.FIELD_NAME) {
                 index = parser.currentName();
             } else if (token == Token.START_OBJECT) {
                 if (_SHARDS_FIELD.match(index, LoggingDeprecationHandler.INSTANCE)) {
-                    // do while
-                    while((token = parser.nextToken()) != Token.END_OBJECT) {
-                        if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                            totalShards = parser.intValue();
-                        } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                            successfulShards = parser.intValue();
-                        } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                            failedShards = parser.intValue();
-                        } else {
-                            parser.skipChildren();
+                    String currentFieldName = null;
+                    while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                        if (token == Token.FIELD_NAME) {
+                            currentFieldName = parser.currentName();
+                        } else if (token.isValue()) {
+                            if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                                totalShards = parser.intValue();
+                            } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                                successfulShards = parser.intValue();
+                            } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                                failedShards = parser.intValue();
+                            } else {
+                                parser.skipChildren();
+                            }
                         }
                     }
                 } else {
-                    shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser));
-                    // do while?
-                    while((token = parser.nextToken()) != Token.END_OBJECT) {
-                         else {
-                            parser.skipChildren();
-                        }
-                    }
+                    shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser, index));
                 }
             }
         }
@@ -642,13 +658,11 @@ public class HttpClient extends AbstractClient {
         }
     }
 
-    protected List<SharshardsSyncedFlushResultsdsSyncedFlushResult> parseShardsSyncedFlushResults(final XContentParser parser) {
-
-        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-
-        // failures
+    protected List<ShardsSyncedFlushResult> parseShardsSyncedFlushResults(final XContentParser parser, final String index)
+            throws IOException {
+        // "failures" field
         final List<ShardsSyncedFlushResult> shardsSyncedFlushResults = new ArrayList<>();
-        int total = 0
+        int total = 0;
         int successful = 0;
         int failed = 0;
         ShardsSyncedFlushResult shardResult;
@@ -656,16 +670,13 @@ public class HttpClient extends AbstractClient {
         String currentFieldName = null;
 
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
-//            XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, token, parser::getTokenLocation);
             if (token == Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
             } else if (token == Token.START_ARRAY) {
                 if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        if (token != XContentParser.Token.START_OBJECT) {
-                            throw new ElasticsearchException("failures array element should include an object");
-                        }
-                        shardsSyncedFlushResults.add(parseShardFailuresResults(parser));
+                        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, token, parser::getTokenLocation);
+                        shardsSyncedFlushResults.add(parseShardFailuresResults(parser, index, total));
                     }
                 } else {
                     parser.skipChildren();
@@ -677,68 +688,37 @@ public class HttpClient extends AbstractClient {
                     successful = parser.intValue();
                 } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     failed = parser.intValue();
-                }else {
+                } else {
                     parser.skipChildren();
                 }
             }
         }
 
-        // index
-        for (Map.Entry<String, List<ShardsSyncedFlushResult>> indexEntry : shardsResultPerIndex.entrySet()) {
-            List<ShardsSyncedFlushResult> indexResult = indexEntry.getValue();
-            builder.startObject(indexEntry.getKey());
-            ShardCounts indexShardCounts = calculateShardCounts(indexResult);
-            // total, successful, failed field
-            indexShardCounts.toXContent(builder, params);
-            // failures
-            if (indexShardCounts.failed > 0) {
-                builder.startArray(Fields.FAILURES);
-                for (ShardsSyncedFlushResult shardResults : indexResult) {
-                    if (shardResults.failed()) {
-                        builder.startObject();
-                        builder.field(Fields.SHARD, shardResults.shardId().id());
-                        builder.field(Fields.REASON, shardResults.failureReason());
-                        builder.endObject();
-                        continue;
-                    }
-                    Map<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> failedShards = shardResults.failedShards();
-                    for (Map.Entry<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> shardEntry : failedShards.entrySet()) {
-                        builder.startObject();
-                        builder.field(Fields.SHARD, shardResults.shardId().id());
-                        builder.field(Fields.REASON, shardEntry.getValue().failureReason());
-                        builder.field(Fields.ROUTING, shardEntry.getKey());
-                        builder.endObject();
-                    }
-                }
-                builder.endArray();
-            }
-            builder.endObject();
-        }
         return shardsSyncedFlushResults;
     }
 
-    protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser) {
+    protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser, final String index, final int totalShards)
+            throws IOException {
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
-
         String failureReason = null;
-        int shardId = 0;
-        Map<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> shardResponses;
-
+        int shardIdValue = 0;
+        final Map<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> shardResponses = new HashMap<>();
+        String currentFieldName = null;
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
             if (token == Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
-            } else if (token == TOKEN.START_OBJECT) {
-                if(ROUTING_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    shardResponses.put(parseShardRouting(parser), new ShardSyncedFlushResponse(failureReason));
-                }else {
+            } else if (token == Token.START_OBJECT) {
+                if (ROUTING_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    shardResponses.put(parseShardRouting(parser), new SyncedFlushService.ShardSyncedFlushResponse(failureReason));
+                } else {
                     parser.skipChildren();
                 }
             } else if (token.isValue()) {
                 if (SHARD_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    shardId = parser.intValue();
+                    shardIdValue = parser.intValue();
                 } else if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    failureReason = ElasticsearchException.fromXContent(parser);
+                    failureReason = parser.text();
                 } else {
                     parser.skipChildren();
                 }
@@ -746,60 +726,53 @@ public class HttpClient extends AbstractClient {
         }
 
         if (shardResponses.isEmpty()) {
-            return new ShardsSyncedFlushResult(shardId, totalShards, failureReason);
-        }else {
-            return new ShardsSyncesFlushResult(shardId, null, totalShards, shardResponses);
+            return new ShardsSyncedFlushResult(new ShardId(new Index(index, ""), shardIdValue), totalShards, failureReason);
+        } else {
+            return new ShardsSyncedFlushResult(new ShardId(new Index(index, ""), shardIdValue), "", totalShards, shardResponses);
         }
     }
-    private final ShardId shardId;
-    private final String currentNodeId;
-    private final String relocatingNodeId;
-    private final boolean primary;
-    private final ShardRoutingState state;
-    private final RecoverySource recoverySource;
-    private final UnassignedInfo unassignedInfo;
-    private final AllocationId allocationId;
-    private final transient List<ShardRouting> asList;
-    private final long expectedShardSize;
 
-    //  TODO : other fields("recovery_source", "allocation_id", "unassigned_info)
-    protected ShardRouting parseShardRouting(final XContentParser parser) {
-
+    /*
+        TODO :
+         Add other fields("recovery_source", "allocation_id", "unassigned_info)
+    */
+    protected ShardRouting parseShardRouting(final XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<PendingClusterTasksResponse, Void> objectParser =
-                new ConstructingObjectParser<>("routing", true, a -> {
-                    try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-                        int i = 0;
+        final ConstructingObjectParser<ShardRouting, Void> objectParser = new ConstructingObjectParser<>("routing", true, a -> {
+            try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                int i = 0;
 
-                        final ShardRoutingState state = ShardRoutingState.valueOf((String) a[i++]);
+                final ShardRoutingState state = ShardRoutingState.valueOf((String) a[i++]);
+                final boolean primary = (boolean) a[i++];
+                final String currentNodeId = (String) a[i++];
+                final String relocatingNodeId = (String) a[i++];
+                final int shardIdValue = (int) a[i++];
+                final String index = (String) a[i++];
+                final long expectedShardSize = (long) a[i++];
+                final ShardId shardId = new ShardId(new Index(index, ""), shardIdValue); // TODO : UUID
 
+                out.writeOptionalString(currentNodeId);
+                out.writeOptionalString(relocatingNodeId);
+                out.writeBoolean(primary);
+                out.writeByte(state.value());
 
-                        out.writeOptionalString(currentNodeId);
-                        out.writeOptionalString(relocatingNodeId);
-                        out.writeBoolean(primary);
-                        out.writeByte(state.value());
-                        if (state == ShardRoutingState.UNASSIGNED || state == ShardRoutingState.INITIALIZING) {
-                            recoverySource.writeTo(out);
-                        }
-                        out.writeOptionalWriteable(unassignedInfo);
-                        out.writeOptionalWriteable(allocationId);
-                        if (state == ShardRoutingState.RELOCATING || state == ShardRoutingState.INITIALIZING) {
-                            out.writeLong(expectedShardSize);
-                        }
+                if (state == ShardRoutingState.RELOCATING || state == ShardRoutingState.INITIALIZING) {
+                    out.writeLong(expectedShardSize);
+                }
 
-                        return ShardRouting();
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
+                return new ShardRouting(shardId, out.toStreamInput());
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
 
-        objectParser.declareString(ConstructingObjectParser.ConstructorArg(), STATE_FIELD);
-        objectParser.declareBoolean(ConstructingObjectParser.ConstructorArg(), PRIMARY_FIELD);
-        objectParser.declareString(ConstructingObjectParser.ConstructorArg(),  NODE_FIELD);
-        objectParser.declareString(ConstructingObjectParser.ConstructorArg(),  RELOCATING_NODE_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.ConstructorArg(),  SHARD_FIELD);
-        objectParser.declareString(ConstructingObjectParser.ConstructorArg(),  INDEX_FIELD);
-        objectParser.declareLong(ConstructingObjectParser.ConstructorArg(),  EXPECTED_SHARD_SIZE_IN_BYTES_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), STATE_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), PRIMARY_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), NODE_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), RELOCATING_NODE_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.constructorArg(), SHARD_FIELD);
+        objectParser.declareString(ConstructingObjectParser.constructorArg(), INDEX_FIELD);
+        objectParser.declareLong(ConstructingObjectParser.constructorArg(), EXPECTED_SHARD_SIZE_IN_BYTES_FIELD);
 
         return objectParser.apply(parser, null);
     }
@@ -906,9 +879,8 @@ public class HttpClient extends AbstractClient {
     protected ConstructingObjectParser getPendingClusterTaskParser() {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<PendingClusterTask, Void> objectParser =
-                new ConstructingObjectParser<>("tasks", true,
-                        a -> new PendingClusterTask((long) a[0], getPriorityFromString((String) a[1]), new Text((String) a[2]),
-                                (long) a[3], (a[4] != null ? (Boolean) a[4] : false)));
+                new ConstructingObjectParser<>("tasks", true, a -> new PendingClusterTask((long) a[0], Priority.valueOf((String) a[1]),
+                        new Text((String) a[2]), (long) a[3], (a[4] != null ? (Boolean) a[4] : false)));
 
         objectParser.declareLong(ConstructingObjectParser.constructorArg(), INSERT_ORDER_FIELD);
         objectParser.declareString(ConstructingObjectParser.constructorArg(), PRIORITY_FIELD);

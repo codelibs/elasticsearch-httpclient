@@ -903,7 +903,7 @@ public class HttpClientTest {
         }
     }
 
-    @Test
+    // TODO:
     void test_synced_flush() throws Exception {
         final String index = "test_synced_flush";
         CountDownLatch latch = new CountDownLatch(1);
