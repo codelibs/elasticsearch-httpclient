@@ -68,6 +68,9 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRespon
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.flush.SyncedFlushAction;
+import org.elasticsearch.action.admin.indices.flush.SyncedFlushRequest;
+import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
@@ -281,6 +284,14 @@ public class HttpClient extends AbstractClient {
 
     protected static final ParseField GET_FIELD = new ParseField("get");
 
+    protected static final ParseField TOTAL_FIELD = new ParseField("total");
+
+    protected static final ParseField SUCCESSFUL_FIELD = new ParseField("successful");
+
+    protected static final ParseField FAILED_FIELD = new ParseField("failed");
+
+    protected static final ParseField FAILED_FIELD = new ParseField("failures");
+
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
     protected static final Function<String, CurlRequest> POST = Curl::post;
@@ -493,10 +504,14 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<GetAliasesResponse> actionListener = (ActionListener<GetAliasesResponse>) listener;
             processGetAliasesAction((GetAliasesAction) action, (GetAliasesRequest) request, actionListener);
+        } else if (SyncedFlushAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<SyncedFlushResponse> actionListener = (ActionListener<SyncedFlushResponse>) listener;
+            processSyncedFlushAction((SyncedFlushAction) action, (SyncedFlushRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
-            // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
 
             // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
             // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
@@ -549,6 +564,244 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processSyncedFlushAction(final SyncedFlushAction action, final SyncedFlushRequest request,
+            final ActionListener<SyncedFlushResponse> listener) {
+        getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final SyncedFlushResponse syncedFlushResponse = null; //getSyncedFlushResponsefromXContent(parser, action::newResponse);
+                logger.info(response.getContentAsString());
+                listener.onResponse(syncedFlushResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected SyncedFlushResponse getSyncedFlushResponsefromXContent(final XContentParser parser,
+            final Supplier<SyncedFlushResponse> newResponse) {
+        // ShardCounts
+        int totalShards = 0;
+        int successfulShards = 0;
+        int failedShards = 0;
+
+        final Map<String, List<ShardsSyncedFlushResult>> shardsResultPerIndex = new HashMap<>();
+
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        XContentParser.Token token;
+        String index = null, currentFieldName = ;
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                index = parser.currentName();
+            } else if (token == Token.START_OBJECT) {
+                if (_SHARDS_FIELD.match(index, LoggingDeprecationHandler.INSTANCE)) {
+                    // do while
+                    while((token = parser.nextToken()) != Token.END_OBJECT) {
+                        if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                            totalShards = parser.intValue();
+                        } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                            successfulShards = parser.intValue();
+                        } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                            failedShards = parser.intValue();
+                        } else {
+                            parser.skipChildren();
+                        }
+                    }
+                } else {
+                    shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser));
+                    // do while?
+                    while((token = parser.nextToken()) != Token.END_OBJECT) {
+                         else {
+                            parser.skipChildren();
+                        }
+                    }
+                }
+            }
+        }
+
+        try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeInt(totalShards);
+            out.writeInt(successfulShards);
+            out.writeInt(failedShards);
+            out.writeInt(shardsResultPerIndex.size());
+            for (Map.Entry<String, List<ShardsSyncedFlushResult>> entry : shardsResultPerIndex.entrySet()) {
+                out.writeString(entry.getKey());
+                out.writeInt(entry.getValue().size());
+                for (ShardsSyncedFlushResult shardsSyncedFlushResult : entry.getValue()) {
+                    shardsSyncedFlushResult.writeTo(out);
+                }
+            }
+            final SyncedFlushResponse response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected List<SharshardsSyncedFlushResultsdsSyncedFlushResult> parseShardsSyncedFlushResults(final XContentParser parser) {
+
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+        // failures
+        final List<ShardsSyncedFlushResult> shardsSyncedFlushResults = new ArrayList<>();
+        int total = 0
+        int successful = 0;
+        int failed = 0;
+        ShardsSyncedFlushResult shardResult;
+        XContentParser.Token token;
+        String currentFieldName = null;
+
+        while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
+//            XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, token, parser::getTokenLocation);
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token == Token.START_ARRAY) {
+                if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
+                        if (token != XContentParser.Token.START_OBJECT) {
+                            throw new ElasticsearchException("failures array element should include an object");
+                        }
+                        shardsSyncedFlushResults.add(parseShardFailuresResults(parser));
+                    }
+                } else {
+                    parser.skipChildren();
+                }
+            } else if (token.isValue()) {
+                if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    total = parser.intValue();
+                } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    successful = parser.intValue();
+                } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    failed = parser.intValue();
+                }else {
+                    parser.skipChildren();
+                }
+            }
+        }
+
+        // index
+        for (Map.Entry<String, List<ShardsSyncedFlushResult>> indexEntry : shardsResultPerIndex.entrySet()) {
+            List<ShardsSyncedFlushResult> indexResult = indexEntry.getValue();
+            builder.startObject(indexEntry.getKey());
+            ShardCounts indexShardCounts = calculateShardCounts(indexResult);
+            // total, successful, failed field
+            indexShardCounts.toXContent(builder, params);
+            // failures
+            if (indexShardCounts.failed > 0) {
+                builder.startArray(Fields.FAILURES);
+                for (ShardsSyncedFlushResult shardResults : indexResult) {
+                    if (shardResults.failed()) {
+                        builder.startObject();
+                        builder.field(Fields.SHARD, shardResults.shardId().id());
+                        builder.field(Fields.REASON, shardResults.failureReason());
+                        builder.endObject();
+                        continue;
+                    }
+                    Map<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> failedShards = shardResults.failedShards();
+                    for (Map.Entry<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> shardEntry : failedShards.entrySet()) {
+                        builder.startObject();
+                        builder.field(Fields.SHARD, shardResults.shardId().id());
+                        builder.field(Fields.REASON, shardEntry.getValue().failureReason());
+                        builder.field(Fields.ROUTING, shardEntry.getKey());
+                        builder.endObject();
+                    }
+                }
+                builder.endArray();
+            }
+            builder.endObject();
+        }
+        return shardsSyncedFlushResults;
+    }
+
+    protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser) {
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+
+        String failureReason = null;
+        int shardId = 0;
+        Map<ShardRouting, SyncedFlushService.ShardSyncedFlushResponse> shardResponses;
+
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token == TOKEN.START_OBJECT) {
+                if(ROUTING_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    shardResponses.put(parseShardRouting(parser), new ShardSyncedFlushResponse(failureReason));
+                }else {
+                    parser.skipChildren();
+                }
+            } else if (token.isValue()) {
+                if (SHARD_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    shardId = parser.intValue();
+                } else if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    failureReason = ElasticsearchException.fromXContent(parser);
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+
+        if (shardResponses.isEmpty()) {
+            return new ShardsSyncedFlushResult(shardId, totalShards, failureReason);
+        }else {
+            return new ShardsSyncesFlushResult(shardId, null, totalShards, shardResponses);
+        }
+    }
+    private final ShardId shardId;
+    private final String currentNodeId;
+    private final String relocatingNodeId;
+    private final boolean primary;
+    private final ShardRoutingState state;
+    private final RecoverySource recoverySource;
+    private final UnassignedInfo unassignedInfo;
+    private final AllocationId allocationId;
+    private final transient List<ShardRouting> asList;
+    private final long expectedShardSize;
+
+    //  TODO : other fields("recovery_source", "allocation_id", "unassigned_info)
+    protected ShardRouting parseShardRouting(final XContentParser parser) {
+
+        @SuppressWarnings("unchecked")
+        final ConstructingObjectParser<PendingClusterTasksResponse, Void> objectParser =
+                new ConstructingObjectParser<>("routing", true, a -> {
+                    try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                        int i = 0;
+
+                        final ShardRoutingState state = ShardRoutingState.valueOf((String) a[i++]);
+
+
+                        out.writeOptionalString(currentNodeId);
+                        out.writeOptionalString(relocatingNodeId);
+                        out.writeBoolean(primary);
+                        out.writeByte(state.value());
+                        if (state == ShardRoutingState.UNASSIGNED || state == ShardRoutingState.INITIALIZING) {
+                            recoverySource.writeTo(out);
+                        }
+                        out.writeOptionalWriteable(unassignedInfo);
+                        out.writeOptionalWriteable(allocationId);
+                        if (state == ShardRoutingState.RELOCATING || state == ShardRoutingState.INITIALIZING) {
+                            out.writeLong(expectedShardSize);
+                        }
+
+                        return ShardRouting();
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+
+        objectParser.declareString(ConstructingObjectParser.ConstructorArg(), STATE_FIELD);
+        objectParser.declareBoolean(ConstructingObjectParser.ConstructorArg(), PRIMARY_FIELD);
+        objectParser.declareString(ConstructingObjectParser.ConstructorArg(),  NODE_FIELD);
+        objectParser.declareString(ConstructingObjectParser.ConstructorArg(),  RELOCATING_NODE_FIELD);
+        objectParser.declareInt(ConstructingObjectParser.ConstructorArg(),  SHARD_FIELD);
+        objectParser.declareString(ConstructingObjectParser.ConstructorArg(),  INDEX_FIELD);
+        objectParser.declareLong(ConstructingObjectParser.ConstructorArg(),  EXPECTED_SHARD_SIZE_IN_BYTES_FIELD);
+
+        return objectParser.apply(parser, null);
     }
 
     protected void processGetAliasesAction(final GetAliasesAction action, final GetAliasesRequest request,

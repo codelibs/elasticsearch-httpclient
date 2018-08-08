@@ -27,6 +27,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
@@ -899,6 +900,28 @@ public class HttpClientTest {
             GetAliasesResponse getAliasesResponse =
                     client.admin().indices().prepareGetAliases().setIndices(index).setAliases(alias1).execute().actionGet();
             assertTrue(getAliasesResponse.getAliases().size() == 1);
+        }
+    }
+
+    @Test
+    void test_synced_flush() throws Exception {
+        final String index = "test_synced_flush";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareSyncedFlush(index).execute(wrap(res -> {
+            assertEquals(res.restStatus(), RestStatus.OK);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            SyncedFlushResponse syncedFlushResponse = client.admin().indices().prepareSyncedFlush(index).execute().actionGet();
+            assertEquals(syncedFlushResponse.restStatus(), RestStatus.OK);
         }
     }
 
