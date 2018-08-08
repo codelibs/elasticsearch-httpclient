@@ -30,6 +30,7 @@ import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -903,7 +904,7 @@ public class HttpClientTest {
         }
     }
 
-    // TODO:
+    @Test
     void test_synced_flush() throws Exception {
         final String index = "test_synced_flush";
         CountDownLatch latch = new CountDownLatch(1);
@@ -922,6 +923,38 @@ public class HttpClientTest {
         {
             SyncedFlushResponse syncedFlushResponse = client.admin().indices().prepareSyncedFlush(index).execute().actionGet();
             assertEquals(syncedFlushResponse.restStatus(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_get_field_mappings() throws Exception {
+        final String index = "test_get_field_mappings";
+        final String type = "test_type";
+        final String id = "0";
+        final String field = "content";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource(
+                        "{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field + "\": \"elasticsearch\""
+                                + "}", XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareGetFieldMappings().setIndices(index).setTypes(type).setFields(field).execute(wrap(res -> {
+            assertTrue(res.mappings().size() > 0);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetFieldMappingsResponse getFieldMappingsResponse =
+                    client.admin().indices().prepareGetFieldMappings().setIndices(index).setTypes(type).setFields(field).execute()
+                            .actionGet();
+            assertTrue(getFieldMappingsResponse.mappings().size() > 0);
         }
     }
 

@@ -77,6 +77,9 @@ import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
@@ -161,6 +164,7 @@ import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -309,6 +313,10 @@ public class HttpClient extends AbstractClient {
     protected static final ParseField EXPECTED_SHARD_SIZE_IN_BYTES_FIELD = new ParseField("expected_shard_size_in_bytes");
 
     protected static final ParseField ROUTING_FIELD = new ParseField("routing");
+
+    protected static final ParseField FULL_NAME_FIELD = new ParseField("full_name");
+
+    protected static final ParseField MAPPING_FIELD = new ParseField("mapping");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -527,7 +535,17 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<SyncedFlushResponse> actionListener = (ActionListener<SyncedFlushResponse>) listener;
             processSyncedFlushAction((SyncedFlushAction) action, (SyncedFlushRequest) request, actionListener);
-        } else {
+        } else if (GetFieldMappingsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetFieldMappingsResponse> actionListener = (ActionListener<GetFieldMappingsResponse>) listener;
+            processGetFieldMappingsAction((GetFieldMappingsAction) action, (GetFieldMappingsRequest) request, actionListener);
+        } else if (ShrinkAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetFieldMappingsResponse> actionListener = (ActionListener<GetFieldMappingsResponse>) listener;
+            processGetFieldMappingsAction((GetFieldMappingsAction) action, (GetFieldMappingsRequest) request, actionListener);
+        }else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
 
@@ -544,7 +562,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
             // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
             // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
-            // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
             // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
             // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
             // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
@@ -552,7 +569,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
             // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
-            // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
 
             // org.elasticsearch.action.ingest.DeletePipelineAction
             // org.elasticsearch.action.ingest.PutPipelineAction
@@ -584,7 +600,112 @@ public class HttpClient extends AbstractClient {
         }
     }
 
-    // syncedFlushResponse is imcomplete
+    protected void processGetFieldMappingsAction(final GetFieldMappingsAction action, final GetFieldMappingsRequest request,
+            final ActionListener<GetFieldMappingsResponse> listener) {
+
+        final StringBuilder pathSuffix = new StringBuilder(100);
+        if (request.types().length > 0) {
+            pathSuffix.append(String.join(",", request.types())).append('/');
+        }
+        pathSuffix.append("field/");
+        if (request.fields().length > 0) {
+            pathSuffix.append(String.join(",", request.fields()));
+        }
+
+        getCurlRequest(GET, "/_mapping/" + pathSuffix.toString(), request.indices()).param("include_defaults",
+                String.valueOf(request.includeDefaults())).execute(
+                response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final GetFieldMappingsResponse getFieldMappingsResponse =
+                                getGetFieldMappingsResponsefromXContent(parser, action::newResponse);
+                        listener.onResponse(getFieldMappingsResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
+    }
+
+    protected GetFieldMappingsResponse getGetFieldMappingsResponsefromXContent(final XContentParser parser,
+            final Supplier<GetFieldMappingsResponse> newResponse) throws IOException {
+        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+        final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings = new HashMap<>();
+        if (parser.nextToken() == XContentParser.Token.FIELD_NAME) {
+            while (parser.currentToken() == XContentParser.Token.FIELD_NAME) {
+                final String index = parser.currentName();
+
+                final Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> typeMappings =
+                        parseTypeMappings(parser, index);
+                mappings.put(index, typeMappings);
+
+                parser.nextToken();
+            }
+        }
+
+        return newGetFieldMappingsResponse(mappings);
+    }
+
+    protected Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> parseTypeMappings(final XContentParser parser,
+            final String index) throws IOException {
+        final ObjectParser<Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>, String> objectParser =
+                new ObjectParser<>(MAPPINGS_FIELD.getPreferredName(), true, HashMap::new);
+
+        objectParser.declareField((p, typeMappings, idx) -> {
+            p.nextToken();
+            while (p.currentToken() == XContentParser.Token.FIELD_NAME) {
+                final String typeName = p.currentName();
+
+                if (p.nextToken() == XContentParser.Token.START_OBJECT) {
+                    final Map<String, GetFieldMappingsResponse.FieldMappingMetaData> typeMapping = new HashMap<>();
+                    typeMappings.put(typeName, typeMapping);
+
+                    while (p.nextToken() == XContentParser.Token.FIELD_NAME) {
+                        final String fieldName = p.currentName();
+                        final GetFieldMappingsResponse.FieldMappingMetaData fieldMappingMetaData = getFieldMappingMetaDatafromXContent(p);
+                        typeMapping.put(fieldName, fieldMappingMetaData);
+                    }
+                } else {
+                    p.skipChildren();
+                }
+                p.nextToken();
+            }
+        }, MAPPINGS_FIELD, ObjectParser.ValueType.OBJECT);
+        return objectParser.parse(parser, index);
+    }
+
+    protected GetFieldMappingsResponse.FieldMappingMetaData getFieldMappingMetaDatafromXContent(final XContentParser parser)
+            throws IOException {
+        final ConstructingObjectParser<GetFieldMappingsResponse.FieldMappingMetaData, String> objectParser =
+                new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new GetFieldMappingsResponse.FieldMappingMetaData(
+                        (String) a[0], (BytesReference) a[1]));
+        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
+                ObjectParser.ValueType.STRING);
+        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> {
+            final XContentBuilder jsonBuilder = XContentFactory.jsonBuilder().copyCurrentStructure(p);
+            final BytesReference bytes = BytesReference.bytes(jsonBuilder);
+            return bytes;
+        }, MAPPING_FIELD, ObjectParser.ValueType.OBJECT);
+        return objectParser.parse(parser, null);
+    }
+
+    protected GetFieldMappingsResponse newGetFieldMappingsResponse(
+            Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings) {
+        final Class<GetFieldMappingsResponse> clazz = GetFieldMappingsResponse.class;
+        final Class<?>[] types = { Map.class };
+        try {
+            final Constructor<GetFieldMappingsResponse> constructor = clazz.getDeclaredConstructor(types);
+            constructor.setAccessible(true);
+            return constructor.newInstance(mappings);
+        } catch (final Exception e) {
+            throw new ElasticsearchException("Failed to create GetFieldMappingsResponse.", e);
+        }
+    }
+
+    // "hard to reconstruct the whole response from info via REST" (via https://github.com/elastic/elasticsearch/issues/27205)
     protected void processSyncedFlushAction(final SyncedFlushAction action, final SyncedFlushRequest request,
             final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
@@ -603,7 +724,7 @@ public class HttpClient extends AbstractClient {
 
     protected SyncedFlushResponse getSyncedFlushResponsefromXContent(final XContentParser parser,
             final Supplier<SyncedFlushResponse> newResponse) throws IOException {
-        // ShardCounts
+        //  Fields for ShardCounts
         int totalShards = 0;
         int successfulShards = 0;
         int failedShards = 0;
@@ -725,10 +846,13 @@ public class HttpClient extends AbstractClient {
             }
         }
 
+        // TODO
+        final String UUID = "";
+        final String syncId = "";
         if (shardResponses.isEmpty()) {
-            return new ShardsSyncedFlushResult(new ShardId(new Index(index, ""), shardIdValue), totalShards, failureReason);
+            return new ShardsSyncedFlushResult(new ShardId(new Index(index, UUID), shardIdValue), totalShards, failureReason);
         } else {
-            return new ShardsSyncedFlushResult(new ShardId(new Index(index, ""), shardIdValue), "", totalShards, shardResponses);
+            return new ShardsSyncedFlushResult(new ShardId(new Index(index, UUID), shardIdValue), syncId, totalShards, shardResponses);
         }
     }
 
@@ -749,7 +873,8 @@ public class HttpClient extends AbstractClient {
                 final int shardIdValue = (int) a[i++];
                 final String index = (String) a[i++];
                 final long expectedShardSize = (long) a[i++];
-                final ShardId shardId = new ShardId(new Index(index, ""), shardIdValue); // TODO : UUID
+                final String UUID = ""; // TODO
+                final ShardId shardId = new ShardId(new Index(index, UUID), shardIdValue);
 
                 out.writeOptionalString(currentNodeId);
                 out.writeOptionalString(relocatingNodeId);
