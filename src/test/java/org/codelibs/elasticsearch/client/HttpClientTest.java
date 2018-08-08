@@ -36,6 +36,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
@@ -989,6 +990,32 @@ public class HttpClientTest {
             TypesExistsResponse typesExistsResponse =
                     client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute().actionGet();
             assertTrue(typesExistsResponse.isExists());
+        }
+    }
+
+    // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 400
+    void test_rollover() throws Exception {
+        final String index = "test_rollover";
+        final String alias = "test_rollover_alias1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareRolloverIndex(alias).execute(wrap(res -> {
+            assertTrue(res.isShardsAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            RolloverResponse rolloverResponse =
+                    client.admin().indices().prepareRolloverIndex(alias).addMaxIndexDocsCondition(1000).execute().actionGet();
+            assertTrue(rolloverResponse.isShardsAcknowledged());
         }
     }
 

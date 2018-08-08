@@ -95,6 +95,9 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
+import org.elasticsearch.action.admin.indices.rollover.RolloverRequest;
+import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
@@ -556,6 +559,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<TypesExistsResponse> actionListener = (ActionListener<TypesExistsResponse>) listener;
             processTypesExistsAction((TypesExistsAction) action, (TypesExistsRequest) request, actionListener);
+        } else if (RolloverAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.rollover.RolloverAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<RolloverResponse> actionListener = (ActionListener<RolloverResponse>) listener;
+            processRolloverAction((RolloverAction) action, (RolloverRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
@@ -588,7 +596,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.termvectors.MultiTermVectorsAction
             // org.elasticsearch.action.termvectors.TermVectorsAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.indices.rollover.RolloverAction
             // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
             // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
             // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
@@ -608,6 +615,31 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processRolloverAction(final RolloverAction action, final RolloverRequest request,
+            final ActionListener<RolloverResponse> listener) {
+        String source = null;
+        try {
+            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        
+        getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""), request.getAlias())
+                .param("dry_run", (request.isDryRun() ? "" : null)).body(source).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final RolloverResponse rolloverResponse = RolloverResponse.fromXContent(parser);
+                        listener.onResponse(rolloverResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processTypesExistsAction(final TypesExistsAction action, final TypesExistsRequest request,
