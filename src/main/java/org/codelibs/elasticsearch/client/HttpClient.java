@@ -65,6 +65,9 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
@@ -98,6 +101,9 @@ import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRespons
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.shrink.ResizeResponse;
+import org.elasticsearch.action.admin.indices.shrink.ShrinkAction;
 import org.elasticsearch.action.admin.indices.validate.query.QueryExplanation;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryRequest;
@@ -543,9 +549,14 @@ public class HttpClient extends AbstractClient {
         } else if (ShrinkAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
             @SuppressWarnings("unchecked")
-            final ActionListener<GetFieldMappingsResponse> actionListener = (ActionListener<GetFieldMappingsResponse>) listener;
-            processGetFieldMappingsAction((GetFieldMappingsAction) action, (GetFieldMappingsRequest) request, actionListener);
-        }else {
+            final ActionListener<ResizeResponse> actionListener = (ActionListener<ResizeResponse>) listener;
+            processShrinkAction((ShrinkAction) action, (ResizeRequest) request, actionListener);
+        } else if (TypesExistsAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<TypesExistsResponse> actionListener = (ActionListener<TypesExistsResponse>) listener;
+            processTypesExistsAction((TypesExistsAction) action, (TypesExistsRequest) request, actionListener);
+        } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
 
@@ -577,7 +588,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.termvectors.MultiTermVectorsAction
             // org.elasticsearch.action.termvectors.TermVectorsAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
             // org.elasticsearch.action.admin.indices.rollover.RolloverAction
             // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
             // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
@@ -598,6 +608,44 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processTypesExistsAction(final TypesExistsAction action, final TypesExistsRequest request,
+            final ActionListener<TypesExistsResponse> listener) {
+        getCurlRequest(HEAD, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
+            boolean exists = false;
+            switch (response.getHttpStatusCode()) {
+            case 200:
+                exists = true;
+                break;
+            case 404:
+                exists = false;
+                break;
+            default:
+                throw new ElasticsearchException("Unexpected status: " + response.getHttpStatusCode());
+            }
+            try {
+                final TypesExistsResponse typesExistsResponse = new TypesExistsResponse(exists);
+                listener.onResponse(typesExistsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected void processShrinkAction(final ShrinkAction action, final ResizeRequest request, final ActionListener<ResizeResponse> listener) {
+        getCurlRequest(POST, "/_shrink/" + request.getTargetIndexRequest().index(), request.getSourceIndex()).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ResizeResponse resizeResponse = ResizeResponse.fromXContent(parser);
+                listener.onResponse(resizeResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
     }
 
     protected void processGetFieldMappingsAction(final GetFieldMappingsAction action, final GetFieldMappingsRequest request,
@@ -1013,41 +1061,6 @@ public class HttpClient extends AbstractClient {
         objectParser.declareLong(ConstructingObjectParser.constructorArg(), TIME_IN_QUEUE_MILLIS_FIELD);
         objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), EXECUTING_FIELD);
         return objectParser;
-    }
-
-    protected Priority getPriorityFromString(final String s) {
-        byte value;
-        switch (s) {
-        case "IMMEDIATE": {
-            value = (byte) 0;
-            break;
-        }
-        case "URGENT": {
-            value = (byte) 1;
-            break;
-        }
-        case "HIGH": {
-            value = (byte) 2;
-            break;
-        }
-        case "NORMAL": {
-            value = (byte) 3;
-            break;
-        }
-        case "LOW": {
-            value = (byte) 4;
-            break;
-        }
-        case "LANGUID": {
-            value = (byte) 5;
-            break;
-        }
-        default: {
-            value = (byte) 6;
-            break;
-        }
-        }
-        return Priority.fromByte(value);
     }
 
     protected void processValidateQueryAction(final ValidateQueryAction action, final ValidateQueryRequest request,

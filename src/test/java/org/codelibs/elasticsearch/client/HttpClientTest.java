@@ -26,6 +26,7 @@ import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
@@ -37,6 +38,9 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.shrink.ResizeResponse;
+import org.elasticsearch.action.admin.indices.shrink.ShrinkAction;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -958,7 +962,52 @@ public class HttpClientTest {
         }
     }
 
-    // TODO:  [ERROR]org.elasticsearch.ElasticsearchException: Indices are not found: 400
+    @Test
+    void test_types_exists() throws Exception {
+        final String index = "test_types_exists";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute(wrap(res -> {
+            assertTrue(res.isExists());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+
+            TypesExistsResponse typesExistsResponse =
+                    client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute().actionGet();
+            assertTrue(typesExistsResponse.isExists());
+        }
+    }
+
+    // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 500
+    void test_shrink() throws Exception {
+        final String source = "test_shrink1";
+        final String target = "test_shrink2";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(source).execute().actionGet();
+        client.admin().indices().prepareRefresh(source).execute().actionGet();
+
+        {
+            ResizeResponse resizeResponse =
+                    client.admin().indices().execute(ShrinkAction.INSTANCE, new ResizeRequest(target, source)).actionGet();
+            assertTrue(resizeResponse.isAcknowledged());
+        }
+    }
+
+    // TODO: [ERROR] org.elasticsearch.ElasticsearchException: Indices are not found: 400
     void test_info() throws Exception {
         {
             MainResponse mainResponse = client.execute(MainAction.INSTANCE, new MainRequest()).actionGet();
