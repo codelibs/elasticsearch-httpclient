@@ -53,6 +53,9 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
@@ -564,6 +567,11 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<RolloverResponse> actionListener = (ActionListener<RolloverResponse>) listener;
             processRolloverAction((RolloverAction) action, (RolloverRequest) request, actionListener);
+        } else if (ClearIndicesCacheAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<ClearIndicesCacheResponse> actionListener = (ActionListener<ClearIndicesCacheResponse>) listener;
+            processClearIndicesCacheAction((ClearIndicesCacheAction) action, (ClearIndicesCacheRequest) request, actionListener);
         } else {
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
@@ -584,7 +592,6 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
             // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
             // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
-            // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
             // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
             // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
@@ -615,6 +622,28 @@ public class HttpClient extends AbstractClient {
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+    }
+
+    protected void processClearIndicesCacheAction(final ClearIndicesCacheAction action, final ClearIndicesCacheRequest request,
+            final ActionListener<ClearIndicesCacheResponse> listener) {
+        String fields = null;
+        if (request.fields() != null && request.fields().length > 0) {
+            fields = String.join(",", request.fields());
+        }
+        getCurlRequest(POST, "/_cache/clear", request.indices()).param("fielddata", String.valueOf(request.fieldDataCache()))
+                .param("query", String.valueOf(request.queryCache())).param("request", String.valueOf(request.requestCache()))
+                .param("fields", fields).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
+                        listener.onResponse(clearIndicesCacheResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected void processRolloverAction(final RolloverAction action, final RolloverRequest request,

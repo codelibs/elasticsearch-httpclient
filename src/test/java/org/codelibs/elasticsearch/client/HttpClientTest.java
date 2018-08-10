@@ -22,6 +22,7 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
@@ -994,16 +995,13 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_rollover() throws Exception {
-        final String index = "test_rollover";
-        final String alias = "test_rollover_alias1";
+    void test_clear_cache_indices() throws Exception {
+        final String index = "test_clear_cache_indices";
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
-        client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
-        client.admin().indices().prepareRefresh(index).execute().actionGet();
 
-        client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new1").execute(wrap(res -> {
-            assertTrue(res.isShardsAcknowledged());
+        client.admin().indices().prepareClearCache(index).execute(wrap(res -> {
+            assertTrue(res.getFailedShards() == 0);
             latch.countDown();
         }, e -> {
             e.printStackTrace();
@@ -1013,13 +1011,10 @@ public class HttpClientTest {
         latch.await();
 
         {
-            RolloverResponse rolloverResponse =
-                    client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new2").execute().actionGet();
-            assertTrue(rolloverResponse.isShardsAcknowledged());
+            ClearIndicesCacheResponse clearIndicesCacheResponse = client.admin().indices().prepareClearCache(index).execute().actionGet();
+            assertTrue(clearIndicesCacheResponse.getFailedShards() == 0);
         }
     }
-
-
 
     // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 500
     void test_shrink() throws Exception {
