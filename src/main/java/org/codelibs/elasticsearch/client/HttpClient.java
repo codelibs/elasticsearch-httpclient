@@ -828,7 +828,6 @@ public class HttpClient extends AbstractClient {
         }
     }
 
-    // "hard to reconstruct the whole response from info via REST" (via https://github.com/elastic/elasticsearch/issues/27205)
     protected void processSyncedFlushAction(final SyncedFlushAction action, final SyncedFlushRequest request,
             final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
@@ -879,7 +878,7 @@ public class HttpClient extends AbstractClient {
                         }
                     }
                 } else {
-                    final String uuid = ""; // UUID of "index"
+                    final String uuid = ""; // cannot know from the info returned at REST
                     final Index idx = new Index(index, uuid);
                     shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser, idx));
                 }
@@ -973,7 +972,7 @@ public class HttpClient extends AbstractClient {
         if (shardResponses.isEmpty()) {
             return new ShardsSyncedFlushResult(new ShardId(index, shardIdValue), totalShards, failureReason);
         } else {
-            final String syncId = ""; // TODO
+            final String syncId = ""; // cannot know from the info returned at REST
             return new ShardsSyncedFlushResult(new ShardId(index, shardIdValue), syncId, totalShards, shardResponses);
         }
     }
@@ -991,7 +990,7 @@ public class HttpClient extends AbstractClient {
                 final int shardIdValue = (int) a[i++];
                 final String index = (String) a[i++];
                 final long expectedShardSize = (long) a[i++];
-                final String uuid = ""; // TODO
+                final String uuid = ""; // cannot know from the info returned at REST
                 final ShardId shardId = new ShardId(new Index(index, uuid), shardIdValue);
                 final UnassignedInfo unassignedInfo = (UnassignedInfo) a[i++];
                 final AllocationId allocationId = (AllocationId) a[i++];

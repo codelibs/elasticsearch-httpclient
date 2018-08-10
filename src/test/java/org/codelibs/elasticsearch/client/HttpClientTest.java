@@ -1054,7 +1054,7 @@ public class HttpClientTest {
         }
     }
 
-    // TODO: [ERROR] org.elasticsearch.ElasticsearchException: Indices are not found: 400
+    // needs x-pack
     void test_info() throws Exception {
         {
             MainResponse mainResponse = client.execute(MainAction.INSTANCE, new MainRequest()).actionGet();
