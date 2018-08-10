@@ -1017,16 +1017,19 @@ public class HttpClientTest {
     }
 
     // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 500
+    @Test
     void test_shrink() throws Exception {
         final String source = "test_shrink1";
         final String target = "test_shrink2";
         CountDownLatch latch = new CountDownLatch(1);
-        client.admin().indices().prepareCreate(source).execute().actionGet();
+        client.admin().indices().prepareCreate(source).setSettings(Settings.builder().put("index.blocks.write", true)).execute()
+                .actionGet();
         client.admin().indices().prepareRefresh(source).execute().actionGet();
 
+        ResizeRequest resizeRequest = new ResizeRequest(target, source);
+        resizeRequest.getTargetIndexRequest().settings(Settings.builder().put("index.number_of_replicas", 0).put("number_of_shards", 1));
         {
-            ResizeResponse resizeResponse =
-                    client.admin().indices().execute(ShrinkAction.INSTANCE, new ResizeRequest(target, source)).actionGet();
+            ResizeResponse resizeResponse = client.admin().indices().execute(ShrinkAction.INSTANCE, resizeRequest).actionGet();
             assertTrue(resizeResponse.isAcknowledged());
         }
     }

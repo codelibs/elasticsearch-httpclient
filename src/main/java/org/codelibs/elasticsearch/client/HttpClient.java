@@ -10,8 +10,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -162,12 +162,16 @@ import org.elasticsearch.cluster.health.ClusterIndexHealth;
 import org.elasticsearch.cluster.health.ClusterStateHealth;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.routing.AllocationId;
+import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingState;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.service.PendingClusterTask;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.joda.Joda;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.settings.Settings;
@@ -329,6 +333,20 @@ public class HttpClient extends AbstractClient {
     protected static final ParseField FULL_NAME_FIELD = new ParseField("full_name");
 
     protected static final ParseField MAPPING_FIELD = new ParseField("mapping");
+
+    protected static final ParseField UNASSIGNED_INFO_FIELD = new ParseField("unassigned_info");
+
+    protected static final ParseField ALLOCATION_ID_FIELD = new ParseField("allocation_id");
+
+    protected static final ParseField RECOVERY_SOURCE_FIELD = new ParseField("recovery_source");
+
+    protected static final ParseField AT_FIELD = new ParseField("at");
+
+    protected static final ParseField FAILED_ATTEMPTS_FIELD = new ParseField("failed_attempts");
+
+    protected static final ParseField ALLOCATION_STATUS_FIELD = new ParseField("allocation_status");
+
+    protected static final ParseField DELAYED_FIELD = new ParseField("delayed");
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
@@ -710,7 +728,6 @@ public class HttpClient extends AbstractClient {
 
     protected void processGetFieldMappingsAction(final GetFieldMappingsAction action, final GetFieldMappingsRequest request,
             final ActionListener<GetFieldMappingsResponse> listener) {
-
         final StringBuilder pathSuffix = new StringBuilder(100);
         if (request.types().length > 0) {
             pathSuffix.append(String.join(",", request.types())).append('/');
@@ -792,11 +809,9 @@ public class HttpClient extends AbstractClient {
                         (String) a[0], (BytesReference) a[1]));
         objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
                 ObjectParser.ValueType.STRING);
-        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> {
-            final XContentBuilder jsonBuilder = XContentFactory.jsonBuilder().copyCurrentStructure(p);
-            final BytesReference bytes = BytesReference.bytes(jsonBuilder);
-            return bytes;
-        }, MAPPING_FIELD, ObjectParser.ValueType.OBJECT);
+        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(),
+                (p, c) -> BytesReference.bytes(XContentFactory.jsonBuilder().copyCurrentStructure(p)), MAPPING_FIELD,
+                ObjectParser.ValueType.OBJECT);
         return objectParser.parse(parser, null);
     }
 
@@ -864,7 +879,9 @@ public class HttpClient extends AbstractClient {
                         }
                     }
                 } else {
-                    shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser, index));
+                    final String uuid = ""; // UUID of "index"
+                    final Index idx = new Index(index, uuid);
+                    shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser, idx));
                 }
             }
         }
@@ -887,14 +904,13 @@ public class HttpClient extends AbstractClient {
         }
     }
 
-    protected List<ShardsSyncedFlushResult> parseShardsSyncedFlushResults(final XContentParser parser, final String index)
+    protected List<ShardsSyncedFlushResult> parseShardsSyncedFlushResults(final XContentParser parser, final Index index)
             throws IOException {
-        // "failures" field
+        // "failures" fields
         final List<ShardsSyncedFlushResult> shardsSyncedFlushResults = new ArrayList<>();
         int total = 0;
         int successful = 0;
         int failed = 0;
-        ShardsSyncedFlushResult shardResult;
         XContentParser.Token token;
         String currentFieldName = null;
 
@@ -926,7 +942,7 @@ public class HttpClient extends AbstractClient {
         return shardsSyncedFlushResults;
     }
 
-    protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser, final String index, final int totalShards)
+    protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser, final Index index, final int totalShards)
             throws IOException {
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
@@ -954,20 +970,14 @@ public class HttpClient extends AbstractClient {
             }
         }
 
-        // TODO
-        final String UUID = "";
-        final String syncId = "";
         if (shardResponses.isEmpty()) {
-            return new ShardsSyncedFlushResult(new ShardId(new Index(index, UUID), shardIdValue), totalShards, failureReason);
+            return new ShardsSyncedFlushResult(new ShardId(index, shardIdValue), totalShards, failureReason);
         } else {
-            return new ShardsSyncedFlushResult(new ShardId(new Index(index, UUID), shardIdValue), syncId, totalShards, shardResponses);
+            final String syncId = ""; // TODO
+            return new ShardsSyncedFlushResult(new ShardId(index, shardIdValue), syncId, totalShards, shardResponses);
         }
     }
 
-    /*
-        TODO :
-         Add other fields("recovery_source", "allocation_id", "unassigned_info)
-    */
     protected ShardRouting parseShardRouting(final XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<ShardRouting, Void> objectParser = new ConstructingObjectParser<>("routing", true, a -> {
@@ -981,14 +991,21 @@ public class HttpClient extends AbstractClient {
                 final int shardIdValue = (int) a[i++];
                 final String index = (String) a[i++];
                 final long expectedShardSize = (long) a[i++];
-                final String UUID = ""; // TODO
-                final ShardId shardId = new ShardId(new Index(index, UUID), shardIdValue);
+                final String uuid = ""; // TODO
+                final ShardId shardId = new ShardId(new Index(index, uuid), shardIdValue);
+                final UnassignedInfo unassignedInfo = (UnassignedInfo) a[i++];
+                final AllocationId allocationId = (AllocationId) a[i++];
+                final RecoverySource recoverySource = (RecoverySource) a[i++];
 
                 out.writeOptionalString(currentNodeId);
                 out.writeOptionalString(relocatingNodeId);
                 out.writeBoolean(primary);
                 out.writeByte(state.value());
-
+                if (state == ShardRoutingState.UNASSIGNED || state == ShardRoutingState.INITIALIZING) {
+                    recoverySource.writeTo(out);
+                }
+                out.writeOptionalWriteable(unassignedInfo);
+                out.writeOptionalWriteable(allocationId);
                 if (state == ShardRoutingState.RELOCATING || state == ShardRoutingState.INITIALIZING) {
                     out.writeLong(expectedShardSize);
                 }
@@ -1006,8 +1023,81 @@ public class HttpClient extends AbstractClient {
         objectParser.declareInt(ConstructingObjectParser.constructorArg(), SHARD_FIELD);
         objectParser.declareString(ConstructingObjectParser.constructorArg(), INDEX_FIELD);
         objectParser.declareLong(ConstructingObjectParser.constructorArg(), EXPECTED_SHARD_SIZE_IN_BYTES_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> {
+            try {
+                return getUnassignedInfo(p);
+            } catch (Exception e) {
+                throw new ElasticsearchException("Failed to create SyncedFlushResponse.", e);
+            }
+        }, UNASSIGNED_INFO_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> AllocationId.fromXContent(p),
+                ALLOCATION_ID_FIELD);
+        objectParser
+                .declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> getRecoverySource(p), RECOVERY_SOURCE_FIELD);
 
         return objectParser.apply(parser, null);
+    }
+
+    protected UnassignedInfo getUnassignedInfo(final XContentParser parser) throws Exception {
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+        UnassignedInfo.Reason reason = null;
+        long unassignedTimeMillis = 0;
+        int failedAllocations = 0;
+        boolean delayed = false;
+        String details = null;
+        UnassignedInfo.AllocationStatus allocationStatus = null;
+        String currentFieldName = null;
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token.isValue()) {
+                if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    reason = UnassignedInfo.Reason.values()[parser.intValue()];
+                } else if (AT_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    final SimpleDateFormat formatter = new SimpleDateFormat(Joda.forPattern("dateOptionalTime").format());
+                    unassignedTimeMillis = formatter.parse(parser.text()).getTime();
+                } else if (FAILED_ATTEMPTS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    failedAllocations = parser.intValue();
+                } else if (DELAYED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    delayed = parser.booleanValue();
+                } else if (DETAILS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    details = parser.text();
+                } else if (ALLOCATION_STATUS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    allocationStatus = UnassignedInfo.AllocationStatus.values()[parser.intValue()];
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+
+        return new UnassignedInfo(reason, null, null, failedAllocations, unassignedTimeMillis * 1000000L, unassignedTimeMillis, delayed,
+                allocationStatus);
+    }
+
+    protected RecoverySource getRecoverySource(final XContentParser parser) throws IOException {
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+        byte type = -1;
+        String currentFieldName = null;
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token.isValue()) {
+                if (TYPE_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    type = (byte) parser.intValue();
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+
+        try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeByte(type);
+            return RecoverySource.readFrom(out.toStreamInput());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     protected void processGetAliasesAction(final GetAliasesAction action, final GetAliasesRequest request,
@@ -1642,12 +1732,10 @@ public class HttpClient extends AbstractClient {
     protected FieldCapabilities getFieldCapabilitiesfromXContent(final String sname, final XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<FieldCapabilities, String> objectParser =
-                new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> {
-                    return newFieldCapabilities(name, (String) a[0], true, true,
-                            (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
-                            (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
-                            (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null));
-                });
+                new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> newFieldCapabilities(name, (String) a[0], true,
+                        true, (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
+                        (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
+                        (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null)));
 
         objectParser.declareString(ConstructingObjectParser.constructorArg(), TYPE_FIELD);
         objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), SEARCHABLE_FIELD);
@@ -1729,9 +1817,12 @@ public class HttpClient extends AbstractClient {
     }
 
     protected String getStringfromDocWriteRequest(final DocWriteRequest<?> request) {
-        return "{\"" + request.opType().getLowercase() + "\":" + "{\"" + _INDEX_FIELD + "\":\"" + request.index() + "\",\"" + _TYPE_FIELD
-                + "\":\"" + request.type() + "\",\"" + _ID_FIELD + "\":\"" + request.id() + "\",\"" + _ROUTING_FIELD + "\":\""
-                + request.routing() + "\",\"" + _VERSION_FIELD + "\":\"" + request.version() + "\"}}";
+        StringBuilder sb = new StringBuilder(100).append("{\"");
+        sb.append(request.opType().getLowercase()).append("\":{\"").append(_INDEX_FIELD).append("\":\"").append(request.index())
+                .append("\",\"").append(_TYPE_FIELD).append("\":\"").append(request.type()).append("\",\"").append(_ID_FIELD)
+                .append("\":\"").append(request.id()).append("\",\"").append(_ROUTING_FIELD).append("\":\"").append(request.routing())
+                .append("\",\"").append(_VERSION_FIELD).append("\":\"").append(request.version()).append("\"}}");
+        return sb.toString();
     }
 
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
