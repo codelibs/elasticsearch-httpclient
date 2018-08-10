@@ -16,7 +16,6 @@ import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
@@ -48,6 +47,8 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.explain.ExplainResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilities;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequestBuilder;
@@ -59,13 +60,10 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateResponse;
-import org.elasticsearch.action.fieldcaps.FieldCapabilities;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -550,8 +548,6 @@ public class HttpClientTest {
 
         // check the document deleted
         assertThrows(ElasticsearchException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
-        // final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet(); // CurlException
-        // assertFalse(getResponse.isExists());
     }
 
     @Test
@@ -987,10 +983,35 @@ public class HttpClientTest {
         latch.await();
 
         {
-
             TypesExistsResponse typesExistsResponse =
                     client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute().actionGet();
             assertTrue(typesExistsResponse.isExists());
+        }
+    }
+
+    @Test
+    void test_rollover() throws Exception {
+        final String index = "test_rollover";
+        final String alias = "test_rollover_alias1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new1").execute(wrap(res -> {
+            assertTrue(res.isShardsAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            RolloverResponse rolloverResponse =
+                    client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new2").execute().actionGet();
+            assertTrue(rolloverResponse.isShardsAcknowledged());
         }
     }
 
@@ -1016,7 +1037,6 @@ public class HttpClientTest {
         }
     }
 
-    // TODO: [ERROR] org.elasticsearch.ElasticsearchException: error: 500
     @Test
     void test_shrink() throws Exception {
         final String source = "test_shrink1";
