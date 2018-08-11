@@ -736,25 +736,22 @@ public class HttpClient extends AbstractClient {
         if (request.fields().length > 0) {
             pathSuffix.append(String.join(",", request.fields()));
         }
-
         getCurlRequest(GET, "/_mapping/" + pathSuffix.toString(), request.indices()).param("include_defaults",
-                String.valueOf(request.includeDefaults())).execute(
-                response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
-                    }
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final GetFieldMappingsResponse getFieldMappingsResponse =
-                                getGetFieldMappingsResponsefromXContent(parser, action::newResponse);
-                        listener.onResponse(getFieldMappingsResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(e);
-                    }
-                }, listener::onFailure);
+                String.valueOf(request.includeDefaults())).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+            }
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetFieldMappingsResponse getFieldMappingsResponse = getGetFieldMappingsResponse(parser, action::newResponse);
+                listener.onResponse(getFieldMappingsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
     }
 
-    protected GetFieldMappingsResponse getGetFieldMappingsResponsefromXContent(final XContentParser parser,
+    protected GetFieldMappingsResponse getGetFieldMappingsResponse(final XContentParser parser,
             final Supplier<GetFieldMappingsResponse> newResponse) throws IOException {
         ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
@@ -799,6 +796,7 @@ public class HttpClient extends AbstractClient {
                 p.nextToken();
             }
         }, MAPPINGS_FIELD, ObjectParser.ValueType.OBJECT);
+
         return objectParser.parse(parser, index);
     }
 
@@ -807,11 +805,13 @@ public class HttpClient extends AbstractClient {
         final ConstructingObjectParser<GetFieldMappingsResponse.FieldMappingMetaData, String> objectParser =
                 new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new GetFieldMappingsResponse.FieldMappingMetaData(
                         (String) a[0], (BytesReference) a[1]));
+
         objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
                 ObjectParser.ValueType.STRING);
         objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(),
                 (p, c) -> BytesReference.bytes(XContentFactory.jsonBuilder().copyCurrentStructure(p)), MAPPING_FIELD,
                 ObjectParser.ValueType.OBJECT);
+
         return objectParser.parse(parser, null);
     }
 
@@ -832,11 +832,11 @@ public class HttpClient extends AbstractClient {
             final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponsefromXContent(parser, action::newResponse);
+                final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);
                 listener.onResponse(syncedFlushResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -844,16 +844,15 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected SyncedFlushResponse getSyncedFlushResponsefromXContent(final XContentParser parser,
-            final Supplier<SyncedFlushResponse> newResponse) throws IOException {
+    protected SyncedFlushResponse getSyncedFlushResponse(final XContentParser parser, final Supplier<SyncedFlushResponse> newResponse)
+            throws IOException {
+        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
         //  Fields for ShardCounts
         int totalShards = 0;
         int successfulShards = 0;
         int failedShards = 0;
-
         final Map<String, List<ShardsSyncedFlushResult>> shardsResultPerIndex = new HashMap<>();
-
-        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
         XContentParser.Token token;
         String index = null;
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
@@ -912,7 +911,6 @@ public class HttpClient extends AbstractClient {
         int failed = 0;
         XContentParser.Token token;
         String currentFieldName = null;
-
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
@@ -1094,8 +1092,6 @@ public class HttpClient extends AbstractClient {
         try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
             out.writeByte(type);
             return RecoverySource.readFrom(out.toStreamInput());
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 
@@ -1103,11 +1099,11 @@ public class HttpClient extends AbstractClient {
             final ActionListener<GetAliasesResponse> listener) {
         getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final GetAliasesResponse getAliasesResponse = getGetAliasesResponsefromXContent(parser, action::newResponse);
+                final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser, action::newResponse);
                 listener.onResponse(getAliasesResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -1115,8 +1111,8 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected GetAliasesResponse getGetAliasesResponsefromXContent(final XContentParser parser,
-            final Supplier<GetAliasesResponse> newResponse) throws IOException {
+    protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser, final Supplier<GetAliasesResponse> newResponse)
+            throws IOException {
         @SuppressWarnings("unchecked")
         final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
 
@@ -1160,12 +1156,12 @@ public class HttpClient extends AbstractClient {
         getCurlRequest(GET, "/_cluster/pending_tasks").execute(
                 response -> {
                     if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final PendingClusterTasksResponse pendingClusterTasksResponse =
-                                getPendingClusterTasksResponsefromXContent(parser, action::newResponse);
+                                getPendingClusterTasksResponse(parser, action::newResponse);
                         listener.onResponse(pendingClusterTasksResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
@@ -1173,7 +1169,7 @@ public class HttpClient extends AbstractClient {
                 }, listener::onFailure);
     }
 
-    protected PendingClusterTasksResponse getPendingClusterTasksResponsefromXContent(final XContentParser parser,
+    protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser,
             final Supplier<PendingClusterTasksResponse> newResponse) throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<PendingClusterTasksResponse, Void> objectParser =
@@ -1195,6 +1191,7 @@ public class HttpClient extends AbstractClient {
                 });
 
         objectParser.declareObjectArray(ConstructingObjectParser.optionalConstructorArg(), getPendingClusterTaskParser(), TASKS_FIELD);
+
         return objectParser.apply(parser, null);
     }
 
@@ -1209,6 +1206,7 @@ public class HttpClient extends AbstractClient {
         objectParser.declareString(ConstructingObjectParser.constructorArg(), SOURCE_FIELD);
         objectParser.declareLong(ConstructingObjectParser.constructorArg(), TIME_IN_QUEUE_MILLIS_FIELD);
         objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), EXECUTING_FIELD);
+
         return objectParser;
     }
 
@@ -1222,31 +1220,24 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
-                request.indices())
-                .param("explain", String.valueOf(request.explain()))
-                .param("rewrite", String.valueOf(request.rewrite()))
-                .param("all_shards", String.valueOf(request.allShards()))
-                .body(source)
-                .execute(
-                        response -> {
-                            if (response.getHttpStatusCode() != 200) {
-                                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
-                            }
-                            try (final InputStream in = response.getContentAsStream()) {
-                                final XContentParser parser = createParser(in);
-                                final ValidateQueryResponse validateQueryResponse =
-                                        getValidateQueryResponsefromXContent(parser, action::newResponse);
-                                listener.onResponse(validateQueryResponse);
-                            } catch (final Exception e) {
-                                listener.onFailure(e);
-                            }
-                        }, listener::onFailure);
+                request.indices()).param("explain", String.valueOf(request.explain())).param("rewrite", String.valueOf(request.rewrite()))
+                .param("all_shards", String.valueOf(request.allShards())).body(source).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);
+                        listener.onResponse(validateQueryResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
-    protected ValidateQueryResponse getValidateQueryResponsefromXContent(final XContentParser parser,
-            final Supplier<ValidateQueryResponse> newResponse) throws IOException {
+    protected ValidateQueryResponse getValidateQueryResponse(final XContentParser parser, final Supplier<ValidateQueryResponse> newResponse)
+            throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<ValidateQueryResponse, Void> objectParser =
                 new ConstructingObjectParser<>("validate_query", true, a -> {
@@ -1274,6 +1265,7 @@ public class HttpClient extends AbstractClient {
         objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), getBroadcastParser(), _SHARDS_FIELD);
         objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), VALID_FIELD);
         objectParser.declareObjectArray(ConstructingObjectParser.optionalConstructorArg(), getQueryExplanationParser(), EXPLANATIONS_FIELD);
+
         return objectParser.apply(parser, null);
     }
 
@@ -1282,11 +1274,13 @@ public class HttpClient extends AbstractClient {
         final ConstructingObjectParser<BroadcastResponse, Void> shardsParser =
                 new ConstructingObjectParser<>("_shards", true, arg -> new BroadcastResponse((int) arg[0], (int) arg[1], (int) arg[2],
                         (List<DefaultShardOperationFailedException>) arg[3]));
+
         shardsParser.declareInt(ConstructingObjectParser.constructorArg(), TOTAL_FIELD);
         shardsParser.declareInt(ConstructingObjectParser.constructorArg(), SUCCESSFUL_FIELD);
         shardsParser.declareInt(ConstructingObjectParser.constructorArg(), FAILED_FIELD);
         shardsParser.declareObjectArray(ConstructingObjectParser.optionalConstructorArg(),
                 (p, c) -> DefaultShardOperationFailedException.fromXContent(p), FAILURES_FIELD);
+
         return shardsParser;
     }
 
@@ -1300,11 +1294,13 @@ public class HttpClient extends AbstractClient {
                     }
                     return new QueryExplanation((String) a[0], shard, (boolean) a[2], (String) a[3], (String) a[4]);
                 });
+
         objectParser.declareString(ConstructingObjectParser.optionalConstructorArg(), INDEX_FIELD);
         objectParser.declareInt(ConstructingObjectParser.optionalConstructorArg(), SHARD_FIELD);
         objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), VALID_FIELD);
         objectParser.declareString(ConstructingObjectParser.optionalConstructorArg(), EXPLANATION_FIELD);
         objectParser.declareString(ConstructingObjectParser.optionalConstructorArg(), ERROR_FIELD);
+
         return objectParser;
     }
 
@@ -1342,7 +1338,6 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(GET, "/_cluster/health" + (request.indices() == null ? "" : "/" + String.join(",", request.indices())))
                 .param("wait_for_status", wait_for_status)
                 .param("wait_for_no_relocating_shards", String.valueOf(request.waitForNoRelocatingShards()))
@@ -1351,11 +1346,11 @@ public class HttpClient extends AbstractClient {
                 .param("wait_for_nodes", request.waitForNodes())
                 .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponsefromXContent(parser);
+                        final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
                         listener.onResponse(clusterHealthResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
@@ -1363,7 +1358,7 @@ public class HttpClient extends AbstractClient {
                 }, listener::onFailure);
     }
 
-    protected ClusterHealthResponse getClusterHealthResponsefromXContent(final XContentParser parser) throws IOException {
+    protected ClusterHealthResponse getClusterHealthResponse(final XContentParser parser) throws IOException {
         final ConstructingObjectParser<ClusterHealthResponse, Void> objectParser =
                 new ConstructingObjectParser<>("cluster_health_response", true, parsedObjects -> {
                     try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
@@ -1456,10 +1451,9 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(PUT, "/_cluster/settings").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -1474,7 +1468,7 @@ public class HttpClient extends AbstractClient {
     protected void processMainAction(final MainAction action, final MainRequest request, final ActionListener<MainResponse> listener) {
         getCurlRequest(POST, "/_xpack").execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -1495,11 +1489,10 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(PUT, "/_settings", request.indices()).param("preserve_existing", String.valueOf(request.isPreserveExisting()))
                 .body(source).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
@@ -1515,11 +1508,11 @@ public class HttpClient extends AbstractClient {
             final ActionListener<GetSettingsResponse> listener) {
         getCurlRequest(GET, "/_settings", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final GetSettingsResponse getSettingsResponse = getGetSettingsResponsefromXContent(parser);
+                final GetSettingsResponse getSettingsResponse = getGetSettingsResponse(parser);
                 listener.onResponse(getSettingsResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -1527,7 +1520,7 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected GetSettingsResponse getGetSettingsResponsefromXContent(final XContentParser parser) throws IOException {
+    protected GetSettingsResponse getGetSettingsResponse(final XContentParser parser) throws IOException {
         final HashMap<String, Settings> indexToSettings = new HashMap<>();
 
         if (parser.currentToken() == null) {
@@ -1580,7 +1573,7 @@ public class HttpClient extends AbstractClient {
                 .param("only_expunge_deletes", String.valueOf(request.onlyExpungeDeletes()))
                 .param("flush", String.valueOf(request.flush())).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
@@ -1603,10 +1596,9 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }
-
         getCurlRequest(DELETE, "/_search/scroll").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -1626,12 +1618,10 @@ public class HttpClient extends AbstractClient {
         } catch (final Exception e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
-
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final MultiSearchResponse multiSearchResponse = MultiSearchResponse.fromXContext(parser);
@@ -1651,7 +1641,6 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(POST, "/_search/scroll").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
@@ -1670,11 +1659,11 @@ public class HttpClient extends AbstractClient {
             final ActionListener<FieldCapabilitiesResponse> listener) {
         getCurlRequest(GET, "/_field_caps?fields=" + String.join(",", request.fields()), request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponsefromXContent(parser);
+                final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponse(parser);
                 listener.onResponse(fieldCapabilitiesResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
@@ -1682,7 +1671,7 @@ public class HttpClient extends AbstractClient {
         }, listener::onFailure);
     }
 
-    protected FieldCapabilitiesResponse getFieldCapabilitiesResponsefromXContent(final XContentParser parser) {
+    protected FieldCapabilitiesResponse getFieldCapabilitiesResponse(final XContentParser parser) {
         // workaround fix
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<FieldCapabilitiesResponse, Void> objectParser =
@@ -1715,9 +1704,9 @@ public class HttpClient extends AbstractClient {
     }
 
     protected Map<String, FieldCapabilities> parseTypeToCapabilities(final XContentParser parser, final String name) throws IOException {
-        final Map<String, FieldCapabilities> typeToCapabilities = new HashMap<>();
-
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+
+        final Map<String, FieldCapabilities> typeToCapabilities = new HashMap<>();
         XContentParser.Token token;
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             XContentParserUtils.ensureExpectedToken(XContentParser.Token.FIELD_NAME, token, parser::getTokenLocation);
@@ -1800,10 +1789,9 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(POST, "/_bulk").body(buf.toString()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -1827,10 +1815,10 @@ public class HttpClient extends AbstractClient {
     protected void processGetAction(final GetAction action, final GetRequest request, final ActionListener<GetResponse> listener) {
         getCurlRequest(GET, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
                 .param("preference", request.preference()).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
                     try (final InputStream in = response.getContentAsStream()) {
-                        if (response.getHttpStatusCode() != 200) {
-                            throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
-                        }
                         final XContentParser parser = createParser(in);
                         final GetResponse getResponse = GetResponse.fromXContent(parser);
                         listener.onResponse(getResponse);
@@ -1852,7 +1840,7 @@ public class HttpClient extends AbstractClient {
         getCurlRequest(GET, "/_mget").body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                    throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                 }
                 final XContentParser parser = createParser(in);
                 final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
@@ -1865,20 +1853,17 @@ public class HttpClient extends AbstractClient {
 
     protected void processIndexAction(final IndexAction action, final IndexRequest request, final ActionListener<IndexResponse> listener) {
         String source = null;
-
         try {
             source = XContentHelper.convertToJson(request.source(), false, XContentType.JSON);
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
-        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
-        //.param("op_type", "create")
-                .body(source).execute(response -> {
+        getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing()).body(source)
+                .execute(response -> {
+                    if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
                     try (final InputStream in = response.getContentAsStream()) {
-                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
-                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
-                        }
                         final XContentParser parser = createParser(in);
                         final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
                         listener.onResponse(indexResponse);
@@ -1896,13 +1881,12 @@ public class HttpClient extends AbstractClient {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-
         getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index()).param("routing", request.routing())
                 .param("retry_on_conflict", String.valueOf(request.retryOnConflict())).param("version", String.valueOf(request.version()))
                 .body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
                         if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
-                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                         }
                         final XContentParser parser = createParser(in);
                         final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
@@ -1927,10 +1911,10 @@ public class HttpClient extends AbstractClient {
                 .param("preference", request.preference()).body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
                         if (response.getHttpStatusCode() != 200) {
-                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                         }
                         final XContentParser parser = createParser(in);
-                        final ExplainResponse explainResponse = getExplainResponsefromXContent(parser);
+                        final ExplainResponse explainResponse = getExplainResponse(parser);
                         listener.onResponse(explainResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
@@ -1938,7 +1922,7 @@ public class HttpClient extends AbstractClient {
                 }, listener::onFailure);
     }
 
-    protected ExplainResponse getExplainResponsefromXContent(final XContentParser parser) {
+    protected ExplainResponse getExplainResponse(final XContentParser parser) {
         final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
                 new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
                         (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
@@ -1963,9 +1947,11 @@ public class HttpClient extends AbstractClient {
                         return Explanation.noMatch((String) arg[1], (Collection<Explanation>) arg[2]);
                     }
                 });
+
         explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE_FIELD);
         explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION_FIELD);
         explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS_FIELD);
+
         return explanationParser;
     }
 
@@ -1974,7 +1960,7 @@ public class HttpClient extends AbstractClient {
                 .param("version", String.valueOf(request.version())).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
                         if (response.getHttpStatusCode() != 200) {
-                            throw new ElasticsearchException("not found: " + response.getHttpStatusCode());
+                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                         }
                         final XContentParser parser = createParser(in);
                         final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
@@ -1995,6 +1981,9 @@ public class HttpClient extends AbstractClient {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         getCurlRequest(PUT, "/", request.index()).body(source).execute(response -> {
+            if (response.getHttpStatusCode() != 200) {
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);
@@ -2009,7 +1998,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<DeleteIndexResponse> listener) {
         getCurlRequest(DELETE, "/", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2025,7 +2014,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<GetIndexResponse> listener) {
         getCurlRequest(GET, "/", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2041,7 +2030,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<OpenIndexResponse> listener) {
         getCurlRequest(POST, "/_open", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2057,7 +2046,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<CloseIndexResponse> listener) {
         getCurlRequest(POST, "/_close", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2073,7 +2062,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<RefreshResponse> listener) {
         getCurlRequest(POST, "/_refresh", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2172,7 +2161,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<PutMappingResponse> listener) {
         getCurlRequest(PUT, "/_mapping/" + request.type(), request.indices()).body(request.source()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2188,7 +2177,7 @@ public class HttpClient extends AbstractClient {
             final ActionListener<GetMappingsResponse> listener) {
         getCurlRequest(GET, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -2204,7 +2193,7 @@ public class HttpClient extends AbstractClient {
         getCurlRequest(POST, "/_flush", request.indices()).param("wait_if_ongoing", String.valueOf(request.waitIfOngoing()))
                 .param("force", String.valueOf(request.force())).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("Indices are not found: " + response.getHttpStatusCode());
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
@@ -2263,7 +2252,6 @@ public class HttpClient extends AbstractClient {
             for (final ShardOperationFailedException exp : shardFailures) {
                 exp.writeTo(out);
             }
-
             final T response = newResponse.get();
             response.readFrom(out.toStreamInput());
             return response;
@@ -2334,7 +2322,6 @@ public class HttpClient extends AbstractClient {
     protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
             throws IOException {
         final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> indexMapBuilder = ImmutableOpenMap.builder();
-
         String index = null;
         Token token = parser.nextToken();
         if (token != null) {
@@ -2353,6 +2340,7 @@ public class HttpClient extends AbstractClient {
                 }
             }
         }
+
         final ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = indexMapBuilder.build();
 
         try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
@@ -2414,7 +2402,6 @@ public class HttpClient extends AbstractClient {
     protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse)
             throws IOException {
         boolean acknowledged = false;
-
         String currentFieldName = null;
         Token token = parser.nextToken();
         if (token != null) {
