@@ -1329,17 +1329,17 @@ public class HttpClient extends AbstractClient {
 
     protected void processClusterHealthAction(final ClusterHealthAction action, final ClusterHealthRequest request,
             final ActionListener<ClusterHealthResponse> listener) {
-        String wait_for_status = null;
+        String waitForStatus = null;
         try {
             if (request.waitForStatus() != null) {
                 final ClusterHealthStatus clusterHealthStatus = ClusterHealthStatus.fromValue(request.waitForStatus().value());
-                wait_for_status = clusterHealthStatus.toString().toLowerCase();
+                waitForStatus = clusterHealthStatus.toString().toLowerCase();
             }
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         getCurlRequest(GET, "/_cluster/health" + (request.indices() == null ? "" : "/" + String.join(",", request.indices())))
-                .param("wait_for_status", wait_for_status)
+                .param("wait_for_status", waitForStatus)
                 .param("wait_for_no_relocating_shards", String.valueOf(request.waitForNoRelocatingShards()))
                 .param("wait_for_no_initializing_shards", String.valueOf(request.waitForNoInitializingShards()))
                 .param("wait_for_active_shards", (request.waitForActiveShards() == null ? null : request.waitForActiveShards().toString()))
