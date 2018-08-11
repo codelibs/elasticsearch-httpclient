@@ -546,8 +546,8 @@ public class HttpClientTest {
         final DeleteResponse deleteResponse = client.prepareDelete(index, type, id).execute().actionGet();
         assertEquals(RestStatus.OK, deleteResponse.status());
 
-        // check the document deleted
-        assertThrows(ElasticsearchException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
+        // make sure the document was deleted
+        assertThrows(Exception.class, () -> client.prepareGet(index, type, id).execute().actionGet());
     }
 
     @Test
