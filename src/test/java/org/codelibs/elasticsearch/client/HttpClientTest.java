@@ -15,21 +15,40 @@ import java.util.logging.Logger;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse.Result;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
+import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
+import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
+import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
+import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
+import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.shrink.ResizeResponse;
+import org.elasticsearch.action.admin.indices.shrink.ShrinkAction;
+import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.explain.ExplainResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilities;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequestBuilder;
@@ -41,16 +60,21 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.action.main.MainAction;
+import org.elasticsearch.action.main.MainRequest;
+import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.junit.jupiter.api.AfterAll;
@@ -108,7 +132,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_refresh() throws InterruptedException {
+    void test_refresh() throws Exception {
         final String index = "test_refresh";
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
@@ -130,7 +154,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_search() throws InterruptedException {
+    void test_search() throws Exception {
         final String index = "test_search";
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
@@ -152,7 +176,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_create_index() throws InterruptedException {
+    void test_create_index() throws Exception {
         final String index1 = "test_create_index1";
         final String index2 = "test_create_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -174,7 +198,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_delete_index() throws InterruptedException {
+    void test_delete_index() throws Exception {
         final String index1 = "test_delete_index1";
         final String index2 = "test_delete_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -198,7 +222,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_get_index() throws IOException, InterruptedException {
+    void test_get_index() throws Exception {
         final String index = "test_get_index";
         final String type = "test_type";
         final String alias = "test_alias";
@@ -239,7 +263,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_open_index() throws InterruptedException {
+    void test_open_index() throws Exception {
         final String index1 = "test_open_index1";
         final String index2 = "test_open_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -263,7 +287,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_close_index() throws InterruptedException {
+    void test_close_index() throws Exception {
         final String index1 = "test_close_index1";
         final String index2 = "test_close_index2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -287,7 +311,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_indices_exists() throws InterruptedException {
+    void test_indices_exists() throws Exception {
         final String index1 = "test_indices_exists1";
         final String index2 = "test_indices_exists2";
         CountDownLatch latch = new CountDownLatch(1);
@@ -312,7 +336,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_indices_aliases() throws InterruptedException {
+    void test_indices_aliases() throws Exception {
         final String index = "test_indices_aliases";
         final String alias1 = "test_alias1";
         final String alias2 = "test_alias2";
@@ -337,7 +361,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_put_mapping() throws IOException, InterruptedException {
+    void test_put_mapping() throws Exception {
         final String index1 = "test_put_mapping1";
         final String index2 = "test_put_mapping2";
         final String type = "test_type";
@@ -426,7 +450,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_scroll() throws IOException, InterruptedException {
+    void test_scroll() throws Exception {
         final long NUM = 2;
         final String index = "test_scroll";
         final String type = "test_type";
@@ -454,7 +478,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_multi_search() throws IOException, InterruptedException {
+    void test_multi_search() throws Exception {
         final SearchRequestBuilder srb1 = client.prepareSearch().setQuery(QueryBuilders.queryStringQuery("word")).setSize(1);
         final SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "test")).setSize(1);
         CountDownLatch latch = new CountDownLatch(1);
@@ -489,7 +513,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_crud0() throws IOException {
+    void test_crud0() throws Exception {
         final String index = "test_crud_index";
         final String type = "test_type";
         final String id = "1";
@@ -522,14 +546,12 @@ public class HttpClientTest {
         final DeleteResponse deleteResponse = client.prepareDelete(index, type, id).execute().actionGet();
         assertEquals(RestStatus.OK, deleteResponse.status());
 
-        // check the document deleted
-        assertThrows(ElasticsearchException.class, () -> client.prepareGet(index, type, id).execute().actionGet());
-        // final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet(); // CurlException
-        // assertFalse(getResponse.isExists());
+        // make sure the document was deleted
+        assertThrows(Exception.class, () -> client.prepareGet(index, type, id).execute().actionGet());
     }
 
     @Test
-    void test_crud1() throws IOException {
+    void test_crud1() throws Exception {
         final long NUM = 10;
         final String index = "test_bulk_multi";
         final String type = "test_type";
@@ -575,7 +597,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_explain() throws IOException, InterruptedException {
+    void test_explain() throws Exception {
         final String index = "test_explain";
         final String type = "test_type";
         final String id = "1";
@@ -603,23 +625,440 @@ public class HttpClientTest {
         }
     }
 
-    /*
     @Test
     void test_field_caps() throws Exception {
+        final String index0 = "test_field_caps0";
+        final String index1 = "test_field_caps1";
+        final String type = "test_type";
+        final String id = "1";
+        final String field0 = "user";
+        final String field1 = "content";
         CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index0, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":1" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.prepareIndex(index1, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
 
-        client.prepareFieldCaps().setFields("rating", "keyword").execute(wrap(res -> {
-            // TODO
-                latch.countDown();
-            }, e -> {
-                e.printStackTrace();
-                assertTrue(false);
-                latch.countDown();
-            }));
+        client.admin().indices().prepareRefresh(index0).execute().actionGet();
+        client.admin().indices().prepareRefresh(index1).execute().actionGet();
+
+        client.prepareFieldCaps().setFields(field0).execute(wrap(res -> {
+            assertTrue(res.getField(field0) != null);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
         latch.await();
 
-        // TODO
-        //        FieldCapabilitiesResponse response = client.prepareFieldCaps().setFields("rating").execute().actionGet();
+        {
+            final FieldCapabilitiesResponse fieldCapabilitiesResponse =
+                    client.prepareFieldCaps().setFields(field0, field1).execute().actionGet();
+            final FieldCapabilities capabilities0 = fieldCapabilitiesResponse.getField(field0).get("text");
+            assertEquals(capabilities0.getName(), field0);
+            final FieldCapabilities capabilities1 = fieldCapabilitiesResponse.getField(field1).get("long");
+            assertEquals(capabilities1.indices().length, 1);
+            final FieldCapabilities capabilities2 = fieldCapabilitiesResponse.getField(field1).get("text");
+            assertEquals(capabilities2.indices().length, 1);
+        }
     }
-    */
+
+    @Test
+    void test_update_settings() throws Exception {
+        final String index = "test_update_settings";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareUpdateSettings(index).setSettings(Settings.builder().put("index.number_of_replicas", 0))
+                .execute(wrap(res -> {
+                    assertTrue(res.isAcknowledged());
+                    latch.countDown();
+                }, e -> {
+                    e.printStackTrace();
+                    assertTrue(false);
+                    latch.countDown();
+                }));
+        latch.await();
+
+        {
+            UpdateSettingsResponse updateSettingsResponse =
+                    client.admin().indices().prepareUpdateSettings(index)
+                            .setSettings(Settings.builder().put("index.number_of_replicas", 0)).execute().actionGet();
+            assertTrue(updateSettingsResponse.isAcknowledged());
+        }
+    }
+
+    @Test
+    void test_get_settings() throws Exception {
+        final String index = "test_get_settings";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareGetSettings(index).execute(wrap(res -> {
+            assertTrue(res.getSetting(index, "index.number_of_shards") != null);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetSettingsResponse getSettingsResponse = client.admin().indices().prepareGetSettings(index).execute().actionGet();
+            assertTrue(getSettingsResponse.getSetting(index, "index.number_of_shards") != null);
+        }
+    }
+
+    @Test
+    void test_force_merge() throws Exception {
+        final String index = "test_force_merge";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareForceMerge(index).execute(wrap(res -> {
+            assertEquals(res.getStatus(), RestStatus.OK);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ForceMergeResponse forceMergeResponse = client.admin().indices().prepareForceMerge(index).execute().actionGet();
+            assertEquals(forceMergeResponse.getStatus(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_cluster_update_settings() throws Exception {
+        final String transientSettingKey = RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC_SETTING.getKey();
+        final int transientSettingValue = 40000000;
+        final Settings transientSettings = Settings.builder().put(transientSettingKey, transientSettingValue, ByteSizeUnit.BYTES).build();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.admin().cluster().prepareUpdateSettings().setTransientSettings(transientSettings).execute(wrap(res -> {
+            assertTrue(res.isAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ClusterUpdateSettingsResponse clusterUpdateSettingsResponse =
+                    client.admin().cluster().prepareUpdateSettings().setTransientSettings(transientSettings).execute().actionGet();
+            assertTrue(clusterUpdateSettingsResponse.isAcknowledged());
+        }
+    }
+
+    @Test
+    void test_cluster_health() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.admin().cluster().prepareHealth().execute(wrap(res -> {
+            assertEquals(res.getClusterName(), clusterName);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ClusterHealthResponse custerHealthResponse = client.admin().cluster().prepareHealth().execute().actionGet();
+            assertEquals(custerHealthResponse.getClusterName(), clusterName);
+        }
+    }
+
+    @Test
+    void test_aliases_exist() throws Exception {
+        final String index = "test_aliases_exist";
+        final String alias1 = "test_alias1";
+        final String alias2 = "test_alias2";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareAliases().addAlias(index, alias1).execute().actionGet();
+        client.admin().indices().prepareAliasesExist(alias1).execute(wrap(res -> {
+            assertTrue(res.isExists());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
+            AliasesExistResponse aliasesExistResponse = client.admin().indices().prepareAliasesExist(alias2).execute().actionGet();
+            assertTrue(aliasesExistResponse.isExists());
+        }
+    }
+
+    @Test
+    void test_validate_query() throws Exception {
+        final String index = "test_validate_query";
+        final String type = "test_type";
+        final String id = "0";
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true).setQuery(QueryBuilders.matchAllQuery())
+                .execute(wrap(res -> {
+                    assertTrue(res.isValid());
+                    latch.countDown();
+                }, e -> {
+                    e.printStackTrace();
+                    assertTrue(false);
+                    latch.countDown();
+                }));
+        latch.await();
+
+        {
+            ValidateQueryResponse validateQueryResponse =
+                    client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true)
+                            .setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+            assertTrue(validateQueryResponse.isValid());
+        }
+    }
+
+    @Test
+    void test_pending_cluster_tasks() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        client.admin().cluster().preparePendingClusterTasks().execute(wrap(res -> {
+            assertTrue(res.getPendingTasks() != null);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            PendingClusterTasksResponse pendingClusterTasksResponse =
+                    client.admin().cluster().preparePendingClusterTasks().execute().actionGet();
+            assertTrue(pendingClusterTasksResponse.getPendingTasks() != null);
+        }
+    }
+
+    @Test
+    void test_get_aliases() throws Exception {
+        final String index = "test_get_aliases";
+        final String alias1 = "test_alias1";
+        final String alias2 = "test_alias2";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, alias1).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareGetAliases().setIndices(index).setAliases(alias1).execute(wrap(res -> {
+            assertTrue(res.getAliases().size() == 1);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
+            GetAliasesResponse getAliasesResponse =
+                    client.admin().indices().prepareGetAliases().setIndices(index).setAliases(alias1).execute().actionGet();
+            assertTrue(getAliasesResponse.getAliases().size() == 1);
+        }
+    }
+
+    @Test
+    void test_synced_flush() throws Exception {
+        final String index = "test_synced_flush";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareSyncedFlush(index).execute(wrap(res -> {
+            assertEquals(res.restStatus(), RestStatus.OK);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            SyncedFlushResponse syncedFlushResponse = client.admin().indices().prepareSyncedFlush(index).execute().actionGet();
+            assertEquals(syncedFlushResponse.restStatus(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_get_field_mappings() throws Exception {
+        final String index = "test_get_field_mappings";
+        final String type = "test_type";
+        final String id = "0";
+        final String field = "content";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource(
+                        "{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field + "\": \"elasticsearch\""
+                                + "}", XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareGetFieldMappings().setIndices(index).setTypes(type).setFields(field).execute(wrap(res -> {
+            assertTrue(res.mappings().size() > 0);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            GetFieldMappingsResponse getFieldMappingsResponse =
+                    client.admin().indices().prepareGetFieldMappings().setIndices(index).setTypes(type).setFields(field).execute()
+                            .actionGet();
+            assertTrue(getFieldMappingsResponse.mappings().size() > 0);
+        }
+    }
+
+    @Test
+    void test_types_exists() throws Exception {
+        final String index = "test_types_exists";
+        final String type = "test_type";
+        final String id = "1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.prepareIndex(index, type, id)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute(wrap(res -> {
+            assertTrue(res.isExists());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            TypesExistsResponse typesExistsResponse =
+                    client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute().actionGet();
+            assertTrue(typesExistsResponse.isExists());
+        }
+    }
+
+    @Test
+    void test_rollover() throws Exception {
+        final String index = "test_rollover";
+        final String alias = "test_rollover_alias1";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
+        client.admin().indices().prepareRefresh(index).execute().actionGet();
+
+        client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new1").execute(wrap(res -> {
+            assertTrue(res.isShardsAcknowledged());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            RolloverResponse rolloverResponse =
+                    client.admin().indices().prepareRolloverIndex(alias).setNewIndexName(index + "new2").execute().actionGet();
+            assertTrue(rolloverResponse.isShardsAcknowledged());
+        }
+    }
+
+    @Test
+    void test_clear_cache_indices() throws Exception {
+        final String index = "test_clear_cache_indices";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareClearCache(index).execute(wrap(res -> {
+            assertTrue(res.getFailedShards() == 0);
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            assertTrue(false);
+            latch.countDown();
+        }));
+        latch.await();
+
+        {
+            ClearIndicesCacheResponse clearIndicesCacheResponse = client.admin().indices().prepareClearCache(index).execute().actionGet();
+            assertTrue(clearIndicesCacheResponse.getFailedShards() == 0);
+        }
+    }
+
+    @Test
+    void test_shrink() throws Exception {
+        final String source = "test_shrink1";
+        final String target = "test_shrink2";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(source).setSettings(Settings.builder().put("index.blocks.write", true)).execute()
+                .actionGet();
+        client.admin().indices().prepareRefresh(source).execute().actionGet();
+
+        ResizeRequest resizeRequest = new ResizeRequest(target, source);
+        resizeRequest.getTargetIndexRequest().settings(Settings.builder().put("index.number_of_replicas", 0).put("number_of_shards", 1));
+        {
+            ResizeResponse resizeResponse = client.admin().indices().execute(ShrinkAction.INSTANCE, resizeRequest).actionGet();
+            assertTrue(resizeResponse.isAcknowledged());
+        }
+    }
+
+    // needs x-pack
+    void test_info() throws Exception {
+        {
+            MainResponse mainResponse = client.execute(MainAction.INSTANCE, new MainRequest()).actionGet();
+            assertTrue(mainResponse.isAvailable());
+        }
+    }
 }
