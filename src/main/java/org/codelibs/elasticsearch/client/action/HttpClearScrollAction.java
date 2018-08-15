@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,9 +24,12 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.ClearScrollAction;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.ClearScrollResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpClearScrollAction extends HttpAction {
 
     protected final ClearScrollAction action;
 

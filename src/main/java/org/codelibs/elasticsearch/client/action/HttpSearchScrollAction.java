@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,7 +24,11 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpSearchScrollAction extends HttpAction {
 
@@ -34,8 +39,7 @@ public class HttpSearchScrollAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final SearchScrollRequest request,
-            final ActionListener<SearchResponse> listener) {
+    public void execute(final SearchScrollRequest request, final ActionListener<SearchResponse> listener) {
         String source = null;
         try {
             final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);

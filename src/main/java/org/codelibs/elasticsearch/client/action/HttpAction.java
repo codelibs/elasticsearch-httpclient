@@ -22,6 +22,7 @@ import java.util.function.Function;
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContent;
@@ -175,7 +176,6 @@ public class HttpAction {
 
     protected static final ParseField DELAYED_FIELD = new ParseField("delayed");
 
-
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
     protected static final Function<String, CurlRequest> POST = Curl::post;
@@ -196,144 +196,4 @@ public class HttpAction {
         final XContent xContent = XContentFactory.xContent(XContentType.JSON);
         return xContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, in);
     }
-
-    protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
-            throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        parser.nextToken();
-        ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
-        String currentFieldName = parser.currentName(); // _SHARDS_FIELD
-        int totalShards = 0;
-        int successfulShards = 0;
-        int failedShards = 0;
-        final List<DefaultShardOperationFailedException> shardFailures = new ArrayList<>();
-        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
-            if (token == Token.FIELD_NAME) {
-                currentFieldName = parser.currentName();
-            } else if (token == Token.START_ARRAY) {
-                if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        if (token != XContentParser.Token.START_OBJECT) {
-                            throw new ElasticsearchException("failures array element should include an object");
-                        }
-                        shardFailures.add(getFailureFromXContent(parser));
-                    }
-                } else {
-                    parser.skipChildren();
-                }
-            } else if (token.isValue()) {
-                if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    totalShards = parser.intValue();
-                } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    successfulShards = parser.intValue();
-                } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    failedShards = parser.intValue();
-                } else {
-                    parser.skipChildren();
-                }
-            }
-        }
-
-        // BroadcastResponse
-        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-            out.writeVInt(totalShards);
-            out.writeVInt(successfulShards);
-            out.writeVInt(failedShards);
-            out.writeVInt(shardFailures.size());
-            for (final ShardOperationFailedException exp : shardFailures) {
-                exp.writeTo(out);
-            }
-            final T response = newResponse.get();
-            response.readFrom(out.toStreamInput());
-            return response;
-        }
-    }
-
-    protected List<AliasMetaData> getAliasesFromXContent(final XContentParser parser) throws IOException {
-        final List<AliasMetaData> aliases = new ArrayList<>();
-        Token token = parser.nextToken();
-        if (token == null) {
-            return aliases;
-        }
-        while ((token = parser.nextToken()) != Token.END_OBJECT) {
-            if (token == Token.FIELD_NAME) {
-                aliases.add(AliasMetaData.Builder.fromXContent(parser));
-            }
-        }
-        return aliases;
-    }
-
-    protected ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
-        final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
-        String type = null;
-        Token token = parser.nextToken();
-        if (token == null) {
-            return mappingsBuilder.build();
-        }
-        while ((token = parser.nextToken()) != Token.END_OBJECT) {
-            if (token == Token.FIELD_NAME) {
-                type = parser.currentName();
-            } else if (token == Token.START_OBJECT) {
-                final Map<String, Object> mapping = parser.mapOrdered();
-                mappingsBuilder.put(type, new MappingMetaData(type, mapping));
-            }
-        }
-        return mappingsBuilder.build();
-    }
-
-    protected Settings getSettings(final XContentParser parser) throws IOException {
-        if (parser.nextToken() == null) {
-            return Settings.EMPTY;
-        }
-        return Settings.fromXContent(parser);
-    }
-
-    protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse)
-            throws IOException {
-        boolean acknowledged = false;
-        String currentFieldName = null;
-        Token token = parser.nextToken();
-        if (token != null) {
-            while ((token = parser.nextToken()) != Token.END_OBJECT) {
-                if (token == Token.FIELD_NAME) {
-                    currentFieldName = parser.currentName();
-                } else if (token == Token.VALUE_BOOLEAN) {
-                    if (ACKNOWLEDGED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        acknowledged = parser.booleanValue();
-                    }
-                }
-            }
-        }
-
-        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-            out.writeBoolean(acknowledged);
-            final T response = newResponse.get();
-            response.readFrom(out.toStreamInput());
-            return response;
-        }
-    }
-
-    protected DefaultShardOperationFailedException getFailureFromXContent(final XContentParser parser) throws IOException {
-        String index = null;
-        ElasticsearchException reason = null;
-        int shardId = 0;
-        String currentFieldName = "";
-        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
-            if (token == Token.FIELD_NAME) {
-                currentFieldName = parser.currentName();
-            } else if (token.isValue()) {
-                if (SHARD_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    shardId = parser.intValue();
-                } else if (INDEX_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    index = parser.text();
-                } else if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    reason = ElasticsearchException.fromXContent(parser);
-                } else {
-                    parser.skipChildren();
-                }
-            }
-        }
-        return new DefaultShardOperationFailedException(index, shardId, reason);
-    }
-
 }

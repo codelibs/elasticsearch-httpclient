@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,7 +24,11 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpUpdateSettingsAction extends HttpAction {
 
@@ -42,18 +47,18 @@ public class HttpUpdateSettingsAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(PUT, "/_settings", request.indices()).param("preserve_existing", String.valueOf(request.isPreserveExisting()))
-                .body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);
-                listener.onResponse(updateSettingsResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        client.getCurlRequest(PUT, "/_settings", request.indices())
+                .param("preserve_existing", String.valueOf(request.isPreserveExisting())).body(source).execute(response -> {
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);
+                        listener.onResponse(updateSettingsResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 }

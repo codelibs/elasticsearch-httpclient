@@ -15,21 +15,36 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.action.HttpGetSettingsAction;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
+
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 public class HttpGetIndexAction extends HttpAction {
 
     protected final GetIndexAction action;
 
-    public HttpGetIndexActionfinal HttpClient client, final GetIndexAction action) {
+    public HttpGetIndexAction(final HttpClient client, final GetIndexAction action) {
         super(client);
         this.action = action;
     }
@@ -49,7 +64,6 @@ public class HttpGetIndexAction extends HttpAction {
         }, listener::onFailure);
     }
 
-
     protected GetIndexResponse getGetIndexResponse(final XContentParser parser, final Supplier<GetIndexResponse> newResponse)
             throws IOException {
         final List<String> indices = new ArrayList<>();
@@ -67,11 +81,11 @@ public class HttpGetIndexAction extends HttpAction {
                 while (parser.nextToken() == Token.FIELD_NAME) {
                     final String currentFieldName = parser.currentName();
                     if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
+                        aliasesMapBuilder.put(index, getAliases(parser));
                     } else if (MAPPINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        mappingsMapBuilder.put(index, getMappingsFromXContent(parser));
+                        mappingsMapBuilder.put(index, getMappings(parser));
                     } else if (SETTINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        settingsMapBuilder.put(index, getSettingsFromXContent(parser));
+                        settingsMapBuilder.put(index, getSettings(parser));
                     }
                 }
             }
@@ -109,5 +123,44 @@ public class HttpGetIndexAction extends HttpAction {
             response.readFrom(out.toStreamInput());
             return response;
         }
+    }
+
+    protected ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
+        final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
+        String type = null;
+        Token token = parser.nextToken();
+        if (token == null) {
+            return mappingsBuilder.build();
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                type = parser.currentName();
+            } else if (token == Token.START_OBJECT) {
+                final Map<String, Object> mapping = parser.mapOrdered();
+                mappingsBuilder.put(type, new MappingMetaData(type, mapping));
+            }
+        }
+        return mappingsBuilder.build();
+    }
+
+    protected List<AliasMetaData> getAliases(final XContentParser parser) throws IOException {
+        final List<AliasMetaData> aliases = new ArrayList<>();
+        Token token = parser.nextToken();
+        if (token == null) {
+            return aliases;
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                aliases.add(AliasMetaData.Builder.fromXContent(parser));
+            }
+        }
+        return aliases;
+    }
+
+    protected Settings getSettings(final XContentParser parser) throws IOException {
+        if (parser.nextToken() == null) {
+            return Settings.EMPTY;
+        }
+        return Settings.fromXContent(parser);
     }
 }

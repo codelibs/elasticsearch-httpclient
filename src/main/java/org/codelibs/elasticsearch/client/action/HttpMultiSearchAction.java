@@ -18,12 +18,15 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.HttpClient.ContentType;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.MultiSearchAction;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
 
 public class HttpMultiSearchAction extends HttpAction {
 

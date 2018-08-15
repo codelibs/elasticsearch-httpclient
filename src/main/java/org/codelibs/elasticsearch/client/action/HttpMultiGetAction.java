@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,7 +24,12 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.MultiGetAction;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpMultiGetAction extends HttpAction {
 

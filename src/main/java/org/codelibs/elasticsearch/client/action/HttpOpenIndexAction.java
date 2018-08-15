@@ -23,9 +23,11 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
+import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpOpenIndexAction extends HttpAction {
 
     protected final OpenIndexAction action;
 

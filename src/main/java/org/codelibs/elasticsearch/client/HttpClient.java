@@ -227,7 +227,7 @@ public class HttpClient extends AbstractClient {
 
     private String[] hosts;
 
-    protected enum ContentType {
+    public static enum ContentType {
         JSON("application/json"), X_NDJSON("application/x-ndjson");
 
         private final String value;
@@ -316,12 +316,13 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction
             @SuppressWarnings("unchecked")
             final ActionListener<GetMappingsResponse> actionListener = (ActionListener<GetMappingsResponse>) listener;
-            new HttpGetMappingAction(this, (GetMappingAction) action).execute((GetMappingRequest) request, actionListener);
+            new HttpGetMappingsAction(this, (GetMappingsAction) action).execute((GetMappingsRequest) request, actionListener);
         } else if (GetFieldMappingsAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
             @SuppressWarnings("unchecked")
             final ActionListener<GetFieldMappingsResponse> actionListener = (ActionListener<GetFieldMappingsResponse>) listener;
-            new HttpGetFieldMappingAction(this, (GetFieldMappingAction) action).execute((GetMappingRequest) request, actionListener);
+            new HttpGetFieldMappingsAction(this, (GetFieldMappingsAction) action)
+                    .execute((GetFieldMappingsRequest) request, actionListener);
         } else if (FlushAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.indices.flush.FlushAction
             @SuppressWarnings("unchecked")
@@ -336,12 +337,12 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.search.MultiSearchAction
             @SuppressWarnings("unchecked")
             final ActionListener<MultiSearchResponse> actionListener = (ActionListener<MultiSearchResponse>) listener;
-            new HttpMultiSearchAction(this, (MultiSearchAction) action).execute((MultiSearchequest) request, actionListener);
+            new HttpMultiSearchAction(this, (MultiSearchAction) action).execute((MultiSearchRequest) request, actionListener);
         } else if (SearchScrollAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.search.MultiSearchAction
             @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
-            new HttpSearchScrollAction(this, (SearchScrollAction) action).execute((SearchScrollequest) request, actionListener);
+            new HttpSearchScrollAction(this, (SearchScrollAction) action).execute((SearchScrollRequest) request, actionListener);
         } else if (IndexAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.index.IndexAction
             @SuppressWarnings("unchecked")
@@ -351,7 +352,8 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction)
             @SuppressWarnings("unchecked")
             final ActionListener<FieldCapabilitiesResponse> actionListener = (ActionListener<FieldCapabilitiesResponse>) listener;
-            new HttpFieldCapabilitiesAction(this, (FieldCapabilitiesAction) action).execute((FieldCapabilitiesRequest) request, actionListener);
+            new HttpFieldCapabilitiesAction(this, (FieldCapabilitiesAction) action).execute((FieldCapabilitiesRequest) request,
+                    actionListener);
         } else if (GetAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.get.GetAction
             @SuppressWarnings("unchecked")
@@ -406,7 +408,8 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction
             @SuppressWarnings("unchecked")
             final ActionListener<ClusterUpdateSettingsResponse> actionListener = (ActionListener<ClusterUpdateSettingsResponse>) listener;
-            new HttpClusterUpdateSettingsAction(this, (ClusterUpdateSettingsAction) action).execute((ClusterUpdateSettingsRequest) request, actionListener);
+            new HttpClusterUpdateSettingsAction(this, (ClusterUpdateSettingsAction) action).execute((ClusterUpdateSettingsRequest) request,
+                    actionListener);
         } else if (ClusterHealthAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
             @SuppressWarnings("unchecked")
@@ -416,7 +419,7 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
             @SuppressWarnings("unchecked")
             final ActionListener<AliasesExistResponse> actionListener = (ActionListener<AliasesExistResponse>) listener;
-            new HttpAliasesExistAction(this, (AliasesExistAction) action).execute((AliasesExistRequest) request, actionListener);
+            new HttpAliasesExistAction(this, (AliasesExistAction) action).execute((GetAliasesRequest) request, actionListener);
         } else if (ValidateQueryAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
             @SuppressWarnings("unchecked")
@@ -426,7 +429,8 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction
             @SuppressWarnings("unchecked")
             final ActionListener<PendingClusterTasksResponse> actionListener = (ActionListener<PendingClusterTasksResponse>) listener;
-            new HttpPendingClusterTasksAction(this, (PendingClusterTasksAction) action).execute((PendingClusterTasksRequest) request, actionListener);
+            new HttpPendingClusterTasksAction(this, (PendingClusterTasksAction) action).execute((PendingClusterTasksRequest) request,
+                    actionListener);
         } else if (GetAliasesAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
             @SuppressWarnings("unchecked")
@@ -456,7 +460,8 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
             @SuppressWarnings("unchecked")
             final ActionListener<ClearIndicesCacheResponse> actionListener = (ActionListener<ClearIndicesCacheResponse>) listener;
-            new HttpClearIndicesCacheAction(this, (ClearIndicesCacheAction) action).execute((ClearIndicesCacheRequest) request, actionListener);
+            new HttpClearIndicesCacheAction(this, (ClearIndicesCacheAction) action).execute((ClearIndicesCacheRequest) request,
+                    actionListener);
         } else {
 
             // org.elasticsearch.action.ingest.DeletePipelineAction
@@ -518,7 +523,7 @@ public class HttpClient extends AbstractClient {
         return getCurlRequest(method, ContentType.JSON, path, indices);
     }
 
-    protected CurlRequest getCurlRequest(final Function<String, CurlRequest> method, final ContentType contentType, final String path,
+    public CurlRequest getCurlRequest(final Function<String, CurlRequest> method, final ContentType contentType, final String path,
             final String... indices) {
         final StringBuilder buf = new StringBuilder(100);
         buf.append(getHost());

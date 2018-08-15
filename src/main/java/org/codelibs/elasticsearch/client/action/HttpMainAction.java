@@ -25,7 +25,7 @@ import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpMainAction extends HttpAction {
 
     protected final MainAction action;
 

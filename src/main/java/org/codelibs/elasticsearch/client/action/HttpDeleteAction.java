@@ -37,16 +37,16 @@ public class HttpDeleteAction extends HttpAction {
     public void execute(final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
         client.getCurlRequest(DELETE, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
                 .param("version", String.valueOf(request.version())).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
-                listener.onResponse(deleteResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
+                        listener.onResponse(deleteResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 }

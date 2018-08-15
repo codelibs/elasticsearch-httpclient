@@ -15,14 +15,22 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.UncheckedIOException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.cluster.health.ClusterIndexHealth;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpClusterHealthAction extends HttpAction {
@@ -34,8 +42,7 @@ public class HttpClusterHealthAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final ClusterHealthRequest request,
-            final ActionListener<ClusterHealthResponse> listener) {
+    public void execute(final ClusterHealthRequest request, final ActionListener<ClusterHealthResponse> listener) {
         String waitForStatus = null;
         try {
             if (request.waitForStatus() != null) {
@@ -52,17 +59,17 @@ public class HttpClusterHealthAction extends HttpAction {
                 .param("wait_for_active_shards", (request.waitForActiveShards() == null ? null : request.waitForActiveShards().toString()))
                 .param("wait_for_nodes", request.waitForNodes())
                 .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
-                listener.onResponse(clusterHealthResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
+                        listener.onResponse(clusterHealthResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected ClusterHealthResponse getClusterHealthResponse(final XContentParser parser) throws IOException {

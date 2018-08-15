@@ -15,27 +15,49 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushAction;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushRequest;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
+import org.elasticsearch.cluster.routing.AllocationId;
+import org.elasticsearch.cluster.routing.RecoverySource;
+import org.elasticsearch.cluster.routing.ShardRouting;
+import org.elasticsearch.cluster.routing.ShardRoutingState;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
+import org.elasticsearch.common.joda.Joda;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.indices.flush.ShardsSyncedFlushResult;
+import org.elasticsearch.indices.flush.SyncedFlushService;
+import org.elasticsearch.index.shard.ShardId;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpSyncedFlushAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final SyncedFlushAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpSyncedFlushAction(final HttpClient client, final SyncedFlushAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final SyncedFlushRequest request,
-            final ActionListener<SyncedFlushResponse> listener) {
+    public void execute(final SyncedFlushRequest request, final ActionListener<SyncedFlushResponse> listener) {
         client.getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("error: " + response.getHttpStatusCode());

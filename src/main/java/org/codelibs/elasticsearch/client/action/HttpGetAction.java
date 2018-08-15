@@ -37,16 +37,16 @@ public class HttpGetAction extends HttpAction {
     public void execute(final GetRequest request, final ActionListener<GetResponse> listener) {
         client.getCurlRequest(GET, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
                 .param("preference", request.preference()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final GetResponse getResponse = GetResponse.fromXContent(parser);
-                listener.onResponse(getResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final GetResponse getResponse = GetResponse.fromXContent(parser);
+                        listener.onResponse(getResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 }

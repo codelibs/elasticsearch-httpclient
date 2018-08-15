@@ -15,17 +15,30 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.validate.query.QueryExplanation;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryRequest;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryResponse;
+import org.elasticsearch.action.support.DefaultShardOperationFailedException;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class ValidateQueryAction extends HttpAction {
+public class HttpValidateQueryAction extends HttpAction {
 
     protected final ValidateQueryAction action;
 
@@ -34,8 +47,7 @@ public class ValidateQueryAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final ValidateQueryRequest request,
-            final ActionListener<ValidateQueryResponse> listener) {
+    public void execute(final ValidateQueryRequest request, final ActionListener<ValidateQueryResponse> listener) {
         String source = null;
         try {
             final XContentBuilder builder =
@@ -47,17 +59,17 @@ public class ValidateQueryAction extends HttpAction {
         client.getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
                 request.indices()).param("explain", String.valueOf(request.explain())).param("rewrite", String.valueOf(request.rewrite()))
                 .param("all_shards", String.valueOf(request.allShards())).body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);
-                listener.onResponse(validateQueryResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);
+                        listener.onResponse(validateQueryResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected ValidateQueryResponse getValidateQueryResponse(final XContentParser parser, final Supplier<ValidateQueryResponse> newResponse)

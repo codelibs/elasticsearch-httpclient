@@ -37,16 +37,16 @@ public class HttpFlushAction extends HttpAction {
     public void execute(final FlushRequest request, final ActionListener<FlushResponse> listener) {
         client.getCurlRequest(POST, "/_flush", request.indices()).param("wait_if_ongoing", String.valueOf(request.waitIfOngoing()))
                 .param("force", String.valueOf(request.force())).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
-                listener.onResponse(flushResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
+                        listener.onResponse(flushResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 }

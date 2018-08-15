@@ -17,13 +17,18 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import java.io.IOException;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpUpdateAction extends HttpAction {
 
@@ -34,7 +39,7 @@ public class HttpUpdateAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final UpdateAction action, final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
+    public void execute(final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
         String source = null;
         try {
             final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
@@ -42,19 +47,19 @@ public class HttpUpdateAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index()).param("routing", request.routing())
-                .param("retry_on_conflict", String.valueOf(request.retryOnConflict())).param("version", String.valueOf(request.version()))
-                .body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
-                    throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
-                listener.onResponse(updateResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index())
+                .param("routing", request.routing()).param("retry_on_conflict", String.valueOf(request.retryOnConflict()))
+                .param("version", String.valueOf(request.version())).body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
+                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
+                        listener.onResponse(updateResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 }

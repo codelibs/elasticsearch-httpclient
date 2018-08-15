@@ -15,15 +15,23 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.util.List;
+import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.cluster.service.PendingClusterTask;
+import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.text.Text;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpPendingClusterTasksAction extends HttpAction {
@@ -35,8 +43,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final PendingClusterTasksRequest request,
-            final ActionListener<PendingClusterTasksResponse> listener) {
+    public void execute(final PendingClusterTasksRequest request, final ActionListener<PendingClusterTasksResponse> listener) {
         client.getCurlRequest(GET, "/_cluster/pending_tasks").execute(
                 response -> {
                     if (response.getHttpStatusCode() != 200) {

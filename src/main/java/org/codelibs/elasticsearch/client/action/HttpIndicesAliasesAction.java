@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -24,13 +25,16 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpIndicesAliasesAction extends HttpAction {
 
     protected final IndicesAliasesAction action;
 
-    public HttpSearchAction(final HttpClient client, final IndicesAliasesAction action) {
+    public HttpIndicesAliasesAction(final HttpClient client, final IndicesAliasesAction action) {
         super(client);
         this.action = action;
     }
@@ -62,7 +66,7 @@ public class HttpIndicesAliasesAction extends HttpAction {
         client.getCurlRequest(POST, "/_aliases").body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final IndicesAliasesResponse indicesAliasesResponse = IndicesAliasesResponse.fromXContent(parser, action::newResponse);
+                final IndicesAliasesResponse indicesAliasesResponse = IndicesAliasesResponse.fromXContent(parser);
                 listener.onResponse(indicesAliasesResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);

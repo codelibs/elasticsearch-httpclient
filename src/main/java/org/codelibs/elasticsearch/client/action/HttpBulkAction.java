@@ -15,26 +15,40 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpBulkAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final BulkAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpBulkAction(final HttpClient client, final BulkAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final BulkAction action, final BulkRequest request, final ActionListener<BulkResponse> listener) {
+    public void execute(final BulkRequest request, final ActionListener<BulkResponse> listener) {
         // http://ndjson.org/
         final StringBuilder buf = new StringBuilder(10000);
         try {

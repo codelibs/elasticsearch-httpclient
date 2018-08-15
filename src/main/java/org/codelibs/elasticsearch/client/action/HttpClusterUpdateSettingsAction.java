@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,19 +24,23 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpClusterUpdateSettingsAction extends HttpAction {
 
     protected final ClusterUpdateSettingsAction action;
 
-    public HttpSearchAction(final HttpClient client, final ClusterUpdateSettingsAction action) {
+    public HttpClusterUpdateSettingsAction(final HttpClient client, final ClusterUpdateSettingsAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final ClusterUpdateSettingsRequest request,
-            final ActionListener<ClusterUpdateSettingsResponse> listener) {
+    public void execute(final ClusterUpdateSettingsRequest request, final ActionListener<ClusterUpdateSettingsResponse> listener) {
         String source = null;
         try {
             final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
@@ -43,7 +48,7 @@ public class HttpClusterUpdateSettingsAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        getCurlRequest(PUT, "/_cluster/settings").body(source).execute(response -> {
+        client.getCurlRequest(PUT, "/_cluster/settings").body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }

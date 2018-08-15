@@ -34,8 +34,7 @@ public class HttpTypesExistsAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final TypesExistsRequest request,
-            final ActionListener<TypesExistsResponse> listener) {
+    public void execute(final TypesExistsRequest request, final ActionListener<TypesExistsResponse> listener) {
         client.getCurlRequest(HEAD, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {

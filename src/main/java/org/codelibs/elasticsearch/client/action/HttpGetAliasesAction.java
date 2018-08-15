@@ -15,17 +15,29 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
 
-public class GetAliasesAction extends HttpAction {
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+
+public class HttpGetAliasesAction extends HttpAction {
 
     protected final GetAliasesAction action;
 
@@ -34,9 +46,8 @@ public class GetAliasesAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final GetAliasesRequest request,
-            final ActionListener<GetAliasesResponse> listener) {
-         client.getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
+    public void execute(final GetAliasesRequest request, final ActionListener<GetAliasesResponse> listener) {
+        client.getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }
@@ -65,7 +76,7 @@ public class GetAliasesAction extends HttpAction {
                 while (parser.nextToken() == Token.FIELD_NAME) {
                     final String currentFieldName = parser.currentName();
                     if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
+                        aliasesMapBuilder.put(index, getAliases(parser));
                     } else {
                         parser.skipChildren();
                     }
@@ -88,5 +99,19 @@ public class GetAliasesAction extends HttpAction {
             response.readFrom(out.toStreamInput());
             return response;
         }
+    }
+
+    public static List<AliasMetaData> getAliases(final XContentParser parser) throws IOException {
+        final List<AliasMetaData> aliases = new ArrayList<>();
+        Token token = parser.nextToken();
+        if (token == null) {
+            return aliases;
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                aliases.add(AliasMetaData.Builder.fromXContent(parser));
+            }
+        }
+        return aliases;
     }
 }

@@ -29,7 +29,7 @@ public class HttpPutMappingAction extends HttpAction {
 
     protected final PutMappingAction action;
 
-    public HttpSearchAction(final HttpClient client, final PutMappingAction action) {
+    public HttpPutMappingAction(final HttpClient client, final PutMappingAction action) {
         super(client);
         this.action = action;
     }
@@ -41,11 +41,12 @@ public class HttpPutMappingAction extends HttpAction {
             }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
-                final PutMappingResponse putMappingResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final PutMappingResponse putMappingResponse = PutMappingResponse.fromXContent(parser);
                 listener.onResponse(putMappingResponse);
             } catch (final Exception e) {
                 listener.onFailure(e);
             }
         }, listener::onFailure);
     }
+
 }

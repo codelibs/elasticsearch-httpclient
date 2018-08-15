@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,7 +24,11 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
 import org.elasticsearch.action.admin.indices.rollover.RolloverRequest;
 import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpRolloverAction extends HttpAction {
 
@@ -34,8 +39,7 @@ public class HttpRolloverAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final RolloverRequest request,
-            final ActionListener<RolloverResponse> listener) {
+    public void execute(final RolloverRequest request, final ActionListener<RolloverResponse> listener) {
         String source = null;
         try {
             final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
@@ -43,8 +47,8 @@ public class HttpRolloverAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""), request.getAlias())
-                .param("dry_run", (request.isDryRun() ? "" : null)).body(source).execute(response -> {
+        client.getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""),
+                request.getAlias()).param("dry_run", (request.isDryRun() ? "" : null)).body(source).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("error: " + response.getHttpStatusCode());
             }

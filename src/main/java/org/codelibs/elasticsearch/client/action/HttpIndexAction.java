@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -23,7 +24,9 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
 
 public class HttpIndexAction extends HttpAction {
 
@@ -41,8 +44,8 @@ public class HttpIndexAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing()).body(source)
-                .execute(response -> {
+        client.getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .body(source).execute(response -> {
                     if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
                         throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }

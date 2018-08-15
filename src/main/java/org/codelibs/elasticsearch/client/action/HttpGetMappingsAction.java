@@ -15,17 +15,28 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
 
-public class GetMappingsAction extends HttpAction {
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+
+public class HttpGetMappingsAction extends HttpAction {
 
     protected final GetMappingsAction action;
 
@@ -61,7 +72,7 @@ public class GetMappingsAction extends HttpAction {
                 } else if (token == Token.START_OBJECT) {
                     while (parser.nextToken() == Token.FIELD_NAME) {
                         if (MAPPINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
-                            indexMapBuilder.put(index, getMappingsFromXContent(parser));
+                            indexMapBuilder.put(index, getMappings(parser));
                             break;
                         } else {
                             parser.skipChildren();
@@ -88,5 +99,23 @@ public class GetMappingsAction extends HttpAction {
             response.readFrom(out.toStreamInput());
             return response;
         }
+    }
+
+    protected ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
+        final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
+        String type = null;
+        Token token = parser.nextToken();
+        if (token == null) {
+            return mappingsBuilder.build();
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                type = parser.currentName();
+            } else if (token == Token.START_OBJECT) {
+                final Map<String, Object> mapping = parser.mapOrdered();
+                mappingsBuilder.put(type, new MappingMetaData(type, mapping));
+            }
+        }
+        return mappingsBuilder.build();
     }
 }

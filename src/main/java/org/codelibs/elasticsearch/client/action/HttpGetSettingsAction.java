@@ -15,7 +15,10 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
@@ -23,9 +26,13 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpGetSettingsAction extends HttpAction {
 
     protected final GetSettingsAction action;
 
@@ -34,8 +41,7 @@ public class HttpSearchAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final GetSettingsRequest request,
-            final ActionListener<GetSettingsResponse> listener) {
+    public void execute(final GetSettingsRequest request, final ActionListener<GetSettingsResponse> listener) {
         client.getCurlRequest(GET, "/_settings", request.indices()).execute(response -> {
             if (response.getHttpStatusCode() != 200) {
                 throw new ElasticsearchException("error: " + response.getHttpStatusCode());

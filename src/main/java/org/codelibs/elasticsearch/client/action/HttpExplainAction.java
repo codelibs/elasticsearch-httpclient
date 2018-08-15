@@ -15,15 +15,23 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 
+import org.apache.lucene.search.Explanation;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.explain.ExplainAction;
 import org.elasticsearch.action.explain.ExplainRequest;
 import org.elasticsearch.action.explain.ExplainResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.get.GetResult;
 
 public class HttpExplainAction extends HttpAction {
 
@@ -34,8 +42,7 @@ public class HttpExplainAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final ExplainRequest request,
-            final ActionListener<ExplainResponse> listener) {
+    public void execute(final ExplainRequest request, final ActionListener<ExplainResponse> listener) {
         String source = null;
         try {
             final XContentBuilder builder =
@@ -44,19 +51,19 @@ public class HttpExplainAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index()).param("routing", request.routing())
-                .param("preference", request.preference()).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                }
-                final XContentParser parser = createParser(in);
-                final ExplainResponse explainResponse = getExplainResponse(parser);
-                listener.onResponse(explainResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+        client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index())
+                .param("routing", request.routing()).param("preference", request.preference()).body(source).execute(response -> {
+                    try (final InputStream in = response.getContentAsStream()) {
+                        if (response.getHttpStatusCode() != 200) {
+                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                        }
+                        final XContentParser parser = createParser(in);
+                        final ExplainResponse explainResponse = getExplainResponse(parser);
+                        listener.onResponse(explainResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 
     protected ExplainResponse getExplainResponse(final XContentParser parser) {

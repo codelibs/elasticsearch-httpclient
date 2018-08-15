@@ -15,7 +15,13 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
@@ -24,7 +30,11 @@ import org.elasticsearch.action.fieldcaps.FieldCapabilities;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentParserUtils;
+import org.elasticsearch.common.xcontent.XContentType;
 
 public class HttpFieldCapabilitiesAction extends HttpAction {
 
@@ -54,9 +64,9 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
         // workaround fix
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<FieldCapabilitiesResponse, Void> objectParser =
-                new ConstructingObjectParser<>("field_capabilities_response", true, a -> newFieldCapabilitiesResponse(
-                        ((List<Tuple<String, Map<String, FieldCapabilities>>>) a[0]).stream()
-                                .collect(Collectors.toMap(Tuple::v1, Tuple::v2))));
+                new ConstructingObjectParser<>("field_capabilities_response", true,
+                        a -> newFieldCapabilitiesResponse(((List<Tuple<String, Map<String, FieldCapabilities>>>) a[0]).stream().collect(
+                                Collectors.toMap(Tuple::v1, Tuple::v2))));
 
         objectParser.declareNamedObjects(ConstructingObjectParser.constructorArg(), (p, c, n) -> {
             final Map<String, FieldCapabilities> typeToCapabilities = parseTypeToCapabilities(p, n);
@@ -98,9 +108,9 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
 
     protected FieldCapabilities getFieldCapabilitiesfromXContent(final String sname, final XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<FieldCapabilities, String> objectParser = new ConstructingObjectParser<>("field_capabilities", true,
-                (a, name) -> newFieldCapabilities(name, (String) a[0], true, true,
-                        (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
+        final ConstructingObjectParser<FieldCapabilities, String> objectParser =
+                new ConstructingObjectParser<>("field_capabilities", true, (a, name) -> newFieldCapabilities(name, (String) a[0], true,
+                        true, (a[3] != null ? ((List<String>) a[3]).toArray(new String[0]) : null),
                         (a[4] != null ? ((List<String>) a[4]).toArray(new String[0]) : null),
                         (a[5] != null ? ((List<String>) a[5]).toArray(new String[0]) : null)));
 
@@ -115,8 +125,7 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
     }
 
     protected FieldCapabilities newFieldCapabilities(final String name, final String type, final boolean isSearchable,
-            final boolean isAggregatable, final String[] indices, final String[] nonSearchableIndices,
-            final String[] nonAggregatableIndices) {
+            final boolean isAggregatable, final String[] indices, final String[] nonSearchableIndices, final String[] nonAggregatableIndices) {
         final Class<FieldCapabilities> clazz = FieldCapabilities.class;
         final Class<?>[] types =
                 { String.class, String.class, boolean.class, boolean.class, String[].class, String[].class, String[].class };

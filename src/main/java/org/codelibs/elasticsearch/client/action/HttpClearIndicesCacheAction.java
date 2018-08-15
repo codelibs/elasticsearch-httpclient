@@ -34,25 +34,24 @@ public class HttpClearIndicesCacheAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final ClearIndicesCacheRequest request,
-            final ActionListener<ClearIndicesCacheResponse> listener) {
+    public void execute(final ClearIndicesCacheRequest request, final ActionListener<ClearIndicesCacheResponse> listener) {
         String fields = null;
         if (request.fields() != null && request.fields().length > 0) {
             fields = String.join(",", request.fields());
         }
-        getCurlRequest(POST, "/_cache/clear", request.indices()).param("fielddata", String.valueOf(request.fieldDataCache()))
+        client.getCurlRequest(POST, "/_cache/clear", request.indices()).param("fielddata", String.valueOf(request.fieldDataCache()))
                 .param("query", String.valueOf(request.queryCache())).param("request", String.valueOf(request.requestCache()))
                 .param("fields", fields).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
-                listener.onResponse(clearIndicesCacheResponse);
-            } catch (final Exception e) {
-                listener.onFailure(e);
-            }
-        }, listener::onFailure);
+                    if (response.getHttpStatusCode() != 200) {
+                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
+                        listener.onResponse(clearIndicesCacheResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(e);
+                    }
+                }, listener::onFailure);
     }
 }

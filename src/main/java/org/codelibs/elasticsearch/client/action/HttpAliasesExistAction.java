@@ -25,17 +25,16 @@ import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpAliasesExistAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final AliasesExistAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpAliasesExistAction(final HttpClient client, final AliasesExistAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final GetAliasesRequest request,
-            final ActionListener<AliasesExistResponse> listener) {
+    public void execute(final GetAliasesRequest request, final ActionListener<AliasesExistResponse> listener) {
         client.getCurlRequest(HEAD, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {

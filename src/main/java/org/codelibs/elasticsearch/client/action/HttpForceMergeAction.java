@@ -36,8 +36,8 @@ public class HttpForceMergeAction extends HttpAction {
 
     public void execute(final ForceMergeRequest request, final ActionListener<ForceMergeResponse> listener) {
         client.getCurlRequest(POST, "/_forcemerge", request.indices()).param("max_num_segments", String.valueOf(request.maxNumSegments()))
-                .param("only_expunge_deletes", String.valueOf(request.onlyExpungeDeletes())).param("flush", String.valueOf(request.flush()))
-                .execute(response -> {
+                .param("only_expunge_deletes", String.valueOf(request.onlyExpungeDeletes()))
+                .param("flush", String.valueOf(request.flush())).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
                         throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
