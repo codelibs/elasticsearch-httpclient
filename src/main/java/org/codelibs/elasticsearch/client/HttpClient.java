@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client;
 
-import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
