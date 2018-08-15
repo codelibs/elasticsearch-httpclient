@@ -459,6 +459,20 @@ public class HttpClient extends AbstractClient {
             new HttpClearIndicesCacheAction(this, (ClearIndicesCacheAction) action).execute((ClearIndicesCacheRequest) request, actionListener);
         } else {
 
+            // org.elasticsearch.action.ingest.DeletePipelineAction
+            // org.elasticsearch.action.ingest.PutPipelineAction
+            // org.elasticsearch.action.ingest.SimulatePipelineAction
+            // org.elasticsearch.action.ingest.GetPipelineAction
+            // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
+            // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
+            // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
+            // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
+            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
+            // org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction
+            // org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction
+            // org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction
+            // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
+
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
 
             // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
@@ -481,25 +495,12 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
 
-            // org.elasticsearch.action.ingest.DeletePipelineAction
-            // org.elasticsearch.action.ingest.PutPipelineAction
-            // org.elasticsearch.action.ingest.SimulatePipelineAction
-            // org.elasticsearch.action.ingest.GetPipelineAction
             // org.elasticsearch.action.termvectors.MultiTermVectorsAction
             // org.elasticsearch.action.termvectors.TermVectorsAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
             // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
             // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
             // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
-            // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
-            // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
-            // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
-            // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
-            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
-            // org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction
-            // org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction
-            // org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction
-            // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
             // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
             // org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction
             // org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction

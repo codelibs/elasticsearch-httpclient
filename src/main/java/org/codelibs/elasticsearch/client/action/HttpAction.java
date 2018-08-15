@@ -249,108 +249,6 @@ public class HttpAction {
         }
     }
 
-    protected GetIndexResponse getGetIndexResponse(final XContentParser parser, final Supplier<GetIndexResponse> newResponse)
-            throws IOException {
-        final List<String> indices = new ArrayList<>();
-        final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
-        final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> mappingsMapBuilder = ImmutableOpenMap.builder();
-        final ImmutableOpenMap.Builder<String, Settings> settingsMapBuilder = ImmutableOpenMap.builder();
-
-        String index = null;
-        XContentParser.Token token = parser.nextToken();
-        while ((token = parser.nextToken()) != Token.END_OBJECT) {
-            if (token == Token.FIELD_NAME) {
-                index = parser.currentName();
-                indices.add(index);
-            } else if (token == Token.START_OBJECT) {
-                while (parser.nextToken() == Token.FIELD_NAME) {
-                    final String currentFieldName = parser.currentName();
-                    if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
-                    } else if (MAPPINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        mappingsMapBuilder.put(index, getMappingsFromXContent(parser));
-                    } else if (SETTINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        settingsMapBuilder.put(index, getSettingsFromXContent(parser));
-                    }
-                }
-            }
-        }
-
-        final ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = mappingsMapBuilder.build();
-        final ImmutableOpenMap<String, List<AliasMetaData>> aliases = aliasesMapBuilder.build();
-        final ImmutableOpenMap<String, Settings> settings = settingsMapBuilder.build();
-
-        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-            out.writeStringArray(indices.toArray(new String[indices.size()]));
-            out.writeVInt(mappings.size());
-            for (final ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
-                out.writeString(indexEntry.key);
-                out.writeVInt(indexEntry.value.size());
-                for (final ObjectObjectCursor<String, MappingMetaData> mappingEntry : indexEntry.value) {
-                    out.writeString(mappingEntry.key);
-                    mappingEntry.value.writeTo(out);
-                }
-            }
-            out.writeVInt(aliases.size());
-            for (final ObjectObjectCursor<String, List<AliasMetaData>> indexEntry : aliases) {
-                out.writeString(indexEntry.key);
-                out.writeVInt(indexEntry.value.size());
-                for (final AliasMetaData aliasEntry : indexEntry.value) {
-                    aliasEntry.writeTo(out);
-                }
-            }
-            out.writeVInt(settings.size());
-            for (final ObjectObjectCursor<String, Settings> indexEntry : settings) {
-                out.writeString(indexEntry.key);
-                Settings.writeSettingsToStream(indexEntry.value, out);
-            }
-            final GetIndexResponse response = newResponse.get();
-            response.readFrom(out.toStreamInput());
-            return response;
-        }
-    }
-
-    protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
-            throws IOException {
-        final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> indexMapBuilder = ImmutableOpenMap.builder();
-        String index = null;
-        Token token = parser.nextToken();
-        if (token != null) {
-            while ((token = parser.nextToken()) != Token.END_OBJECT) {
-                if (token == Token.FIELD_NAME) {
-                    index = parser.currentName();
-                } else if (token == Token.START_OBJECT) {
-                    while (parser.nextToken() == Token.FIELD_NAME) {
-                        if (MAPPINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
-                            indexMapBuilder.put(index, getMappingsFromXContent(parser));
-                            break;
-                        } else {
-                            parser.skipChildren();
-                        }
-                    }
-                }
-            }
-        }
-
-        final ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = indexMapBuilder.build();
-
-        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-            out.writeVInt(mappings.size());
-            for (final ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
-                out.writeString(indexEntry.key);
-                out.writeVInt(indexEntry.value.size());
-                for (final ObjectObjectCursor<String, MappingMetaData> typeEntry : indexEntry.value) {
-                    out.writeString(typeEntry.key);
-                    typeEntry.value.writeTo(out);
-                }
-            }
-
-            final GetMappingsResponse response = newResponse.get();
-            response.readFrom(out.toStreamInput());
-            return response;
-        }
-    }
-
     protected List<AliasMetaData> getAliasesFromXContent(final XContentParser parser) throws IOException {
         final List<AliasMetaData> aliases = new ArrayList<>();
         Token token = parser.nextToken();
@@ -365,7 +263,7 @@ public class HttpAction {
         return aliases;
     }
 
-    protected ImmutableOpenMap<String, MappingMetaData> getMappingsFromXContent(final XContentParser parser) throws IOException {
+    protected ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
         final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
         String type = null;
         Token token = parser.nextToken();
@@ -383,7 +281,7 @@ public class HttpAction {
         return mappingsBuilder.build();
     }
 
-    protected Settings getSettingsFromXContent(final XContentParser parser) throws IOException {
+    protected Settings getSettings(final XContentParser parser) throws IOException {
         if (parser.nextToken() == null) {
             return Settings.EMPTY;
         }

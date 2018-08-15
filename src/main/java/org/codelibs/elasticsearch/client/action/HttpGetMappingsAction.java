@@ -48,4 +48,45 @@ public class GetMappingsAction extends HttpAction {
             }
         }, listener::onFailure);
     }
+
+    protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
+            throws IOException {
+        final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> indexMapBuilder = ImmutableOpenMap.builder();
+        String index = null;
+        Token token = parser.nextToken();
+        if (token != null) {
+            while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                if (token == Token.FIELD_NAME) {
+                    index = parser.currentName();
+                } else if (token == Token.START_OBJECT) {
+                    while (parser.nextToken() == Token.FIELD_NAME) {
+                        if (MAPPINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
+                            indexMapBuilder.put(index, getMappingsFromXContent(parser));
+                            break;
+                        } else {
+                            parser.skipChildren();
+                        }
+                    }
+                }
+            }
+        }
+
+        final ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = indexMapBuilder.build();
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeVInt(mappings.size());
+            for (final ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (final ObjectObjectCursor<String, MappingMetaData> typeEntry : indexEntry.value) {
+                    out.writeString(typeEntry.key);
+                    typeEntry.value.writeTo(out);
+                }
+            }
+
+            final GetMappingsResponse response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
 }
