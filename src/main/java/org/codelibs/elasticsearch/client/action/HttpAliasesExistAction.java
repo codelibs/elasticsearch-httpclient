@@ -15,15 +15,12 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
-import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpAliasesExistAction extends HttpAction {
 

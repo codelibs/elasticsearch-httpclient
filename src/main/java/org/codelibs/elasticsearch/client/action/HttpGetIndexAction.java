@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.codelibs.elasticsearch.client.action.HttpGetSettingsAction;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
