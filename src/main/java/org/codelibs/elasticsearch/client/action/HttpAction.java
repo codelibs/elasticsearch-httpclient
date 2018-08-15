@@ -31,6 +31,151 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 public class HttpAction {
 
+    protected static final ParseField SHARD_FIELD = new ParseField("shard");
+
+    protected static final ParseField INDEX_FIELD = new ParseField("index");
+
+    protected static final ParseField QUERY_FIELD = new ParseField("query");
+
+    protected static final ParseField STATUS_FIELD = new ParseField("status");
+
+    protected static final ParseField REASON_FIELD = new ParseField("reason");
+
+    protected static final ParseField ACKNOWLEDGED_FIELD = new ParseField("acknowledged");
+
+    protected static final ParseField ALIASES_FIELD = new ParseField("aliases");
+
+    protected static final ParseField MAPPINGS_FIELD = new ParseField("mappings");
+
+    protected static final ParseField FIELDS_FIELD = new ParseField("fields");
+
+    protected static final ParseField SETTINGS_FIELD = new ParseField("settings");
+
+    protected static final ParseField TYPE_FIELD = new ParseField("type");
+
+    protected static final ParseField SEARCHABLE_FIELD = new ParseField("searchable");
+
+    protected static final ParseField AGGREGATABLE_FIELD = new ParseField("aggregatable");
+
+    protected static final ParseField INDICES_FIELD = new ParseField("indices");
+
+    protected static final ParseField NON_SEARCHABLE_INDICES_FIELD = new ParseField("non_searchable_indices");
+
+    protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
+
+    protected static final ParseField _INDEX_FIELD = new ParseField("_index");
+
+    protected static final ParseField _TYPE_FIELD = new ParseField("_type");
+
+    protected static final ParseField _ID_FIELD = new ParseField("_id");
+
+    protected static final ParseField _ROUTING_FIELD = new ParseField("_routing");
+
+    protected static final ParseField _VERSION_FIELD = new ParseField("_version");
+
+    protected static final ParseField EXPLANATION_FIELD = new ParseField("explanation");
+
+    protected static final ParseField VALUE_FIELD = new ParseField("value");
+
+    protected static final ParseField DESCRIPTION_FIELD = new ParseField("description");
+
+    protected static final ParseField DETAILS_FIELD = new ParseField("details");
+
+    protected static final ParseField CLUSTER_NAME_FIELD = new ParseField("cluster_name");
+
+    protected static final ParseField TIMED_OUT_FIELD = new ParseField("timed_out");
+
+    protected static final ParseField NUMBER_OF_NODES_FIELD = new ParseField("number_of_nodes");
+
+    protected static final ParseField NUMBER_OF_DATA_NODES_FIELD = new ParseField("number_of_data_nodes");
+
+    protected static final ParseField NUMBER_OF_PENDING_TASKS_FIELD = new ParseField("number_of_pending_tasks");
+
+    protected static final ParseField NUMBER_OF_IN_FLIGHT_FETCH_FIELD = new ParseField("number_of_in_flight_fetch");
+
+    protected static final ParseField DELAYED_UNASSIGNED_SHARDS_FIELD = new ParseField("delayed_unassigned_shards");
+
+    protected static final ParseField TASK_MAX_WAIT_TIME_IN_QUEUE_FIELD = new ParseField("task_max_waiting_in_queue");
+
+    protected static final ParseField TASK_MAX_WAIT_TIME_IN_QUEUE_IN_MILLIS_FIELD = new ParseField("task_max_waiting_in_queue_millis");
+
+    protected static final ParseField ACTIVE_SHARDS_PERCENT_AS_NUMBER_FIELD = new ParseField("active_shards_percent_as_number");
+
+    protected static final ParseField ACTIVE_SHARDS_PERCENT_FIELD = new ParseField("active_shards_percent");
+
+    protected static final ParseField ACTIVE_PRIMARY_SHARDS_FIELD = new ParseField("active_primary_shards");
+
+    protected static final ParseField ACTIVE_SHARDS_FIELD = new ParseField("active_shards");
+
+    protected static final ParseField RELOCATING_SHARDS_FIELD = new ParseField("relocating_shards");
+
+    protected static final ParseField INITIALIZING_SHARDS_FIELD = new ParseField("initializing_shards");
+
+    protected static final ParseField UNASSIGNED_SHARDS_FIELD = new ParseField("unassigned_shards");
+
+    protected static final ParseField EXPLANATIONS_FIELD = new ParseField("explanations");
+
+    protected static final ParseField VALID_FIELD = new ParseField("valid");
+
+    protected static final ParseField _SHARDS_FIELD = new ParseField("_shards");
+
+    protected static final ParseField ERROR_FIELD = new ParseField("error");
+
+    protected static final ParseField TASKS_FIELD = new ParseField("tasks");
+
+    protected static final ParseField INSERT_ORDER_FIELD = new ParseField("insert_order");
+
+    protected static final ParseField PRIORITY_FIELD = new ParseField("priority");
+
+    protected static final ParseField SOURCE_FIELD = new ParseField("source");
+
+    protected static final ParseField TIME_IN_QUEUE_MILLIS_FIELD = new ParseField("time_in_queue_millis");
+
+    protected static final ParseField TIME_IN_QUEUE_FIELD = new ParseField("time_in_queue");
+
+    protected static final ParseField EXECUTING_FIELD = new ParseField("executing");
+
+    protected static final ParseField GET_FIELD = new ParseField("get");
+
+    protected static final ParseField TOTAL_FIELD = new ParseField("total");
+
+    protected static final ParseField SUCCESSFUL_FIELD = new ParseField("successful");
+
+    protected static final ParseField FAILED_FIELD = new ParseField("failed");
+
+    protected static final ParseField FAILURES_FIELD = new ParseField("failures");
+
+    protected static final ParseField STATE_FIELD = new ParseField("state");
+
+    protected static final ParseField PRIMARY_FIELD = new ParseField("primary");
+
+    protected static final ParseField NODE_FIELD = new ParseField("node");
+
+    protected static final ParseField RELOCATING_NODE_FIELD = new ParseField("relocating_node");
+
+    protected static final ParseField EXPECTED_SHARD_SIZE_IN_BYTES_FIELD = new ParseField("expected_shard_size_in_bytes");
+
+    protected static final ParseField ROUTING_FIELD = new ParseField("routing");
+
+    protected static final ParseField FULL_NAME_FIELD = new ParseField("full_name");
+
+    protected static final ParseField MAPPING_FIELD = new ParseField("mapping");
+
+    protected static final ParseField UNASSIGNED_INFO_FIELD = new ParseField("unassigned_info");
+
+    protected static final ParseField ALLOCATION_ID_FIELD = new ParseField("allocation_id");
+
+    protected static final ParseField RECOVERY_SOURCE_FIELD = new ParseField("recovery_source");
+
+    protected static final ParseField AT_FIELD = new ParseField("at");
+
+    protected static final ParseField FAILED_ATTEMPTS_FIELD = new ParseField("failed_attempts");
+
+    protected static final ParseField ALLOCATION_STATUS_FIELD = new ParseField("allocation_status");
+
+    protected static final ParseField DELAYED_FIELD = new ParseField("delayed");
+
+
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
     protected static final Function<String, CurlRequest> POST = Curl::post;
@@ -50,6 +195,247 @@ public class HttpAction {
     protected XContentParser createParser(final InputStream in) throws IOException {
         final XContent xContent = XContentFactory.xContent(XContentType.JSON);
         return xContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, in);
+    }
+
+    protected <T extends BroadcastResponse> T getResponseFromXContent(final XContentParser parser, final Supplier<T> newResponse)
+            throws IOException {
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        parser.nextToken();
+        ensureExpectedToken(Token.FIELD_NAME, parser.currentToken(), parser::getTokenLocation);
+        String currentFieldName = parser.currentName(); // _SHARDS_FIELD
+        int totalShards = 0;
+        int successfulShards = 0;
+        int failedShards = 0;
+        final List<DefaultShardOperationFailedException> shardFailures = new ArrayList<>();
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token == Token.START_ARRAY) {
+                if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
+                        if (token != XContentParser.Token.START_OBJECT) {
+                            throw new ElasticsearchException("failures array element should include an object");
+                        }
+                        shardFailures.add(getFailureFromXContent(parser));
+                    }
+                } else {
+                    parser.skipChildren();
+                }
+            } else if (token.isValue()) {
+                if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    totalShards = parser.intValue();
+                } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    successfulShards = parser.intValue();
+                } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    failedShards = parser.intValue();
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+
+        // BroadcastResponse
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeVInt(totalShards);
+            out.writeVInt(successfulShards);
+            out.writeVInt(failedShards);
+            out.writeVInt(shardFailures.size());
+            for (final ShardOperationFailedException exp : shardFailures) {
+                exp.writeTo(out);
+            }
+            final T response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected GetIndexResponse getGetIndexResponse(final XContentParser parser, final Supplier<GetIndexResponse> newResponse)
+            throws IOException {
+        final List<String> indices = new ArrayList<>();
+        final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
+        final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> mappingsMapBuilder = ImmutableOpenMap.builder();
+        final ImmutableOpenMap.Builder<String, Settings> settingsMapBuilder = ImmutableOpenMap.builder();
+
+        String index = null;
+        XContentParser.Token token = parser.nextToken();
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                index = parser.currentName();
+                indices.add(index);
+            } else if (token == Token.START_OBJECT) {
+                while (parser.nextToken() == Token.FIELD_NAME) {
+                    final String currentFieldName = parser.currentName();
+                    if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                        aliasesMapBuilder.put(index, getAliasesFromXContent(parser));
+                    } else if (MAPPINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                        mappingsMapBuilder.put(index, getMappingsFromXContent(parser));
+                    } else if (SETTINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                        settingsMapBuilder.put(index, getSettingsFromXContent(parser));
+                    }
+                }
+            }
+        }
+
+        final ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = mappingsMapBuilder.build();
+        final ImmutableOpenMap<String, List<AliasMetaData>> aliases = aliasesMapBuilder.build();
+        final ImmutableOpenMap<String, Settings> settings = settingsMapBuilder.build();
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeStringArray(indices.toArray(new String[indices.size()]));
+            out.writeVInt(mappings.size());
+            for (final ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (final ObjectObjectCursor<String, MappingMetaData> mappingEntry : indexEntry.value) {
+                    out.writeString(mappingEntry.key);
+                    mappingEntry.value.writeTo(out);
+                }
+            }
+            out.writeVInt(aliases.size());
+            for (final ObjectObjectCursor<String, List<AliasMetaData>> indexEntry : aliases) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (final AliasMetaData aliasEntry : indexEntry.value) {
+                    aliasEntry.writeTo(out);
+                }
+            }
+            out.writeVInt(settings.size());
+            for (final ObjectObjectCursor<String, Settings> indexEntry : settings) {
+                out.writeString(indexEntry.key);
+                Settings.writeSettingsToStream(indexEntry.value, out);
+            }
+            final GetIndexResponse response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
+            throws IOException {
+        final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> indexMapBuilder = ImmutableOpenMap.builder();
+        String index = null;
+        Token token = parser.nextToken();
+        if (token != null) {
+            while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                if (token == Token.FIELD_NAME) {
+                    index = parser.currentName();
+                } else if (token == Token.START_OBJECT) {
+                    while (parser.nextToken() == Token.FIELD_NAME) {
+                        if (MAPPINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
+                            indexMapBuilder.put(index, getMappingsFromXContent(parser));
+                            break;
+                        } else {
+                            parser.skipChildren();
+                        }
+                    }
+                }
+            }
+        }
+
+        final ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = indexMapBuilder.build();
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeVInt(mappings.size());
+            for (final ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
+                out.writeString(indexEntry.key);
+                out.writeVInt(indexEntry.value.size());
+                for (final ObjectObjectCursor<String, MappingMetaData> typeEntry : indexEntry.value) {
+                    out.writeString(typeEntry.key);
+                    typeEntry.value.writeTo(out);
+                }
+            }
+
+            final GetMappingsResponse response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected List<AliasMetaData> getAliasesFromXContent(final XContentParser parser) throws IOException {
+        final List<AliasMetaData> aliases = new ArrayList<>();
+        Token token = parser.nextToken();
+        if (token == null) {
+            return aliases;
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                aliases.add(AliasMetaData.Builder.fromXContent(parser));
+            }
+        }
+        return aliases;
+    }
+
+    protected ImmutableOpenMap<String, MappingMetaData> getMappingsFromXContent(final XContentParser parser) throws IOException {
+        final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
+        String type = null;
+        Token token = parser.nextToken();
+        if (token == null) {
+            return mappingsBuilder.build();
+        }
+        while ((token = parser.nextToken()) != Token.END_OBJECT) {
+            if (token == Token.FIELD_NAME) {
+                type = parser.currentName();
+            } else if (token == Token.START_OBJECT) {
+                final Map<String, Object> mapping = parser.mapOrdered();
+                mappingsBuilder.put(type, new MappingMetaData(type, mapping));
+            }
+        }
+        return mappingsBuilder.build();
+    }
+
+    protected Settings getSettingsFromXContent(final XContentParser parser) throws IOException {
+        if (parser.nextToken() == null) {
+            return Settings.EMPTY;
+        }
+        return Settings.fromXContent(parser);
+    }
+
+    protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse)
+            throws IOException {
+        boolean acknowledged = false;
+        String currentFieldName = null;
+        Token token = parser.nextToken();
+        if (token != null) {
+            while ((token = parser.nextToken()) != Token.END_OBJECT) {
+                if (token == Token.FIELD_NAME) {
+                    currentFieldName = parser.currentName();
+                } else if (token == Token.VALUE_BOOLEAN) {
+                    if (ACKNOWLEDGED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                        acknowledged = parser.booleanValue();
+                    }
+                }
+            }
+        }
+
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeBoolean(acknowledged);
+            final T response = newResponse.get();
+            response.readFrom(out.toStreamInput());
+            return response;
+        }
+    }
+
+    protected DefaultShardOperationFailedException getFailureFromXContent(final XContentParser parser) throws IOException {
+        String index = null;
+        ElasticsearchException reason = null;
+        int shardId = 0;
+        String currentFieldName = "";
+        for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
+            if (token == Token.FIELD_NAME) {
+                currentFieldName = parser.currentName();
+            } else if (token.isValue()) {
+                if (SHARD_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    shardId = parser.intValue();
+                } else if (INDEX_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    index = parser.text();
+                } else if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    reason = ElasticsearchException.fromXContent(parser);
+                } else {
+                    parser.skipChildren();
+                }
+            }
+        }
+        return new DefaultShardOperationFailedException(index, shardId, reason);
     }
 
 }
