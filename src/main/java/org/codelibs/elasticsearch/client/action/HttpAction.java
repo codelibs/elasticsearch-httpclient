@@ -17,12 +17,17 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContent;
@@ -176,6 +181,12 @@ public class HttpAction {
 
     protected static final ParseField DELAYED_FIELD = new ParseField("delayed");
 
+    protected static final ParseField DOC_FIELD = new ParseField("doc");
+
+    protected static final ParseField DOCS_FIELD = new ParseField("docs");
+
+    protected static final ParseField PROCESSOR_RESULTS_FIELD = new ParseField("processor_results");
+
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
     protected static final Function<String, CurlRequest> POST = Curl::post;
@@ -195,5 +206,22 @@ public class HttpAction {
     protected XContentParser createParser(final InputStream in) throws IOException {
         final XContent xContent = XContentFactory.xContent(XContentType.JSON);
         return xContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, in);
+    }
+
+    protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse) {
+        final ConstructingObjectParser<T, Void> objectParser = new ConstructingObjectParser<>("acknowledged_reponse", true, a -> {
+            try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+                out.writeBoolean((boolean) a[0]);
+                final T response = newResponse.get();
+                response.readFrom(out.toStreamInput());
+                return response;
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+
+        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), ACKNOWLEDGED_FIELD);
+
+        return objectParser.apply(parser, null);
     }
 }

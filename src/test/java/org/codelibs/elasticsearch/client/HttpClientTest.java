@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
@@ -69,6 +70,9 @@ import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.ingest.GetPipelineResponse;
+import org.elasticsearch.action.ingest.PutPipelineRequest;
+import org.elasticsearch.action.ingest.WritePipelineResponse;
 import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
@@ -79,6 +83,7 @@ import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -528,7 +533,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_crud0() throws Exception {
+    void test_crud_index0() throws Exception {
         final String index = "test_crud_index";
         final String type = "test_type";
         final String id = "1";
@@ -566,7 +571,7 @@ public class HttpClientTest {
     }
 
     @Test
-    void test_crud1() throws Exception {
+    void test_crud_index1() throws Exception {
         final long NUM = 10;
         final String index = "test_bulk_multi";
         final String type = "test_type";
@@ -1067,6 +1072,24 @@ public class HttpClientTest {
             ResizeResponse resizeResponse = client.admin().indices().execute(ShrinkAction.INSTANCE, resizeRequest).actionGet();
             assertTrue(resizeResponse.isAcknowledged());
         }
+    }
+
+    @Test
+    void test_crud_pipeline() throws Exception {
+        final String source =
+                "{\"description\":\"my set of processors\"," + "\"processors\":[{\"set\":{\"field\":\"foo\",\"value\":\"bar\"}}]}";
+        final String id = "test_crud_pipeline";
+
+        WritePipelineResponse putPipelineResponse =
+                client.admin().cluster().preparePutPipeline(id, new BytesArray(source.getBytes(StandardCharsets.UTF_8))).execute()
+                        .actionGet();
+        assertTrue(putPipelineResponse.isAcknowledged());
+
+        GetPipelineResponse getPipelineResponse = client.admin().cluster().prepareGetPipeline(id).execute().actionGet();
+        assertTrue(getPipelineResponse.isFound());
+
+        WritePipelineResponse deletePipelineResponse = client.admin().cluster().prepareDeletePipeline(id).execute().actionGet();
+        assertTrue(deletePipelineResponse.isAcknowledged());
     }
 
     // needs x-pack

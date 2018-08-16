@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client;
 
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.logging.Logger;
@@ -116,7 +114,6 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.explain.ExplainAction;
 import org.elasticsearch.action.explain.ExplainRequest;
 import org.elasticsearch.action.explain.ExplainResponse;
-import org.elasticsearch.action.fieldcaps.FieldCapabilities;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
@@ -129,6 +126,17 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.ingest.DeletePipelineAction;
+import org.elasticsearch.action.ingest.DeletePipelineRequest;
+import org.elasticsearch.action.ingest.GetPipelineAction;
+import org.elasticsearch.action.ingest.GetPipelineRequest;
+import org.elasticsearch.action.ingest.GetPipelineResponse;
+import org.elasticsearch.action.ingest.PutPipelineAction;
+import org.elasticsearch.action.ingest.PutPipelineRequest;
+import org.elasticsearch.action.ingest.SimulatePipelineAction;
+import org.elasticsearch.action.ingest.SimulatePipelineRequest;
+import org.elasticsearch.action.ingest.SimulatePipelineResponse;
+import org.elasticsearch.action.ingest.WritePipelineResponse;
 import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
@@ -143,13 +151,12 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.support.AbstractClient;
-import org.elasticsearch.cluster.service.PendingClusterTask;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.Index;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
@@ -403,12 +410,24 @@ public class HttpClient extends AbstractClient {
             final ActionListener<ClearIndicesCacheResponse> actionListener = (ActionListener<ClearIndicesCacheResponse>) listener;
             new HttpClearIndicesCacheAction(this, (ClearIndicesCacheAction) action).execute((ClearIndicesCacheRequest) request,
                     actionListener);
+        } else if (DeletePipelineAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.ingest.DeletePipelineAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+            new HttpDeletePipelineAction(this, (DeletePipelineAction) action).execute((DeletePipelineRequest) request, actionListener);
+        } else if (PutPipelineAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.ingest.PutPipelineAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+            new HttpPutPipelineAction(this, (PutPipelineAction) action).execute((PutPipelineRequest) request, actionListener);
+        } else if (GetPipelineAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.ingest.GetPipelineAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetPipelineResponse> actionListener = (ActionListener<GetPipelineResponse>) listener;
+            new HttpGetPipelineAction(this, (GetPipelineAction) action).execute((GetPipelineRequest) request, actionListener);
         } else {
 
-            // org.elasticsearch.action.ingest.DeletePipelineAction
-            // org.elasticsearch.action.ingest.PutPipelineAction
             // org.elasticsearch.action.ingest.SimulatePipelineAction
-            // org.elasticsearch.action.ingest.GetPipelineAction
             // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
             // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
             // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
