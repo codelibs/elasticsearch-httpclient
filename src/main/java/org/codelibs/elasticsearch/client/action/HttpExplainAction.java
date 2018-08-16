@@ -54,9 +54,6 @@ public class HttpExplainAction extends HttpAction {
         client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index())
                 .param("routing", request.routing()).param("preference", request.preference()).body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
-                        if (response.getHttpStatusCode() != 200) {
-                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                        }
                         final XContentParser parser = createParser(in);
                         final ExplainResponse explainResponse = getExplainResponse(parser);
                         listener.onResponse(explainResponse);

@@ -46,9 +46,6 @@ public class HttpIndexAction extends HttpAction {
         }
         client.getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
                 .body(source).execute(response -> {
-                    if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final IndexResponse indexResponse = IndexResponse.fromXContent(parser);

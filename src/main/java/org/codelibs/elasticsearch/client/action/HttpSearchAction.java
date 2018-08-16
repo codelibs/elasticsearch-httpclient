@@ -43,9 +43,6 @@ public class HttpSearchAction extends HttpAction {
                 .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
                 .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
                 .execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final SearchResponse searchResponse = SearchResponse.fromXContent(parser);

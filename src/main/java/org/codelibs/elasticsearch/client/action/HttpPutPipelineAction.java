@@ -45,9 +45,6 @@ public class HttpPutPipelineAction extends HttpAction {
         }
         client.getCurlRequest(PUT, "/_ingest/pipeline/" + request.getId())
                 .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).body(source).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final WritePipelineResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);

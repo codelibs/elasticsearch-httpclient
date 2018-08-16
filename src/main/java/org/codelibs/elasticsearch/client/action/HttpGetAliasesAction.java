@@ -48,9 +48,6 @@ public class HttpGetAliasesAction extends HttpAction {
 
     public void execute(final GetAliasesRequest request, final ActionListener<GetAliasesResponse> listener) {
         client.getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser, action::newResponse);

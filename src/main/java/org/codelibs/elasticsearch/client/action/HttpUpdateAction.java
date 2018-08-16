@@ -51,9 +51,6 @@ public class HttpUpdateAction extends HttpAction {
                 .param("routing", request.routing()).param("retry_on_conflict", String.valueOf(request.retryOnConflict()))
                 .param("version", String.valueOf(request.version())).body(source).execute(response -> {
                     try (final InputStream in = response.getContentAsStream()) {
-                        if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
-                            throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                        }
                         final XContentParser parser = createParser(in);
                         final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
                         listener.onResponse(updateResponse);

@@ -48,9 +48,6 @@ public class HttpClusterUpdateSettingsAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         client.getCurlRequest(PUT, "/_cluster/settings").body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final ClusterUpdateSettingsResponse clusterUpdateSettingsResponse = ClusterUpdateSettingsResponse.fromXContent(parser);

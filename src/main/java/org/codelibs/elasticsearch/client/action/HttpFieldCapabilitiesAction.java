@@ -46,9 +46,6 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
 
     public void execute(final FieldCapabilitiesRequest request, final ActionListener<FieldCapabilitiesResponse> listener) {
         client.getCurlRequest(GET, "/_field_caps?fields=" + String.join(",", request.fields()), request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponse(parser);

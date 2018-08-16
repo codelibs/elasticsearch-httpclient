@@ -46,9 +46,6 @@ public class HttpGetMappingsAction extends HttpAction {
 
     public void execute(final GetMappingsRequest request, final ActionListener<GetMappingsResponse> listener) {
         client.getCurlRequest(GET, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetMappingsResponse getMappingsResponse = getGetMappingsResponse(parser, action::newResponse);

@@ -87,9 +87,6 @@ public class HttpBulkAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         client.getCurlRequest(POST, "/_bulk").body(buf.toString()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final BulkResponse bulkResponse = BulkResponse.fromXContent(parser);

@@ -48,9 +48,6 @@ public class HttpSearchScrollAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         client.getCurlRequest(POST, "/_search/scroll").body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("Content is not found: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final SearchResponse scrollResponse = SearchResponse.fromXContent(parser);

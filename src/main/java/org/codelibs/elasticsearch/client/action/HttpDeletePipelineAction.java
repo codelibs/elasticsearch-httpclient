@@ -37,9 +37,6 @@ public class HttpDeletePipelineAction extends HttpAction {
     public void execute(final DeletePipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
         client.getCurlRequest(DELETE, "/_ingest/pipeline/" + request.getId())
                 .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final WritePipelineResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);

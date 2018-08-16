@@ -36,9 +36,6 @@ public class HttpOpenIndexAction extends HttpAction {
 
     public void execute(final OpenIndexRequest request, final ActionListener<OpenIndexResponse> listener) {
         client.getCurlRequest(POST, "/_open", request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final OpenIndexResponse openIndexResponse = OpenIndexResponse.fromXContent(parser);

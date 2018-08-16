@@ -36,9 +36,6 @@ public class HttpRefreshAction extends HttpAction {
 
     public void execute(final RefreshRequest request, final ActionListener<RefreshResponse> listener) {
         client.getCurlRequest(POST, "/_refresh", request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final RefreshResponse refreshResponse = RefreshResponse.fromXContent(parser);

@@ -36,9 +36,6 @@ public class HttpCloseIndexAction extends HttpAction {
 
     public void execute(final CloseIndexRequest request, final ActionListener<CloseIndexResponse> listener) {
         client.getCurlRequest(POST, "/_close", request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final CloseIndexResponse closeIndexResponse = CloseIndexResponse.fromXContent(parser);

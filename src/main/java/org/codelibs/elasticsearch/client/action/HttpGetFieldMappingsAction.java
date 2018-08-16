@@ -57,9 +57,6 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         }
         client.getCurlRequest(GET, "/_mapping/" + pathSuffix.toString(), request.indices())
                 .param("include_defaults", String.valueOf(request.includeDefaults())).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final GetFieldMappingsResponse getFieldMappingsResponse = getGetFieldMappingsResponse(parser, action::newResponse);

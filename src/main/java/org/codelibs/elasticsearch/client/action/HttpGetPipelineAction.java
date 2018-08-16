@@ -44,9 +44,6 @@ public class HttpGetPipelineAction extends HttpAction {
 
     public void execute(final GetPipelineRequest request, final ActionListener<GetPipelineResponse> listener) {
         client.getCurlRequest(GET, "/_ingest/pipeline/" + String.join(",", request.getIds())).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetPipelineResponse getPipelineResponse = getGetPipelineResponse(parser);

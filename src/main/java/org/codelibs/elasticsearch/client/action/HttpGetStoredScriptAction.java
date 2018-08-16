@@ -39,9 +39,6 @@ public class HttpGetStoredScriptAction extends HttpAction {
 
     public void execute(final GetStoredScriptRequest request, final ActionListener<GetStoredScriptResponse> listener) {
         client.getCurlRequest(GET, "/_scripts/" + request.id()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetStoredScriptResponse getStoredScriptResponse = getGetStoredScriptResponse(parser);

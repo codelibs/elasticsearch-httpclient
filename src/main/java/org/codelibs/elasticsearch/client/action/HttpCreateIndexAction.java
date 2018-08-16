@@ -48,9 +48,6 @@ public class HttpCreateIndexAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         client.getCurlRequest(PUT, "/", request.index()).body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);

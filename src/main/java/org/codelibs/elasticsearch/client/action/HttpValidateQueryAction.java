@@ -59,9 +59,6 @@ public class HttpValidateQueryAction extends HttpAction {
         client.getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
                 request.indices()).param("explain", String.valueOf(request.explain())).param("rewrite", String.valueOf(request.rewrite()))
                 .param("all_shards", String.valueOf(request.allShards())).body(source).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);

@@ -49,9 +49,6 @@ public class HttpUpdateSettingsAction extends HttpAction {
         }
         client.getCurlRequest(PUT, "/_settings", request.indices())
                 .param("preserve_existing", String.valueOf(request.isPreserveExisting())).body(source).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);

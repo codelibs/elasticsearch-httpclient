@@ -37,9 +37,6 @@ public class HttpDeleteStoredScriptAction extends HttpAction {
     public void execute(final DeleteStoredScriptRequest request, final ActionListener<DeleteStoredScriptResponse> listener) {
         client.getCurlRequest(DELETE, "/_scripts/" + request.id())
                 .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final DeleteStoredScriptResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);

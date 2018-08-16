@@ -59,9 +59,6 @@ public class HttpSyncedFlushAction extends HttpAction {
 
     public void execute(final SyncedFlushRequest request, final ActionListener<SyncedFlushResponse> listener) {
         client.getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);

@@ -45,9 +45,6 @@ public class HttpMultiSearchAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         client.getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch").body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final MultiSearchResponse multiSearchResponse = MultiSearchResponse.fromXContext(parser);

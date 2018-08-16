@@ -49,9 +49,6 @@ public class HttpMultiGetAction extends HttpAction {
         }
         client.getCurlRequest(GET, "/_mget").body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
-                if (response.getHttpStatusCode() != 200) {
-                    throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                }
                 final XContentParser parser = createParser(in);
                 final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
                 listener.onResponse(multiGetResponse);

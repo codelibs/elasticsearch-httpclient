@@ -36,9 +36,6 @@ public class HttpMainAction extends HttpAction {
 
     public void execute(final MainRequest request, final ActionListener<MainResponse> listener) {
         client.getCurlRequest(POST, "/_xpack").execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final MainResponse mainResponse = MainResponse.fromXContent(parser);

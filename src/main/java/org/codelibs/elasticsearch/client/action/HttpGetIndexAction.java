@@ -50,9 +50,6 @@ public class HttpGetIndexAction extends HttpAction {
 
     public void execute(final GetIndexRequest request, final ActionListener<GetIndexResponse> listener) {
         client.getCurlRequest(GET, "/", request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetIndexResponse getIndexResponse = getGetIndexResponse(parser, action::newResponse);

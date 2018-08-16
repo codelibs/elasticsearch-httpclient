@@ -43,9 +43,6 @@ public class HttpGetSettingsAction extends HttpAction {
 
     public void execute(final GetSettingsRequest request, final ActionListener<GetSettingsResponse> listener) {
         client.getCurlRequest(GET, "/_settings", request.indices()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetSettingsResponse getSettingsResponse = getGetSettingsResponse(parser);

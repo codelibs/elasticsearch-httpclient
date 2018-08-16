@@ -36,9 +36,6 @@ public class HttpPutMappingAction extends HttpAction {
 
     public void execute(final PutMappingRequest request, final ActionListener<PutMappingResponse> listener) {
         client.getCurlRequest(PUT, "/_mapping/" + request.type(), request.indices()).body(request.source()).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final PutMappingResponse putMappingResponse = PutMappingResponse.fromXContent(parser);

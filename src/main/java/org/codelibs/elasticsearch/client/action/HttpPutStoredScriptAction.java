@@ -45,9 +45,6 @@ public class HttpPutStoredScriptAction extends HttpAction {
         }
         client.getCurlRequest(POST, "/_scripts/" + request.id())
                 .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).body(source).execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
-                        throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-                    }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
                         final PutStoredScriptResponse putStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);

@@ -49,9 +49,6 @@ public class HttpRolloverAction extends HttpAction {
         }
         client.getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""),
                 request.getAlias()).param("dry_run", (request.isDryRun() ? "" : null)).body(source).execute(response -> {
-            if (response.getHttpStatusCode() != 200) {
-                throw new ElasticsearchException("error: " + response.getHttpStatusCode());
-            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final RolloverResponse rolloverResponse = RolloverResponse.fromXContent(parser);
