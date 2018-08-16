@@ -34,6 +34,9 @@ import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
@@ -1090,6 +1093,26 @@ public class HttpClientTest {
 
         WritePipelineResponse deletePipelineResponse = client.admin().cluster().prepareDeletePipeline(id).execute().actionGet();
         assertTrue(deletePipelineResponse.isAcknowledged());
+    }
+
+    @Test
+    void test_crud_storedscript() throws Exception {
+        final String source =
+                "{\n" + " \"script\": {\n" + "\"lang\":\"painless\",\n" + "\"source\": \"Math.log(_score * 2) + params.my_modifier\"\n"
+                        + " }\n" + "}\n";
+        final String id = "test_crud_storedscript";
+
+        PutStoredScriptResponse putStoredScriptResponse =
+                client.admin().cluster().preparePutStoredScript().setId(id)
+                        .setContent(new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON).execute().actionGet();
+        assertTrue(putStoredScriptResponse.isAcknowledged());
+
+        GetStoredScriptResponse getStoredScriptResponse = client.admin().cluster().prepareGetStoredScript().setId(id).execute().actionGet();
+        logger.info(getStoredScriptResponse.getSource().toString());
+
+        DeleteStoredScriptResponse deleteStoredScriptResponse =
+                client.admin().cluster().prepareDeleteStoredScript().setId(id).execute().actionGet();
+        assertTrue(deleteStoredScriptResponse.isAcknowledged());
     }
 
     // needs x-pack
