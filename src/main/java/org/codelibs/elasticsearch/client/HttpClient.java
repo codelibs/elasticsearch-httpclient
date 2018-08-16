@@ -31,9 +31,27 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction;
+import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
+import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryResponse;
+import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
+import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesRequest;
+import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
+import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction;
+import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
+import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptRequest;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptRequest;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
+import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRequest;
+import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
@@ -410,11 +428,6 @@ public class HttpClient extends AbstractClient {
             final ActionListener<ClearIndicesCacheResponse> actionListener = (ActionListener<ClearIndicesCacheResponse>) listener;
             new HttpClearIndicesCacheAction(this, (ClearIndicesCacheAction) action).execute((ClearIndicesCacheRequest) request,
                     actionListener);
-        } else if (DeletePipelineAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.ingest.DeletePipelineAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
-            new HttpDeletePipelineAction(this, (DeletePipelineAction) action).execute((DeletePipelineRequest) request, actionListener);
         } else if (PutPipelineAction.INSTANCE.equals(action)) {
             // org.elasticsearch.action.ingest.PutPipelineAction
             @SuppressWarnings("unchecked")
@@ -425,18 +438,32 @@ public class HttpClient extends AbstractClient {
             @SuppressWarnings("unchecked")
             final ActionListener<GetPipelineResponse> actionListener = (ActionListener<GetPipelineResponse>) listener;
             new HttpGetPipelineAction(this, (GetPipelineAction) action).execute((GetPipelineRequest) request, actionListener);
+        } else if (DeletePipelineAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.ingest.DeletePipelineAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+            new HttpDeletePipelineAction(this, (DeletePipelineAction) action).execute((DeletePipelineRequest) request, actionListener);
+        } else if (PutStoredScriptAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<PutStoredScriptResponse> actionListener = (ActionListener<PutStoredScriptResponse>) listener;
+            new HttpPutStoredScriptAction(this, (PutStoredScriptAction) action).execute((PutStoredScriptRequest) request, actionListener);
+        } else if (GetStoredScriptAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<GetStoredScriptResponse> actionListener = (ActionListener<GetStoredScriptResponse>) listener;
+            new HttpGetStoredScriptAction(this, (GetStoredScriptAction) action).execute((GetStoredScriptRequest) request, actionListener);
+        } else if (DeleteStoredScriptAction.INSTANCE.equals(action)) {
+            // org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction
+            @SuppressWarnings("unchecked")
+            final ActionListener<DeleteStoredScriptResponse> actionListener = (ActionListener<DeleteStoredScriptResponse>) listener;
+            new HttpDeleteStoredScriptAction(this, (DeleteStoredScriptAction) action).execute((DeleteStoredScriptRequest) request,
+                    actionListener);
         } else {
 
-            // org.elasticsearch.action.ingest.SimulatePipelineAction
-            // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
-            // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
-            // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
-            // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
-            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
-            // org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction
-            // org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction
-            // org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction
-            // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
+            // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
+            // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
+            // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
 
             // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
 
@@ -460,16 +487,20 @@ public class HttpClient extends AbstractClient {
             // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
             // org.elasticsearch.action.admin.indices.shrink.ResizeAction
 
+            // org.elasticsearch.action.ingest.SimulatePipelineAction
             // org.elasticsearch.action.termvectors.MultiTermVectorsAction
             // org.elasticsearch.action.termvectors.TermVectorsAction
             // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
-            // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
-            // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
+            // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
+            // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
+            // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
+            // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
+            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
+            // org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction
+            // org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction
+            // org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction
+            // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
             // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
-            // org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction
-            // org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction
-            // org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction
 
             throw new UnsupportedOperationException("Action: " + action.name());
         }

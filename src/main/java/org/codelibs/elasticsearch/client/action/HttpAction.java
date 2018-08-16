@@ -187,6 +187,8 @@ public class HttpAction {
 
     protected static final ParseField PROCESSOR_RESULTS_FIELD = new ParseField("processor_results");
 
+    protected static final ParseField SCRIPT_FIELD = new ParseField("script");
+
     protected static final Function<String, CurlRequest> GET = Curl::get;
 
     protected static final Function<String, CurlRequest> POST = Curl::post;
