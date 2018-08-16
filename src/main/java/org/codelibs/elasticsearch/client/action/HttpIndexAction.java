@@ -15,41 +15,44 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.index.IndexAction;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpIndexAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final IndexAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpIndexAction(final HttpClient client, final IndexAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        client.getCurlRequest(POST,
-                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
-                request.indices())
-                .param("scroll",
-                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
-                .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
-                .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
-                .execute(response -> {
-                    if (response.getHttpStatusCode() != 200) {
+    public void execute(final IndexRequest request, final ActionListener<IndexResponse> listener) {
+        String source = null;
+        try {
+            source = XContentHelper.convertToJson(request.source(), false, XContentType.JSON);
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        client.getCurlRequest(PUT, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .body(source).execute(response -> {
+                    if (response.getHttpStatusCode() != 200 && response.getHttpStatusCode() != 201) {
                         throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
-                        listener.onResponse(searchResponse);
+                        final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
+                        listener.onResponse(indexResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
                     }

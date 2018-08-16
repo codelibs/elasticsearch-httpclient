@@ -20,36 +20,30 @@ import java.io.InputStream;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.get.GetAction;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpGetAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final GetAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpGetAction(final HttpClient client, final GetAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        client.getCurlRequest(POST,
-                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
-                request.indices())
-                .param("scroll",
-                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
-                .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
-                .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
-                .execute(response -> {
+    public void execute(final GetRequest request, final ActionListener<GetResponse> listener) {
+        client.getCurlRequest(GET, "/" + request.type() + "/" + request.id(), request.index()).param("routing", request.routing())
+                .param("preference", request.preference()).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
                         throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
-                        listener.onResponse(searchResponse);
+                        final GetResponse getResponse = GetResponse.fromXContent(parser);
+                        listener.onResponse(getResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
                     }

@@ -15,41 +15,43 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.ingest.PutPipelineAction;
+import org.elasticsearch.action.ingest.PutPipelineRequest;
+import org.elasticsearch.action.ingest.WritePipelineResponse;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpPutPipelineAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final PutPipelineAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpPutPipelineAction(final HttpClient client, final PutPipelineAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        client.getCurlRequest(POST,
-                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
-                request.indices())
-                .param("scroll",
-                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
-                .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
-                .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
-                .execute(response -> {
+    public void execute(final PutPipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
+        String source = null;
+        try {
+            source = XContentHelper.convertToJson(request.getSource(), true);
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a reqsuest.", e);
+        }
+        client.getCurlRequest(PUT, "/_ingest/pipeline/" + request.getId())
+                .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).body(source).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
                         throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
-                        listener.onResponse(searchResponse);
+                        final WritePipelineResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                        listener.onResponse(putPipelineResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
                     }

@@ -20,36 +20,35 @@ import java.io.InputStream;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
+import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-public class HttpSearchAction extends HttpAction {
+public class HttpClearIndicesCacheAction extends HttpAction {
 
-    protected final SearchAction action;
+    protected final ClearIndicesCacheAction action;
 
-    public HttpSearchAction(final HttpClient client, final SearchAction action) {
+    public HttpClearIndicesCacheAction(final HttpClient client, final ClearIndicesCacheAction action) {
         super(client);
         this.action = action;
     }
 
-    public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        client.getCurlRequest(POST,
-                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
-                request.indices())
-                .param("scroll",
-                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
-                .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
-                .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
-                .execute(response -> {
+    public void execute(final ClearIndicesCacheRequest request, final ActionListener<ClearIndicesCacheResponse> listener) {
+        String fields = null;
+        if (request.fields() != null && request.fields().length > 0) {
+            fields = String.join(",", request.fields());
+        }
+        client.getCurlRequest(POST, "/_cache/clear", request.indices()).param("fielddata", String.valueOf(request.fieldDataCache()))
+                .param("query", String.valueOf(request.queryCache())).param("request", String.valueOf(request.requestCache()))
+                .param("fields", fields).execute(response -> {
                     if (response.getHttpStatusCode() != 200) {
                         throw new ElasticsearchException("error: " + response.getHttpStatusCode());
                     }
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
-                        final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
-                        listener.onResponse(searchResponse);
+                        final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
+                        listener.onResponse(clearIndicesCacheResponse);
                     } catch (final Exception e) {
                         listener.onFailure(e);
                     }
