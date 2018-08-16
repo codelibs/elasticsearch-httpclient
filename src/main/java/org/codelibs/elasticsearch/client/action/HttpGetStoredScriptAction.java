@@ -15,7 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 

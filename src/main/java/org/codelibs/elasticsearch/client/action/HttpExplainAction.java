@@ -67,6 +67,7 @@ public class HttpExplainAction extends HttpAction {
     }
 
     protected ExplainResponse getExplainResponse(final XContentParser parser) {
+        @SuppressWarnings("unchecked")
         final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
                 new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
                         (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));

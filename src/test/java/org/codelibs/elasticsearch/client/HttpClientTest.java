@@ -29,7 +29,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Logger;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
@@ -74,7 +73,6 @@ import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
-import org.elasticsearch.action.ingest.PutPipelineRequest;
 import org.elasticsearch.action.ingest.WritePipelineResponse;
 import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.MultiSearchResponse;
@@ -1064,7 +1062,6 @@ public class HttpClientTest {
     void test_shrink() throws Exception {
         final String source = "test_shrink1";
         final String target = "test_shrink2";
-        CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(source).setSettings(Settings.builder().put("index.blocks.write", true)).execute()
                 .actionGet();
         client.admin().indices().prepareRefresh(source).execute().actionGet();
@@ -1108,7 +1105,7 @@ public class HttpClientTest {
         assertTrue(putStoredScriptResponse.isAcknowledged());
 
         GetStoredScriptResponse getStoredScriptResponse = client.admin().cluster().prepareGetStoredScript().setId(id).execute().actionGet();
-        logger.info(getStoredScriptResponse.getSource().toString());
+        assertTrue(getStoredScriptResponse.getSource() != null);
 
         DeleteStoredScriptResponse deleteStoredScriptResponse =
                 client.admin().cluster().prepareDeleteStoredScript().setId(id).execute().actionGet();
