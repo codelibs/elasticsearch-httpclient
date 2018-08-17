@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -79,7 +78,7 @@ public class HttpGetIndexAction extends HttpAction {
                     if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         aliasesMapBuilder.put(index, getAliases(parser));
                     } else if (MAPPINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                        mappingsMapBuilder.put(index, getMappings(parser));
+                        mappingsMapBuilder.put(index, HttpGetMappingsAction.getMappings(parser));
                     } else if (SETTINGS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         settingsMapBuilder.put(index, getSettings(parser));
                     }
@@ -119,24 +118,6 @@ public class HttpGetIndexAction extends HttpAction {
             response.readFrom(out.toStreamInput());
             return response;
         }
-    }
-
-    protected ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
-        final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
-        String type = null;
-        Token token = parser.nextToken();
-        if (token == null) {
-            return mappingsBuilder.build();
-        }
-        while ((token = parser.nextToken()) != Token.END_OBJECT) {
-            if (token == Token.FIELD_NAME) {
-                type = parser.currentName();
-            } else if (token == Token.START_OBJECT) {
-                final Map<String, Object> mapping = parser.mapOrdered();
-                mappingsBuilder.put(type, new MappingMetaData(type, mapping));
-            }
-        }
-        return mappingsBuilder.build();
     }
 
     protected List<AliasMetaData> getAliases(final XContentParser parser) throws IOException {

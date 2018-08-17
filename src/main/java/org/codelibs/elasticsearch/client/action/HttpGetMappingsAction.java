@@ -97,7 +97,7 @@ public class HttpGetMappingsAction extends HttpAction {
         }
     }
 
-    protected ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
+    public static ImmutableOpenMap<String, MappingMetaData> getMappings(final XContentParser parser) throws IOException {
         final ImmutableOpenMap.Builder<String, MappingMetaData> mappingsBuilder = ImmutableOpenMap.builder();
         String type = null;
         Token token = parser.nextToken();
