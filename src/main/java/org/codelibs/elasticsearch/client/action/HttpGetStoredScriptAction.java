@@ -69,7 +69,7 @@ public class HttpGetStoredScriptAction extends HttpAction {
             constructor.setAccessible(true);
             return constructor.newInstance(storedScriptSource);
         } catch (final Exception e) {
-            throw new ElasticsearchException("Failed to create FieldCapabilitiesResponse.", e);
+            throw new ElasticsearchException("Failed to create GetStoredScriptResponse.", e);
         }
     }
 }
