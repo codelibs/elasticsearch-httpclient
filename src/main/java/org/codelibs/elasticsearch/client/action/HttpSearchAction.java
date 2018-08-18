@@ -49,13 +49,7 @@ public class HttpSearchAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final SearchRequest request) {
         // RestSearchAction
-        final StringBuilder buf = new StringBuilder(100);
-        buf.append('/');
-        if (request.indices().length > 0) {
-            buf.append(String.join(",", request.indices())).append('/');
-        }
-        buf.append("_search");
-        CurlRequest curlRequest = client.getCurlRequest(POST, buf.toString());
+        CurlRequest curlRequest = client.getCurlRequest(POST, "/_search", request.indices());
         curlRequest.param("batched_reduce_size", Integer.toString(request.getBatchedReduceSize()));
         curlRequest.param("pre_filter_shard_size", Integer.toString(request.getPreFilterShardSize()));
         if (request.getMaxConcurrentShardRequests() > 0) {
