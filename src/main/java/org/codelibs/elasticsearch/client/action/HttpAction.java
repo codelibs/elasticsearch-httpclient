@@ -20,11 +20,14 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
+import org.codelibs.curl.CurlResponse;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
@@ -36,6 +39,7 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 
 public class HttpAction {
+    private static final Logger logger = Logger.getLogger(HttpAction.class.getName());
 
     protected static final ParseField SHARD_FIELD = new ParseField("shard");
 
@@ -225,5 +229,9 @@ public class HttpAction {
         objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), ACKNOWLEDGED_FIELD);
 
         return objectParser.apply(parser, null);
+    }
+
+    protected Exception toElasticsearchException(CurlResponse response, Exception e) {
+        return new ElasticsearchException(response.getContentAsString(), e);
     }
 }

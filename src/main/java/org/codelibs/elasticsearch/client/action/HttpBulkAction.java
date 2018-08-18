@@ -18,8 +18,8 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.logging.Logger;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -29,6 +29,8 @@ import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.ActiveShardCount;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -39,8 +41,6 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpBulkAction extends HttpAction {
-
-    protected static final Logger logger = Logger.getLogger(HttpBulkAction.class.getName());
 
     protected final BulkAction action;
 
@@ -89,16 +89,30 @@ public class HttpBulkAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        logger.fine(() -> "bulk request:\n" + buf);
-        client.getCurlRequest(POST, "/_bulk").body(buf.toString()).execute(response -> {
+        getCurlRequest(request).body(buf.toString()).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final BulkResponse bulkResponse = BulkResponse.fromXContent(parser);
                 listener.onResponse(bulkResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
+    }
+
+    protected CurlRequest getCurlRequest(final BulkRequest request) {
+        // RestBulkAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_bulk");
+        if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
+            curlRequest.param("wait_for_active_shards", request.waitForActiveShards().toString());
+        }
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (!RefreshPolicy.NONE.equals(request.getRefreshPolicy())) {
+            curlRequest.param("refresh", request.getRefreshPolicy().getValue());
+        }
+        return curlRequest;
     }
 
     protected String getStringfromDocWriteRequest(final DocWriteRequest<?> request) {
@@ -114,7 +128,9 @@ public class HttpBulkAction extends HttpAction {
         if (request.routing() != null) {
             appendStr(buf.append(','), _ROUTING_FIELD.getPreferredName(), request.routing());
         }
-        buf.append(',').append('"').append(_VERSION_FIELD.getPreferredName()).append("\":").append(request.version());
+        if (request.version() >= 0) {
+            buf.append(',').append('"').append(_VERSION_FIELD.getPreferredName()).append("\":").append(request.version());
+        }
         buf.append('}');
         buf.append('}');
         return buf.toString();
