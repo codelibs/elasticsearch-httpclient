@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.logging.Logger;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
@@ -212,8 +211,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
-
-    protected static final Logger logger = Logger.getLogger(HttpClient.class.getName());
 
     protected static final Function<String, CurlRequest> GET = Curl::get;
 

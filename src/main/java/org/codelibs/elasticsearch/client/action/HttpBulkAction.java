@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
@@ -38,6 +39,8 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpBulkAction extends HttpAction {
+
+    protected static final Logger logger = Logger.getLogger(HttpBulkAction.class.getName());
 
     protected final BulkAction action;
 
@@ -86,6 +89,7 @@ public class HttpBulkAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
+        logger.fine(() -> "bulk request:\n" + buf);
         client.getCurlRequest(POST, "/_bulk").body(buf.toString()).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
@@ -98,11 +102,25 @@ public class HttpBulkAction extends HttpAction {
     }
 
     protected String getStringfromDocWriteRequest(final DocWriteRequest<?> request) {
-        final StringBuilder sb = new StringBuilder(100).append("{\"");
-        sb.append(request.opType().getLowercase()).append("\":{\"").append(_INDEX_FIELD).append("\":\"").append(request.index())
-                .append("\",\"").append(_TYPE_FIELD).append("\":\"").append(request.type()).append("\",\"").append(_ID_FIELD)
-                .append("\":\"").append(request.id()).append("\",\"").append(_ROUTING_FIELD).append("\":\"").append(request.routing())
-                .append("\",\"").append(_VERSION_FIELD).append("\":\"").append(request.version()).append("\"}}");
-        return sb.toString();
+        final StringBuilder buf = new StringBuilder(100);
+        buf.append("{\"").append(request.opType().getLowercase()).append("\":{");
+        appendStr(buf, _INDEX_FIELD.getPreferredName(), request.index());
+        if (request.type() != null) {
+            appendStr(buf.append(','), _TYPE_FIELD.getPreferredName(), request.type());
+        }
+        if (request.id() != null) {
+            appendStr(buf.append(','), _ID_FIELD.getPreferredName(), request.id());
+        }
+        if (request.routing() != null) {
+            appendStr(buf.append(','), _ROUTING_FIELD.getPreferredName(), request.routing());
+        }
+        buf.append(',').append('"').append(_VERSION_FIELD.getPreferredName()).append("\":").append(request.version());
+        buf.append('}');
+        buf.append('}');
+        return buf.toString();
+    }
+
+    protected StringBuilder appendStr(final StringBuilder buf, final String key, final String value) {
+        return buf.append('"').append(key).append("\":\"").append(value).append('"');
     }
 }
