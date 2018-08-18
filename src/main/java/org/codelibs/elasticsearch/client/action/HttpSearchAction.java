@@ -17,11 +17,13 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpSearchAction extends HttpAction {
@@ -34,21 +36,49 @@ public class HttpSearchAction extends HttpAction {
     }
 
     public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        client.getCurlRequest(POST,
-                (request.types() != null && request.types().length > 0 ? ("/" + String.join(",", request.types())) : "") + "/_search",
-                request.indices())
-                .param("scroll",
-                        (request.scroll() != null && request.scroll().keepAlive() != null) ? request.scroll().keepAlive().toString() : null)
-                .param("request_cache", request.requestCache() != null ? request.requestCache().toString() : null)
-                .param("routing", request.routing()).param("preference", request.preference()).body(request.source().toString())
-                .execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
-                        listener.onResponse(searchResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(e);
-                    }
-                }, listener::onFailure);
+        getCurlRequest(request).body(request.source() != null ? request.source().toString() : null).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
+                listener.onResponse(searchResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected CurlRequest getCurlRequest(final SearchRequest request) {
+        // RestSearchAction
+        final StringBuilder buf = new StringBuilder(100);
+        buf.append('/');
+        if (request.indices().length > 0) {
+            buf.append(String.join(",", request.indices())).append('/');
+        }
+        buf.append("_search");
+        CurlRequest curlRequest = client.getCurlRequest(POST, buf.toString());
+        curlRequest.param("batched_reduce_size", Integer.toString(request.getBatchedReduceSize()));
+        curlRequest.param("pre_filter_shard_size", Integer.toString(request.getPreFilterShardSize()));
+        if (request.getMaxConcurrentShardRequests() > 0) {
+            curlRequest.param("max_concurrent_shard_requests", Integer.toString(request.getMaxConcurrentShardRequests()));
+        }
+        if (request.allowPartialSearchResults() != null) {
+            curlRequest.param("allow_partial_search_results", request.allowPartialSearchResults().toString());
+        }
+        if (!SearchType.DEFAULT.equals(request.searchType())) {
+            curlRequest.param("search_type", request.searchType().name().toLowerCase());
+        }
+        if (request.requestCache() != null) {
+            curlRequest.param("request_cache", request.requestCache().toString());
+        }
+        if (request.scroll() != null) {
+            curlRequest.param("scroll", request.scroll().keepAlive().toString());
+        }
+        if (request.routing() != null) {
+            curlRequest.param("routing", request.routing());
+        }
+        if (request.preference() != null) {
+            curlRequest.param("preference", request.preference());
+        }
+        return curlRequest;
     }
 }
