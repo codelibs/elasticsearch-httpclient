@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;

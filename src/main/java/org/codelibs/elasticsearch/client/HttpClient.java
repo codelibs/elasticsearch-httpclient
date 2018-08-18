@@ -15,13 +15,60 @@
  */
 package org.codelibs.elasticsearch.client;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
-import org.codelibs.elasticsearch.client.action.*;
+import org.codelibs.elasticsearch.client.action.HttpAliasesExistAction;
+import org.codelibs.elasticsearch.client.action.HttpBulkAction;
+import org.codelibs.elasticsearch.client.action.HttpClearIndicesCacheAction;
+import org.codelibs.elasticsearch.client.action.HttpClearScrollAction;
+import org.codelibs.elasticsearch.client.action.HttpCloseIndexAction;
+import org.codelibs.elasticsearch.client.action.HttpClusterHealthAction;
+import org.codelibs.elasticsearch.client.action.HttpClusterUpdateSettingsAction;
+import org.codelibs.elasticsearch.client.action.HttpCreateIndexAction;
+import org.codelibs.elasticsearch.client.action.HttpDeleteAction;
+import org.codelibs.elasticsearch.client.action.HttpDeleteIndexAction;
+import org.codelibs.elasticsearch.client.action.HttpDeletePipelineAction;
+import org.codelibs.elasticsearch.client.action.HttpDeleteStoredScriptAction;
+import org.codelibs.elasticsearch.client.action.HttpExplainAction;
+import org.codelibs.elasticsearch.client.action.HttpFieldCapabilitiesAction;
+import org.codelibs.elasticsearch.client.action.HttpFlushAction;
+import org.codelibs.elasticsearch.client.action.HttpForceMergeAction;
+import org.codelibs.elasticsearch.client.action.HttpGetAction;
+import org.codelibs.elasticsearch.client.action.HttpGetAliasesAction;
+import org.codelibs.elasticsearch.client.action.HttpGetFieldMappingsAction;
+import org.codelibs.elasticsearch.client.action.HttpGetIndexAction;
+import org.codelibs.elasticsearch.client.action.HttpGetMappingsAction;
+import org.codelibs.elasticsearch.client.action.HttpGetPipelineAction;
+import org.codelibs.elasticsearch.client.action.HttpGetSettingsAction;
+import org.codelibs.elasticsearch.client.action.HttpGetStoredScriptAction;
+import org.codelibs.elasticsearch.client.action.HttpIndexAction;
+import org.codelibs.elasticsearch.client.action.HttpIndicesAliasesAction;
+import org.codelibs.elasticsearch.client.action.HttpIndicesExistsAction;
+import org.codelibs.elasticsearch.client.action.HttpMainAction;
+import org.codelibs.elasticsearch.client.action.HttpMultiGetAction;
+import org.codelibs.elasticsearch.client.action.HttpMultiSearchAction;
+import org.codelibs.elasticsearch.client.action.HttpOpenIndexAction;
+import org.codelibs.elasticsearch.client.action.HttpPendingClusterTasksAction;
+import org.codelibs.elasticsearch.client.action.HttpPutMappingAction;
+import org.codelibs.elasticsearch.client.action.HttpPutPipelineAction;
+import org.codelibs.elasticsearch.client.action.HttpPutStoredScriptAction;
+import org.codelibs.elasticsearch.client.action.HttpRefreshAction;
+import org.codelibs.elasticsearch.client.action.HttpRolloverAction;
+import org.codelibs.elasticsearch.client.action.HttpSearchAction;
+import org.codelibs.elasticsearch.client.action.HttpSearchScrollAction;
+import org.codelibs.elasticsearch.client.action.HttpShrinkAction;
+import org.codelibs.elasticsearch.client.action.HttpSyncedFlushAction;
+import org.codelibs.elasticsearch.client.action.HttpTypesExistsAction;
+import org.codelibs.elasticsearch.client.action.HttpUpdateAction;
+import org.codelibs.elasticsearch.client.action.HttpUpdateSettingsAction;
+import org.codelibs.elasticsearch.client.action.HttpValidateQueryAction;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
@@ -34,15 +81,15 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
-import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptRequest;
-import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
-import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptRequest;
-import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRequest;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptRequest;
+import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptRequest;
+import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
@@ -178,7 +225,9 @@ public class HttpClient extends AbstractClient {
 
     protected static final Function<String, CurlRequest> HEAD = Curl::head;
 
-    private String[] hosts;
+    protected String[] hosts;
+
+    protected final Map<Action<?, ?, ?>, BiConsumer<ActionRequest, ActionListener<?>>> actions = new HashMap<>();
 
     public enum ContentType {
         JSON("application/json"), X_NDJSON("application/x-ndjson");
@@ -205,6 +254,329 @@ public class HttpClient extends AbstractClient {
         if (hosts.length == 0) {
             throw new ElasticsearchException("http.hosts is empty.");
         }
+
+        actions.put(SearchAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.search.SearchAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
+                new HttpSearchAction(this, SearchAction.INSTANCE).execute((SearchRequest) request, actionListener);
+            });
+        actions.put(RefreshAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.refresh.RefreshAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<RefreshResponse> actionListener = (ActionListener<RefreshResponse>) listener;
+                new HttpRefreshAction(this, RefreshAction.INSTANCE).execute((RefreshRequest) request, actionListener);
+            });
+        actions.put(CreateIndexAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.create.CreateIndexAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<CreateIndexResponse> actionListener = (ActionListener<CreateIndexResponse>) listener;
+                new HttpCreateIndexAction(this, CreateIndexAction.INSTANCE).execute((CreateIndexRequest) request, actionListener);
+            });
+        actions.put(DeleteIndexAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.delete.DeleteIndexAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<DeleteIndexResponse> actionListener = (ActionListener<DeleteIndexResponse>) listener;
+                new HttpDeleteIndexAction(this, DeleteIndexAction.INSTANCE).execute((DeleteIndexRequest) request, actionListener);
+            });
+        actions.put(GetIndexAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.get.GetIndexAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetIndexResponse> actionListener = (ActionListener<GetIndexResponse>) listener;
+                new HttpGetIndexAction(this, GetIndexAction.INSTANCE).execute((GetIndexRequest) request, actionListener);
+            });
+        actions.put(OpenIndexAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.open.OpenIndexAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<OpenIndexResponse> actionListener = (ActionListener<OpenIndexResponse>) listener;
+                new HttpOpenIndexAction(this, OpenIndexAction.INSTANCE).execute((OpenIndexRequest) request, actionListener);
+            });
+        actions.put(CloseIndexAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.close.CloseIndexAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<CloseIndexResponse> actionListener = (ActionListener<CloseIndexResponse>) listener;
+                new HttpCloseIndexAction(this, CloseIndexAction.INSTANCE).execute((CloseIndexRequest) request, actionListener);
+            });
+        actions.put(IndicesExistsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<IndicesExistsResponse> actionListener = (ActionListener<IndicesExistsResponse>) listener;
+                new HttpIndicesExistsAction(this, IndicesExistsAction.INSTANCE).execute((IndicesExistsRequest) request, actionListener);
+            });
+        actions.put(IndicesAliasesAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<IndicesAliasesResponse> actionListener = (ActionListener<IndicesAliasesResponse>) listener;
+                new HttpIndicesAliasesAction(this, IndicesAliasesAction.INSTANCE).execute((IndicesAliasesRequest) request, actionListener);
+            });
+        actions.put(PutMappingAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<PutMappingResponse> actionListener = (ActionListener<PutMappingResponse>) listener;
+                new HttpPutMappingAction(this, PutMappingAction.INSTANCE).execute((PutMappingRequest) request, actionListener);
+            });
+        actions.put(GetMappingsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetMappingsResponse> actionListener = (ActionListener<GetMappingsResponse>) listener;
+                new HttpGetMappingsAction(this, GetMappingsAction.INSTANCE).execute((GetMappingsRequest) request, actionListener);
+            });
+        actions.put(GetFieldMappingsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetFieldMappingsResponse> actionListener = (ActionListener<GetFieldMappingsResponse>) listener;
+                new HttpGetFieldMappingsAction(this, GetFieldMappingsAction.INSTANCE).execute((GetFieldMappingsRequest) request,
+                        actionListener);
+            });
+        actions.put(FlushAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.flush.FlushAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<FlushResponse> actionListener = (ActionListener<FlushResponse>) listener;
+                new HttpFlushAction(this, FlushAction.INSTANCE).execute((FlushRequest) request, actionListener);
+            });
+        actions.put(ClearScrollAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.search.ClearScrollAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ClearScrollResponse> actionListener = (ActionListener<ClearScrollResponse>) listener;
+                new HttpClearScrollAction(this, ClearScrollAction.INSTANCE).execute((ClearScrollRequest) request, actionListener);
+            });
+        actions.put(MultiSearchAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.search.MultiSearchAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<MultiSearchResponse> actionListener = (ActionListener<MultiSearchResponse>) listener;
+                new HttpMultiSearchAction(this, MultiSearchAction.INSTANCE).execute((MultiSearchRequest) request, actionListener);
+            });
+        actions.put(SearchScrollAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.search.MultiSearchAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
+                new HttpSearchScrollAction(this, SearchScrollAction.INSTANCE).execute((SearchScrollRequest) request, actionListener);
+            });
+        actions.put(IndexAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.index.IndexAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<IndexResponse> actionListener = (ActionListener<IndexResponse>) listener;
+                new HttpIndexAction(this, IndexAction.INSTANCE).execute((IndexRequest) request, actionListener);
+            });
+        actions.put(FieldCapabilitiesAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction)
+                @SuppressWarnings("unchecked")
+                final ActionListener<FieldCapabilitiesResponse> actionListener = (ActionListener<FieldCapabilitiesResponse>) listener;
+                new HttpFieldCapabilitiesAction(this, FieldCapabilitiesAction.INSTANCE).execute((FieldCapabilitiesRequest) request,
+                        actionListener);
+            });
+        actions.put(GetAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.get.GetAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetResponse> actionListener = (ActionListener<GetResponse>) listener;
+                new HttpGetAction(this, GetAction.INSTANCE).execute((GetRequest) request, actionListener);
+            });
+        actions.put(MultiGetAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.get.MultiGetAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<MultiGetResponse> actionListener = (ActionListener<MultiGetResponse>) listener;
+                new HttpMultiGetAction(this, MultiGetAction.INSTANCE).execute((MultiGetRequest) request, actionListener);
+            });
+        actions.put(UpdateAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.update.UpdateAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<UpdateResponse> actionListener = (ActionListener<UpdateResponse>) listener;
+                new HttpUpdateAction(this, UpdateAction.INSTANCE).execute((UpdateRequest) request, actionListener);
+            });
+        actions.put(BulkAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.bulk.BulkAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<BulkResponse> actionListener = (ActionListener<BulkResponse>) listener;
+                new HttpBulkAction(this, BulkAction.INSTANCE).execute((BulkRequest) request, actionListener);
+            });
+        actions.put(DeleteAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.delete.DeleteAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<DeleteResponse> actionListener = (ActionListener<DeleteResponse>) listener;
+                new HttpDeleteAction(this, DeleteAction.INSTANCE).execute((DeleteRequest) request, actionListener);
+            });
+        actions.put(ExplainAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.explain.ExplainAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ExplainResponse> actionListener = (ActionListener<ExplainResponse>) listener;
+                new HttpExplainAction(this, ExplainAction.INSTANCE).execute((ExplainRequest) request, actionListener);
+            });
+        actions.put(UpdateSettingsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<UpdateSettingsResponse> actionListener = (ActionListener<UpdateSettingsResponse>) listener;
+                new HttpUpdateSettingsAction(this, UpdateSettingsAction.INSTANCE).execute((UpdateSettingsRequest) request, actionListener);
+            });
+        actions.put(GetSettingsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetSettingsResponse> actionListener = (ActionListener<GetSettingsResponse>) listener;
+                new HttpGetSettingsAction(this, GetSettingsAction.INSTANCE).execute((GetSettingsRequest) request, actionListener);
+            });
+        actions.put(ForceMergeAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ForceMergeResponse> actionListener = (ActionListener<ForceMergeResponse>) listener;
+                new HttpForceMergeAction(this, ForceMergeAction.INSTANCE).execute((ForceMergeRequest) request, actionListener);
+            });
+        actions.put(MainAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.main.MainAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<MainResponse> actionListener = (ActionListener<MainResponse>) listener;
+                new HttpMainAction(this, MainAction.INSTANCE).execute((MainRequest) request, actionListener);
+            });
+        actions.put(ClusterUpdateSettingsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ClusterUpdateSettingsResponse> actionListener =
+                        (ActionListener<ClusterUpdateSettingsResponse>) listener;
+                new HttpClusterUpdateSettingsAction(this, ClusterUpdateSettingsAction.INSTANCE).execute(
+                        (ClusterUpdateSettingsRequest) request, actionListener);
+            });
+        actions.put(ClusterHealthAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ClusterHealthResponse> actionListener = (ActionListener<ClusterHealthResponse>) listener;
+                new HttpClusterHealthAction(this, ClusterHealthAction.INSTANCE).execute((ClusterHealthRequest) request, actionListener);
+            });
+        actions.put(AliasesExistAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<AliasesExistResponse> actionListener = (ActionListener<AliasesExistResponse>) listener;
+                new HttpAliasesExistAction(this, AliasesExistAction.INSTANCE).execute((GetAliasesRequest) request, actionListener);
+            });
+        actions.put(ValidateQueryAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ValidateQueryResponse> actionListener = (ActionListener<ValidateQueryResponse>) listener;
+                new HttpValidateQueryAction(this, ValidateQueryAction.INSTANCE).execute((ValidateQueryRequest) request, actionListener);
+            });
+        actions.put(PendingClusterTasksAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<PendingClusterTasksResponse> actionListener = (ActionListener<PendingClusterTasksResponse>) listener;
+                new HttpPendingClusterTasksAction(this, PendingClusterTasksAction.INSTANCE).execute((PendingClusterTasksRequest) request,
+                        actionListener);
+            });
+        actions.put(GetAliasesAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetAliasesResponse> actionListener = (ActionListener<GetAliasesResponse>) listener;
+                new HttpGetAliasesAction(this, GetAliasesAction.INSTANCE).execute((GetAliasesRequest) request, actionListener);
+            });
+        actions.put(SyncedFlushAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<SyncedFlushResponse> actionListener = (ActionListener<SyncedFlushResponse>) listener;
+                new HttpSyncedFlushAction(this, SyncedFlushAction.INSTANCE).execute((SyncedFlushRequest) request, actionListener);
+            });
+        actions.put(ShrinkAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ResizeResponse> actionListener = (ActionListener<ResizeResponse>) listener;
+                new HttpShrinkAction(this, ShrinkAction.INSTANCE).execute((ResizeRequest) request, actionListener);
+            });
+        actions.put(TypesExistsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<TypesExistsResponse> actionListener = (ActionListener<TypesExistsResponse>) listener;
+                new HttpTypesExistsAction(this, TypesExistsAction.INSTANCE).execute((TypesExistsRequest) request, actionListener);
+            });
+        actions.put(RolloverAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.rollover.RolloverAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<RolloverResponse> actionListener = (ActionListener<RolloverResponse>) listener;
+                new HttpRolloverAction(this, RolloverAction.INSTANCE).execute((RolloverRequest) request, actionListener);
+            });
+        actions.put(ClearIndicesCacheAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<ClearIndicesCacheResponse> actionListener = (ActionListener<ClearIndicesCacheResponse>) listener;
+                new HttpClearIndicesCacheAction(this, ClearIndicesCacheAction.INSTANCE).execute((ClearIndicesCacheRequest) request,
+                        actionListener);
+            });
+        actions.put(PutPipelineAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.ingest.PutPipelineAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+                new HttpPutPipelineAction(this, PutPipelineAction.INSTANCE).execute((PutPipelineRequest) request, actionListener);
+            });
+        actions.put(GetPipelineAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.ingest.GetPipelineAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetPipelineResponse> actionListener = (ActionListener<GetPipelineResponse>) listener;
+                new HttpGetPipelineAction(this, GetPipelineAction.INSTANCE).execute((GetPipelineRequest) request, actionListener);
+            });
+        actions.put(DeletePipelineAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.ingest.DeletePipelineAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+                new HttpDeletePipelineAction(this, DeletePipelineAction.INSTANCE).execute((DeletePipelineRequest) request, actionListener);
+            });
+        actions.put(PutStoredScriptAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<PutStoredScriptResponse> actionListener = (ActionListener<PutStoredScriptResponse>) listener;
+                new HttpPutStoredScriptAction(this, PutStoredScriptAction.INSTANCE).execute((PutStoredScriptRequest) request,
+                        actionListener);
+            });
+        actions.put(GetStoredScriptAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<GetStoredScriptResponse> actionListener = (ActionListener<GetStoredScriptResponse>) listener;
+                new HttpGetStoredScriptAction(this, GetStoredScriptAction.INSTANCE).execute((GetStoredScriptRequest) request,
+                        actionListener);
+            });
+        actions.put(DeleteStoredScriptAction.INSTANCE,
+                (request, listener) -> {
+                    // org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<DeleteStoredScriptResponse> actionListener = (ActionListener<DeleteStoredScriptResponse>) listener;
+                new HttpDeleteStoredScriptAction(this, DeleteStoredScriptAction.INSTANCE).execute((DeleteStoredScriptRequest) request,
+                        actionListener);
+            });
+
+        // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
+        // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
+        // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
+
+        // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
+
+        // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
+        // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
+        // org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction
+        // org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAction
+        // org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksAction
+        // org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksAction
+        // org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction
+        // org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction
+        // org.elasticsearch.action.admin.cluster.node.usage.NodesUsageAction
+        // org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction
+        // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
+        // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
+        // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
+        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
+        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
+        // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
+        // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
+        // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
+        // org.elasticsearch.action.admin.indices.shrink.ResizeAction
+
+        // org.elasticsearch.action.ingest.SimulatePipelineAction
+        // org.elasticsearch.action.termvectors.MultiTermVectorsAction
+        // org.elasticsearch.action.termvectors.TermVectorsAction
+        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
+        // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
+        // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
+        // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
+        // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
+        // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
+        // org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction
+        // org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction
+        // org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction
+        // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
+        // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
+
     }
 
     @Override
@@ -215,282 +587,11 @@ public class HttpClient extends AbstractClient {
     @Override
     protected <Request extends ActionRequest, Response extends ActionResponse, RequestBuilder extends ActionRequestBuilder<Request, Response, RequestBuilder>> void doExecute(
             final Action<Request, Response, RequestBuilder> action, final Request request, final ActionListener<Response> listener) {
-        if (SearchAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.search.SearchAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
-            new HttpSearchAction(this, (SearchAction) action).execute((SearchRequest) request, actionListener);
-        } else if (RefreshAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.refresh.RefreshAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<RefreshResponse> actionListener = (ActionListener<RefreshResponse>) listener;
-            new HttpRefreshAction(this, (RefreshAction) action).execute((RefreshRequest) request, actionListener);
-        } else if (CreateIndexAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.create.CreateIndexAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<CreateIndexResponse> actionListener = (ActionListener<CreateIndexResponse>) listener;
-            new HttpCreateIndexAction(this, (CreateIndexAction) action).execute((CreateIndexRequest) request, actionListener);
-        } else if (DeleteIndexAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.delete.DeleteIndexAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<DeleteIndexResponse> actionListener = (ActionListener<DeleteIndexResponse>) listener;
-            new HttpDeleteIndexAction(this, (DeleteIndexAction) action).execute((DeleteIndexRequest) request, actionListener);
-        } else if (GetIndexAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.get.GetIndexAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetIndexResponse> actionListener = (ActionListener<GetIndexResponse>) listener;
-            new HttpGetIndexAction(this, (GetIndexAction) action).execute((GetIndexRequest) request, actionListener);
-        } else if (OpenIndexAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.open.OpenIndexAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<OpenIndexResponse> actionListener = (ActionListener<OpenIndexResponse>) listener;
-            new HttpOpenIndexAction(this, (OpenIndexAction) action).execute((OpenIndexRequest) request, actionListener);
-        } else if (CloseIndexAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.close.CloseIndexAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<CloseIndexResponse> actionListener = (ActionListener<CloseIndexResponse>) listener;
-            new HttpCloseIndexAction(this, (CloseIndexAction) action).execute((CloseIndexRequest) request, actionListener);
-        } else if (IndicesExistsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<IndicesExistsResponse> actionListener = (ActionListener<IndicesExistsResponse>) listener;
-            new HttpIndicesExistsAction(this, (IndicesExistsAction) action).execute((IndicesExistsRequest) request, actionListener);
-        } else if (IndicesAliasesAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<IndicesAliasesResponse> actionListener = (ActionListener<IndicesAliasesResponse>) listener;
-            new HttpIndicesAliasesAction(this, (IndicesAliasesAction) action).execute((IndicesAliasesRequest) request, actionListener);
-        } else if (PutMappingAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<PutMappingResponse> actionListener = (ActionListener<PutMappingResponse>) listener;
-            new HttpPutMappingAction(this, (PutMappingAction) action).execute((PutMappingRequest) request, actionListener);
-        } else if (GetMappingsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetMappingsResponse> actionListener = (ActionListener<GetMappingsResponse>) listener;
-            new HttpGetMappingsAction(this, (GetMappingsAction) action).execute((GetMappingsRequest) request, actionListener);
-        } else if (GetFieldMappingsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetFieldMappingsResponse> actionListener = (ActionListener<GetFieldMappingsResponse>) listener;
-            new HttpGetFieldMappingsAction(this, (GetFieldMappingsAction) action)
-                    .execute((GetFieldMappingsRequest) request, actionListener);
-        } else if (FlushAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.flush.FlushAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<FlushResponse> actionListener = (ActionListener<FlushResponse>) listener;
-            new HttpFlushAction(this, (FlushAction) action).execute((FlushRequest) request, actionListener);
-        } else if (ClearScrollAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.search.ClearScrollAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ClearScrollResponse> actionListener = (ActionListener<ClearScrollResponse>) listener;
-            new HttpClearScrollAction(this, (ClearScrollAction) action).execute((ClearScrollRequest) request, actionListener);
-        } else if (MultiSearchAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.search.MultiSearchAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<MultiSearchResponse> actionListener = (ActionListener<MultiSearchResponse>) listener;
-            new HttpMultiSearchAction(this, (MultiSearchAction) action).execute((MultiSearchRequest) request, actionListener);
-        } else if (SearchScrollAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.search.MultiSearchAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<SearchResponse> actionListener = (ActionListener<SearchResponse>) listener;
-            new HttpSearchScrollAction(this, (SearchScrollAction) action).execute((SearchScrollRequest) request, actionListener);
-        } else if (IndexAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.index.IndexAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<IndexResponse> actionListener = (ActionListener<IndexResponse>) listener;
-            new HttpIndexAction(this, (IndexAction) action).execute((IndexRequest) request, actionListener);
-        } else if (FieldCapabilitiesAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction)
-            @SuppressWarnings("unchecked")
-            final ActionListener<FieldCapabilitiesResponse> actionListener = (ActionListener<FieldCapabilitiesResponse>) listener;
-            new HttpFieldCapabilitiesAction(this, (FieldCapabilitiesAction) action).execute((FieldCapabilitiesRequest) request,
-                    actionListener);
-        } else if (GetAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.get.GetAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetResponse> actionListener = (ActionListener<GetResponse>) listener;
-            new HttpGetAction(this, (GetAction) action).execute((GetRequest) request, actionListener);
-        } else if (MultiGetAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.get.MultiGetAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<MultiGetResponse> actionListener = (ActionListener<MultiGetResponse>) listener;
-            new HttpMultiGetAction(this, (MultiGetAction) action).execute((MultiGetRequest) request, actionListener);
-        } else if (UpdateAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.update.UpdateAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<UpdateResponse> actionListener = (ActionListener<UpdateResponse>) listener;
-            new HttpUpdateAction(this, (UpdateAction) action).execute((UpdateRequest) request, actionListener);
-        } else if (BulkAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.bulk.BulkAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<BulkResponse> actionListener = (ActionListener<BulkResponse>) listener;
-            new HttpBulkAction(this, (BulkAction) action).execute((BulkRequest) request, actionListener);
-        } else if (DeleteAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.delete.DeleteAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<DeleteResponse> actionListener = (ActionListener<DeleteResponse>) listener;
-            new HttpDeleteAction(this, (DeleteAction) action).execute((DeleteRequest) request, actionListener);
-        } else if (ExplainAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.explain.ExplainAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ExplainResponse> actionListener = (ActionListener<ExplainResponse>) listener;
-            new HttpExplainAction(this, (ExplainAction) action).execute((ExplainRequest) request, actionListener);
-        } else if (UpdateSettingsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<UpdateSettingsResponse> actionListener = (ActionListener<UpdateSettingsResponse>) listener;
-            new HttpUpdateSettingsAction(this, (UpdateSettingsAction) action).execute((UpdateSettingsRequest) request, actionListener);
-        } else if (GetSettingsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetSettingsResponse> actionListener = (ActionListener<GetSettingsResponse>) listener;
-            new HttpGetSettingsAction(this, (GetSettingsAction) action).execute((GetSettingsRequest) request, actionListener);
-        } else if (ForceMergeAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ForceMergeResponse> actionListener = (ActionListener<ForceMergeResponse>) listener;
-            new HttpForceMergeAction(this, (ForceMergeAction) action).execute((ForceMergeRequest) request, actionListener);
-        } else if (MainAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.main.MainAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<MainResponse> actionListener = (ActionListener<MainResponse>) listener;
-            new HttpMainAction(this, (MainAction) action).execute((MainRequest) request, actionListener);
-        } else if (ClusterUpdateSettingsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ClusterUpdateSettingsResponse> actionListener = (ActionListener<ClusterUpdateSettingsResponse>) listener;
-            new HttpClusterUpdateSettingsAction(this, (ClusterUpdateSettingsAction) action).execute((ClusterUpdateSettingsRequest) request,
-                    actionListener);
-        } else if (ClusterHealthAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.cluster.health.ClusterHealthAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ClusterHealthResponse> actionListener = (ActionListener<ClusterHealthResponse>) listener;
-            new HttpClusterHealthAction(this, (ClusterHealthAction) action).execute((ClusterHealthRequest) request, actionListener);
-        } else if (AliasesExistAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<AliasesExistResponse> actionListener = (ActionListener<AliasesExistResponse>) listener;
-            new HttpAliasesExistAction(this, (AliasesExistAction) action).execute((GetAliasesRequest) request, actionListener);
-        } else if (ValidateQueryAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ValidateQueryResponse> actionListener = (ActionListener<ValidateQueryResponse>) listener;
-            new HttpValidateQueryAction(this, (ValidateQueryAction) action).execute((ValidateQueryRequest) request, actionListener);
-        } else if (PendingClusterTasksAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<PendingClusterTasksResponse> actionListener = (ActionListener<PendingClusterTasksResponse>) listener;
-            new HttpPendingClusterTasksAction(this, (PendingClusterTasksAction) action).execute((PendingClusterTasksRequest) request,
-                    actionListener);
-        } else if (GetAliasesAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetAliasesResponse> actionListener = (ActionListener<GetAliasesResponse>) listener;
-            new HttpGetAliasesAction(this, (GetAliasesAction) action).execute((GetAliasesRequest) request, actionListener);
-        } else if (SyncedFlushAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.flush.SyncedFlushAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<SyncedFlushResponse> actionListener = (ActionListener<SyncedFlushResponse>) listener;
-            new HttpSyncedFlushAction(this, (SyncedFlushAction) action).execute((SyncedFlushRequest) request, actionListener);
-        } else if (ShrinkAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.shrink.ShrinkAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ResizeResponse> actionListener = (ActionListener<ResizeResponse>) listener;
-            new HttpShrinkAction(this, (ShrinkAction) action).execute((ResizeRequest) request, actionListener);
-        } else if (TypesExistsAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<TypesExistsResponse> actionListener = (ActionListener<TypesExistsResponse>) listener;
-            new HttpTypesExistsAction(this, (TypesExistsAction) action).execute((TypesExistsRequest) request, actionListener);
-        } else if (RolloverAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.rollover.RolloverAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<RolloverResponse> actionListener = (ActionListener<RolloverResponse>) listener;
-            new HttpRolloverAction(this, (RolloverAction) action).execute((RolloverRequest) request, actionListener);
-        } else if (ClearIndicesCacheAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<ClearIndicesCacheResponse> actionListener = (ActionListener<ClearIndicesCacheResponse>) listener;
-            new HttpClearIndicesCacheAction(this, (ClearIndicesCacheAction) action).execute((ClearIndicesCacheRequest) request,
-                    actionListener);
-        } else if (PutPipelineAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.ingest.PutPipelineAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
-            new HttpPutPipelineAction(this, (PutPipelineAction) action).execute((PutPipelineRequest) request, actionListener);
-        } else if (GetPipelineAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.ingest.GetPipelineAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetPipelineResponse> actionListener = (ActionListener<GetPipelineResponse>) listener;
-            new HttpGetPipelineAction(this, (GetPipelineAction) action).execute((GetPipelineRequest) request, actionListener);
-        } else if (DeletePipelineAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.ingest.DeletePipelineAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
-            new HttpDeletePipelineAction(this, (DeletePipelineAction) action).execute((DeletePipelineRequest) request, actionListener);
-        } else if (PutStoredScriptAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<PutStoredScriptResponse> actionListener = (ActionListener<PutStoredScriptResponse>) listener;
-            new HttpPutStoredScriptAction(this, (PutStoredScriptAction) action).execute((PutStoredScriptRequest) request, actionListener);
-        } else if (GetStoredScriptAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<GetStoredScriptResponse> actionListener = (ActionListener<GetStoredScriptResponse>) listener;
-            new HttpGetStoredScriptAction(this, (GetStoredScriptAction) action).execute((GetStoredScriptRequest) request, actionListener);
-        } else if (DeleteStoredScriptAction.INSTANCE.equals(action)) {
-            // org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction
-            @SuppressWarnings("unchecked")
-            final ActionListener<DeleteStoredScriptResponse> actionListener = (ActionListener<DeleteStoredScriptResponse>) listener;
-            new HttpDeleteStoredScriptAction(this, (DeleteStoredScriptAction) action).execute((DeleteStoredScriptRequest) request,
-                    actionListener);
-        } else {
-
-            // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
-            // org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction
-            // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
-
-            // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
-
-            // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
-            // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
-            // org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction
-            // org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAction
-            // org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksAction
-            // org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksAction
-            // org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction
-            // org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction
-            // org.elasticsearch.action.admin.cluster.node.usage.NodesUsageAction
-            // org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction
-            // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
-            // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
-            // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
-            // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
-            // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
-            // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
-            // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
-            // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
-            // org.elasticsearch.action.admin.indices.shrink.ResizeAction
-
-            // org.elasticsearch.action.ingest.SimulatePipelineAction
-            // org.elasticsearch.action.termvectors.MultiTermVectorsAction
-            // org.elasticsearch.action.termvectors.TermVectorsAction
-            // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresAction
-            // org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction
-            // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
-            // org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction
-            // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
-            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
-            // org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction
-            // org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction
-            // org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction
-            // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
-            // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
-
+        final BiConsumer<ActionRequest, ActionListener<?>> httpAction = actions.get(action);
+        if (httpAction == null) {
             throw new UnsupportedOperationException("Action: " + action.name());
         }
+        httpAction.accept(request, listener);
     }
 
     protected String getHost() {

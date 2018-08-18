@@ -15,9 +15,9 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.UncheckedIOException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -126,7 +126,7 @@ public class HttpClusterHealthAction extends HttpAction {
                         out.writeTimeValue(taskMaxWaitingTime);
 
                         return ClusterHealthResponse.readResponseFrom(out.toStreamInput());
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 });

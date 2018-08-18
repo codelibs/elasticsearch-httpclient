@@ -217,7 +217,7 @@ public class HttpAction {
                 final T response = newResponse.get();
                 response.readFrom(out.toStreamInput());
                 return response;
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new UncheckedIOException(e);
             }
         });

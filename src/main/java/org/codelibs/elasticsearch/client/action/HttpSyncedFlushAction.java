@@ -44,9 +44,9 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
 import org.elasticsearch.common.xcontent.XContentParserUtils;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.flush.ShardsSyncedFlushResult;
 import org.elasticsearch.indices.flush.SyncedFlushService;
-import org.elasticsearch.index.shard.ShardId;
 
 public class HttpSyncedFlushAction extends HttpAction {
 
@@ -114,10 +114,10 @@ public class HttpSyncedFlushAction extends HttpAction {
             out.writeInt(successfulShards);
             out.writeInt(failedShards);
             out.writeInt(shardsResultPerIndex.size());
-            for (Map.Entry<String, List<ShardsSyncedFlushResult>> entry : shardsResultPerIndex.entrySet()) {
+            for (final Map.Entry<String, List<ShardsSyncedFlushResult>> entry : shardsResultPerIndex.entrySet()) {
                 out.writeString(entry.getKey());
                 out.writeInt(entry.getValue().size());
-                for (ShardsSyncedFlushResult shardsSyncedFlushResult : entry.getValue()) {
+                for (final ShardsSyncedFlushResult shardsSyncedFlushResult : entry.getValue()) {
                     shardsSyncedFlushResult.writeTo(out);
                 }
             }
@@ -132,8 +132,6 @@ public class HttpSyncedFlushAction extends HttpAction {
         // "failures" fields
         final List<ShardsSyncedFlushResult> shardsSyncedFlushResults = new ArrayList<>();
         int total = 0;
-        int successful = 0;
-        int failed = 0;
         XContentParser.Token token;
         String currentFieldName = null;
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
@@ -152,9 +150,9 @@ public class HttpSyncedFlushAction extends HttpAction {
                 if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     total = parser.intValue();
                 } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    successful = parser.intValue();
+                    parser.intValue();
                 } else if (FAILED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    failed = parser.intValue();
+                    parser.intValue();
                 } else {
                     parser.skipChildren();
                 }
@@ -233,7 +231,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                 }
 
                 return new ShardRouting(shardId, out.toStreamInput());
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new UncheckedIOException(e);
             }
         });
@@ -248,7 +246,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> {
             try {
                 return getUnassignedInfo(p);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 throw new ElasticsearchException("Failed to create SyncedFlushResponse.", e);
             }
         }, UNASSIGNED_INFO_FIELD);
@@ -267,7 +265,6 @@ public class HttpSyncedFlushAction extends HttpAction {
         long unassignedTimeMillis = 0;
         int failedAllocations = 0;
         boolean delayed = false;
-        String details = null;
         UnassignedInfo.AllocationStatus allocationStatus = null;
         String currentFieldName = null;
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
@@ -284,7 +281,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                 } else if (DELAYED_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     delayed = parser.booleanValue();
                 } else if (DETAILS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    details = parser.text();
+                    parser.text();
                 } else if (ALLOCATION_STATUS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     allocationStatus = UnassignedInfo.AllocationStatus.values()[parser.intValue()];
                 } else {

@@ -129,7 +129,8 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         return objectParser.parse(parser, null);
     }
 
-    protected GetFieldMappingsResponse newGetFieldMappingsResponse(Map<String, Map<String, Map<String, FieldMappingMetaData>>> mappings) {
+    protected GetFieldMappingsResponse newGetFieldMappingsResponse(
+            final Map<String, Map<String, Map<String, FieldMappingMetaData>>> mappings) {
         final Class<GetFieldMappingsResponse> clazz = GetFieldMappingsResponse.class;
         final Class<?>[] types = { Map.class };
         try {

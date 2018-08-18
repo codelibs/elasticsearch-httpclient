@@ -98,7 +98,7 @@ public class HttpBulkAction extends HttpAction {
     }
 
     protected String getStringfromDocWriteRequest(final DocWriteRequest<?> request) {
-        StringBuilder sb = new StringBuilder(100).append("{\"");
+        final StringBuilder sb = new StringBuilder(100).append("{\"");
         sb.append(request.opType().getLowercase()).append("\":{\"").append(_INDEX_FIELD).append("\":\"").append(request.index())
                 .append("\",\"").append(_TYPE_FIELD).append("\":\"").append(request.type()).append("\",\"").append(_ID_FIELD)
                 .append("\":\"").append(request.id()).append("\",\"").append(_ROUTING_FIELD).append("\":\"").append(request.routing())

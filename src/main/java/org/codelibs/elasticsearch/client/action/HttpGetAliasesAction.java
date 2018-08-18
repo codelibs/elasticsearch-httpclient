@@ -23,7 +23,6 @@ import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
@@ -85,10 +84,10 @@ public class HttpGetAliasesAction extends HttpAction {
 
         try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
             out.writeVInt(aliases.size());
-            for (ObjectObjectCursor<String, List<AliasMetaData>> entry : aliases) {
+            for (final ObjectObjectCursor<String, List<AliasMetaData>> entry : aliases) {
                 out.writeString(entry.key);
                 out.writeVInt(entry.value.size());
-                for (AliasMetaData aliasMetaData : entry.value) {
+                for (final AliasMetaData aliasMetaData : entry.value) {
                     aliasMetaData.writeTo(out);
                 }
             }

@@ -23,7 +23,6 @@ import java.util.function.Supplier;
 
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
@@ -66,14 +65,14 @@ public class HttpPendingClusterTasksAction extends HttpAction {
                         final List<PendingClusterTask> pendingClusterTasks = (a[0] != null ? (List<PendingClusterTask>) a[0] : null);
 
                         out.writeVInt(pendingClusterTasks.size());
-                        for (PendingClusterTask task : pendingClusterTasks) {
+                        for (final PendingClusterTask task : pendingClusterTasks) {
                             task.writeTo(out);
                         }
 
                         final PendingClusterTasksResponse response = newResponse.get();
                         response.readFrom(out.toStreamInput());
                         return response;
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 });

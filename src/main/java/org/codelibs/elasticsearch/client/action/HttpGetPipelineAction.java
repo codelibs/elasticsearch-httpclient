@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.GetPipelineRequest;
@@ -56,13 +55,13 @@ public class HttpGetPipelineAction extends HttpAction {
 
     protected GetPipelineResponse getGetPipelineResponse(final XContentParser parser) throws IOException {
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        List<PipelineConfiguration> pipelines = new ArrayList<>();
+        final List<PipelineConfiguration> pipelines = new ArrayList<>();
         while (parser.nextToken().equals(Token.FIELD_NAME)) {
-            String pipelineId = parser.currentName();
+            final String pipelineId = parser.currentName();
             parser.nextToken();
-            XContentBuilder contentBuilder = XContentBuilder.builder(parser.contentType().xContent());
+            final XContentBuilder contentBuilder = XContentBuilder.builder(parser.contentType().xContent());
             contentBuilder.generator().copyCurrentStructure(parser);
-            PipelineConfiguration pipeline =
+            final PipelineConfiguration pipeline =
                     new PipelineConfiguration(pipelineId, BytesReference.bytes(contentBuilder), contentBuilder.contentType());
             pipelines.add(pipeline);
         }

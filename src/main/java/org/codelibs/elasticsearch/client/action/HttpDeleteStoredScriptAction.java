@@ -18,7 +18,6 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.InputStream;
 
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRequest;

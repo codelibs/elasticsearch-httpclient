@@ -75,7 +75,7 @@ public class HttpValidateQueryAction extends HttpAction {
         final ConstructingObjectParser<ValidateQueryResponse, Void> objectParser =
                 new ConstructingObjectParser<>("validate_query", true, a -> {
                     try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-                        BroadcastResponse broadcastResponse = (a[0] != null ? (BroadcastResponse) a[0] : new BroadcastResponse());
+                        final BroadcastResponse broadcastResponse = (a[0] != null ? (BroadcastResponse) a[0] : new BroadcastResponse());
                         final boolean valid = (boolean) a[1];
                         final List<QueryExplanation> queryExplanations =
                                 (a[2] != null ? (List<QueryExplanation>) a[2] : Collections.emptyList());
@@ -83,14 +83,14 @@ public class HttpValidateQueryAction extends HttpAction {
                         broadcastResponse.writeTo(out);
                         out.writeBoolean(valid);
                         out.writeVInt(queryExplanations.size());
-                        for (QueryExplanation exp : queryExplanations) {
+                        for (final QueryExplanation exp : queryExplanations) {
                             exp.writeTo(out);
                         }
 
                         final ValidateQueryResponse response = newResponse.get();
                         response.readFrom(out.toStreamInput());
                         return response;
-                    } catch (IOException e) {
+                    } catch (final IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 });
