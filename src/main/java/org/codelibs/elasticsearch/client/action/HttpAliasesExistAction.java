@@ -48,7 +48,7 @@ public class HttpAliasesExistAction extends HttpAction {
                 final AliasesExistResponse aliasesExistResponse = new AliasesExistResponse(exists);
                 listener.onResponse(aliasesExistResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

@@ -40,7 +40,7 @@ public class HttpPutMappingAction extends HttpAction {
                 final PutMappingResponse putMappingResponse = PutMappingResponse.fromXContent(parser);
                 listener.onResponse(putMappingResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

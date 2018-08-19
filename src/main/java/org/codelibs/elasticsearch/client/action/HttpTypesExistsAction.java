@@ -48,7 +48,7 @@ public class HttpTypesExistsAction extends HttpAction {
                 final TypesExistsResponse typesExistsResponse = new TypesExistsResponse(exists);
                 listener.onResponse(typesExistsResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

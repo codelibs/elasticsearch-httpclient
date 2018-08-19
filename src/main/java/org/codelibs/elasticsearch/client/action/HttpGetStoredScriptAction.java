@@ -44,7 +44,7 @@ public class HttpGetStoredScriptAction extends HttpAction {
                 final GetStoredScriptResponse getStoredScriptResponse = getGetStoredScriptResponse(parser);
                 listener.onResponse(getStoredScriptResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

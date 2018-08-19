@@ -64,7 +64,7 @@ public class HttpClusterHealthAction extends HttpAction {
                         final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
                         listener.onResponse(clusterHealthResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

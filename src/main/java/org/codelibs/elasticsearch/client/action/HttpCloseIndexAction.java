@@ -40,7 +40,7 @@ public class HttpCloseIndexAction extends HttpAction {
                 final CloseIndexResponse closeIndexResponse = CloseIndexResponse.fromXContent(parser);
                 listener.onResponse(closeIndexResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

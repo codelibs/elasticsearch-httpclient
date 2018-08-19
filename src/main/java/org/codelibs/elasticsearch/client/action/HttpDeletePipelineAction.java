@@ -41,7 +41,7 @@ public class HttpDeletePipelineAction extends HttpAction {
                         final WritePipelineResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
                         listener.onResponse(deletePipelineResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

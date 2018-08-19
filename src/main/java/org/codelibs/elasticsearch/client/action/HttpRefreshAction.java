@@ -40,7 +40,7 @@ public class HttpRefreshAction extends HttpAction {
                 final RefreshResponse refreshResponse = RefreshResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

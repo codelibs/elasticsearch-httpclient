@@ -43,7 +43,7 @@ public class HttpGetAction extends HttpAction {
                 final GetResponse getResponse = GetResponse.fromXContent(parser);
                 listener.onResponse(getResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

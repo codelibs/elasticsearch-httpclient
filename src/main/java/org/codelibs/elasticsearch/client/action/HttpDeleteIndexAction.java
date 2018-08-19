@@ -40,7 +40,7 @@ public class HttpDeleteIndexAction extends HttpAction {
                 final DeleteIndexResponse deleteIndexResponse = DeleteIndexResponse.fromXContent(parser);
                 listener.onResponse(deleteIndexResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

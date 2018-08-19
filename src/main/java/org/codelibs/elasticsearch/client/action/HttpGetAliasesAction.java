@@ -52,7 +52,7 @@ public class HttpGetAliasesAction extends HttpAction {
                 final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser, action::newResponse);
                 listener.onResponse(getAliasesResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

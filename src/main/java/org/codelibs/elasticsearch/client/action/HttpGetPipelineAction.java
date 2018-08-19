@@ -48,7 +48,7 @@ public class HttpGetPipelineAction extends HttpAction {
                 final GetPipelineResponse getPipelineResponse = getGetPipelineResponse(parser);
                 listener.onResponse(getPipelineResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

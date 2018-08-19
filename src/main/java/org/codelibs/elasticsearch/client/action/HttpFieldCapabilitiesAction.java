@@ -51,7 +51,7 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
                 final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponse(parser);
                 listener.onResponse(fieldCapabilitiesResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

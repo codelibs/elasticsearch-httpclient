@@ -41,7 +41,7 @@ public class HttpFlushAction extends HttpAction {
                         final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
                         listener.onResponse(flushResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

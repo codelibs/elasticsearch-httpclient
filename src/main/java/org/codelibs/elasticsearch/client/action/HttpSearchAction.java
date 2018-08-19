@@ -42,7 +42,7 @@ public class HttpSearchAction extends HttpAction {
                 final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
                 listener.onResponse(searchResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

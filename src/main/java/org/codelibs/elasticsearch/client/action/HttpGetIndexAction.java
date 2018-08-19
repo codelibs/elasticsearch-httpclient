@@ -53,7 +53,7 @@ public class HttpGetIndexAction extends HttpAction {
                 final GetIndexResponse getIndexResponse = getGetIndexResponse(parser, action::newResponse);
                 listener.onResponse(getIndexResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

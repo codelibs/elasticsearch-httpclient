@@ -69,7 +69,7 @@ public class HttpIndicesAliasesAction extends HttpAction {
                 final IndicesAliasesResponse indicesAliasesResponse = IndicesAliasesResponse.fromXContent(parser);
                 listener.onResponse(indicesAliasesResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

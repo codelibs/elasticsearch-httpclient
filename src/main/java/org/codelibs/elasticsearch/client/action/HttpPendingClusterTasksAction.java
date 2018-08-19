@@ -51,7 +51,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
                                 getPendingClusterTasksResponse(parser, action::newResponse);
                         listener.onResponse(pendingClusterTasksResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

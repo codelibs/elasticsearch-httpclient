@@ -40,7 +40,7 @@ public class HttpMainAction extends HttpAction {
                 final MainResponse mainResponse = MainResponse.fromXContent(parser);
                 listener.onResponse(mainResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

@@ -53,7 +53,7 @@ public class HttpClusterUpdateSettingsAction extends HttpAction {
                 final ClusterUpdateSettingsResponse clusterUpdateSettingsResponse = ClusterUpdateSettingsResponse.fromXContent(parser);
                 listener.onResponse(clusterUpdateSettingsResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

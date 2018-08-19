@@ -54,7 +54,7 @@ public class HttpUpdateSettingsAction extends HttpAction {
                         final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);
                         listener.onResponse(updateSettingsResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

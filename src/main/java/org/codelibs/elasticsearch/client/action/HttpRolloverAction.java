@@ -54,7 +54,7 @@ public class HttpRolloverAction extends HttpAction {
                 final RolloverResponse rolloverResponse = RolloverResponse.fromXContent(parser);
                 listener.onResponse(rolloverResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

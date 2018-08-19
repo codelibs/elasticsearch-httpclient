@@ -50,7 +50,7 @@ public class HttpPutPipelineAction extends HttpAction {
                         final WritePipelineResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
                         listener.onResponse(putPipelineResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

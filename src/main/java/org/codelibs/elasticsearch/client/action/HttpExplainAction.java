@@ -58,7 +58,7 @@ public class HttpExplainAction extends HttpAction {
                         final ExplainResponse explainResponse = getExplainResponse(parser);
                         listener.onResponse(explainResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

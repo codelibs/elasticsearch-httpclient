@@ -46,7 +46,7 @@ public class HttpClearIndicesCacheAction extends HttpAction {
                         final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
                         listener.onResponse(clearIndicesCacheResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

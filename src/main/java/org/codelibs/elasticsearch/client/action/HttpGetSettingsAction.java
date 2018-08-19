@@ -47,7 +47,7 @@ public class HttpGetSettingsAction extends HttpAction {
                 final GetSettingsResponse getSettingsResponse = getGetSettingsResponse(parser);
                 listener.onResponse(getSettingsResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

@@ -41,7 +41,7 @@ public class HttpDeleteStoredScriptAction extends HttpAction {
                         final DeleteStoredScriptResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
                         listener.onResponse(deleteStoredScriptResponse);
                     } catch (final Exception e) {
-                        listener.onFailure(e);
+                        listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, listener::onFailure);
     }

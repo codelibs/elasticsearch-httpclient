@@ -50,7 +50,7 @@ public class HttpMultiSearchAction extends HttpAction {
                 final MultiSearchResponse multiSearchResponse = MultiSearchResponse.fromXContext(parser);
                 listener.onResponse(multiSearchResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

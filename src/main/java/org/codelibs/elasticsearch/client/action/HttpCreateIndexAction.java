@@ -53,7 +53,7 @@ public class HttpCreateIndexAction extends HttpAction {
                 final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

@@ -50,7 +50,7 @@ public class HttpGetMappingsAction extends HttpAction {
                 final GetMappingsResponse getMappingsResponse = getGetMappingsResponse(parser, action::newResponse);
                 listener.onResponse(getMappingsResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

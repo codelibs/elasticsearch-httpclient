@@ -45,7 +45,7 @@ public class HttpDeleteAction extends HttpAction {
                 final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
                 listener.onResponse(deleteResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

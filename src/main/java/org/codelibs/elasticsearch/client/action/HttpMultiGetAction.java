@@ -53,7 +53,7 @@ public class HttpMultiGetAction extends HttpAction {
                 final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
                 listener.onResponse(multiGetResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

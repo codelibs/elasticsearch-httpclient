@@ -40,7 +40,7 @@ public class HttpShrinkAction extends HttpAction {
                 final ResizeResponse resizeResponse = ResizeResponse.fromXContent(parser);
                 listener.onResponse(resizeResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }

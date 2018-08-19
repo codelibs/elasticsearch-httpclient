@@ -40,7 +40,7 @@ public class HttpOpenIndexAction extends HttpAction {
                 final OpenIndexResponse openIndexResponse = OpenIndexResponse.fromXContent(parser);
                 listener.onResponse(openIndexResponse);
             } catch (final Exception e) {
-                listener.onFailure(e);
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
     }
