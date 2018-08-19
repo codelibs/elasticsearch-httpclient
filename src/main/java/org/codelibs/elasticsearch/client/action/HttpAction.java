@@ -230,9 +230,6 @@ public class HttpAction {
     }
 
     protected Exception toElasticsearchException(CurlResponse response, Exception e) {
-        if (e instanceof ElasticsearchException) {
-            return e;
-        }
         return new ElasticsearchException(response.getContentAsString(), e);
     }
 }
