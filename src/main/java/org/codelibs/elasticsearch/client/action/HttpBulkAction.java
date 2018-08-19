@@ -24,7 +24,6 @@ import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -66,9 +65,7 @@ public class HttpBulkAction extends HttpAction {
                     break;
                 }
                 case 1: { // CREATE
-                    final XContentBuilder builder =
-                            ((CreateIndexRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
-                    buf.append(BytesReference.bytes(builder).utf8ToString());
+                    buf.append(XContentHelper.convertToJson(((IndexRequest) req).source(), false, XContentType.JSON));
                     buf.append('\n');
                     break;
                 }
