@@ -17,10 +17,14 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ActiveShardCount;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -29,6 +33,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.VersionType;
 
 public class HttpUpdateAction extends HttpAction {
 
@@ -47,16 +52,44 @@ public class HttpUpdateAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index())
-                .param("routing", request.routing()).param("retry_on_conflict", String.valueOf(request.retryOnConflict()))
-                .param("version", String.valueOf(request.version())).body(source).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
-                        listener.onResponse(updateResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(e);
-                    }
-                }, listener::onFailure);
+        getCurlRequest(request).body(source).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
+                listener.onResponse(updateResponse);
+            } catch (final Exception e) {
+                listener.onFailure(e);
+            }
+        }, listener::onFailure);
+    }
+
+    protected CurlRequest getCurlRequest(final UpdateRequest request) {
+        // RestUpdateAction
+        final CurlRequest curlRequest =
+                client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index());
+        if (request.routing() != null) {
+            curlRequest.param("routing", request.routing());
+        }
+        if (request.parent() != null) {
+            curlRequest.param("parent", request.parent());
+        }
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (!RefreshPolicy.NONE.equals(request.getRefreshPolicy())) {
+            curlRequest.param("refresh", request.getRefreshPolicy().getValue());
+        }
+        if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
+            curlRequest.param("wait_for_active_shards", request.waitForActiveShards().toString());
+        }
+        curlRequest.param("doc_as_upsert", Boolean.toString(request.docAsUpsert()));
+        curlRequest.param("retry_on_conflict", String.valueOf(request.retryOnConflict()));
+        if (request.version() >= 0) {
+            curlRequest.param("version", Long.toString(request.version()));
+        }
+        if (!VersionType.INTERNAL.equals(request.versionType())) {
+            curlRequest.param("version_type", request.versionType().name().toLowerCase(Locale.ROOT));
+        }
+        return curlRequest;
     }
 }
