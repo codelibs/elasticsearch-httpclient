@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
@@ -34,7 +35,7 @@ public class HttpPutMappingAction extends HttpAction {
     }
 
     public void execute(final PutMappingRequest request, final ActionListener<PutMappingResponse> listener) {
-        client.getCurlRequest(PUT, "/_mapping/" + request.type(), request.indices()).body(request.source()).execute(response -> {
+        getCurlRequest(request).body(request.source()).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final PutMappingResponse putMappingResponse = PutMappingResponse.fromXContent(parser);
@@ -43,6 +44,18 @@ public class HttpPutMappingAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, listener::onFailure);
+    }
+
+    protected CurlRequest getCurlRequest(final PutMappingRequest request) {
+        // RestPutMappingAction
+        final CurlRequest curlRequest = client.getCurlRequest(PUT, "/_mapping/" + request.type(), request.indices());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 
 }
