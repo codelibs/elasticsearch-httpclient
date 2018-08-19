@@ -551,6 +551,10 @@ public class HttpClientTest {
         final String type = "test_type";
         final String id = "1";
 
+        // Get the document
+        final GetResponse getResponse1 = client.prepareGet(index, type, id).execute().actionGet();
+        assertFalse(getResponse1.isExists());
+
         // Create a document
         final IndexResponse indexResponse =
                 client.prepareIndex(index, type, id)
@@ -568,8 +572,8 @@ public class HttpClientTest {
         assertEquals(1, searchResponse.getHits().getTotalHits());
 
         // Get the document
-        final GetResponse getResponse = client.prepareGet(index, type, id).execute().actionGet();
-        assertTrue(getResponse.isExists());
+        final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet();
+        assertTrue(getResponse2.isExists());
 
         // Update the document
         final UpdateResponse updateResponse = client.prepareUpdate(index, type, id).setDoc("foo", "bar").execute().actionGet();
@@ -580,7 +584,8 @@ public class HttpClientTest {
         assertEquals(RestStatus.OK, deleteResponse.status());
 
         // make sure the document was deleted
-        assertThrows(Exception.class, () -> client.prepareGet(index, type, id).execute().actionGet());
+        final GetResponse getResponse3 = client.prepareGet(index, type, id).execute().actionGet();
+        assertFalse(getResponse3.isExists());
     }
 
     @Test

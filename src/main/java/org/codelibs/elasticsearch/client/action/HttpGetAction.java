@@ -26,6 +26,7 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.VersionType;
+import org.elasticsearch.index.get.GetResult;
 
 public class HttpGetAction extends HttpAction {
 
@@ -37,15 +38,20 @@ public class HttpGetAction extends HttpAction {
     }
 
     public void execute(final GetRequest request, final ActionListener<GetResponse> listener) {
-        getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
-                final GetResponse getResponse = GetResponse.fromXContent(parser);
-                listener.onResponse(getResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
-            }
-        }, listener::onFailure);
+        getCurlRequest(request).execute(
+                response -> {
+                    if (response.getHttpStatusCode() == 404) {
+                        listener.onResponse(new GetResponse(new GetResult(request.index(), request.type(), request.id(), request.version(),
+                                false, null, null)));
+                    }
+                    try (final InputStream in = response.getContentAsStream()) {
+                        final XContentParser parser = createParser(in);
+                        final GetResponse getResponse = GetResponse.fromXContent(parser);
+                        listener.onResponse(getResponse);
+                    } catch (final Exception e) {
+                        listener.onFailure(toElasticsearchException(response, e));
+                    }
+                }, listener::onFailure);
     }
 
     private CurlRequest getCurlRequest(final GetRequest request) {
