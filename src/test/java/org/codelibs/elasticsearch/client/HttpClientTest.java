@@ -19,7 +19,6 @@ import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newCo
 import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -97,6 +96,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.rest.RestStatus;
@@ -428,6 +428,17 @@ public class HttpClientTest {
     void test_get_mappings() throws Exception {
         final String index = "test_get_mappings1";
         final String type = "test_type";
+
+        try {
+            client.admin().indices().prepareGetMappings("not_exists").execute().actionGet();
+            assertTrue(false);
+        } catch (IndexNotFoundException e) {
+            // ok
+        } catch (Exception e) {
+            e.printStackTrace();
+            assertTrue(false);
+        }
+
         final XContentBuilder mappingBuilder =
                 XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("test_prop").field("type", "text")
                         .endObject().endObject().endObject();
@@ -457,6 +468,14 @@ public class HttpClientTest {
             assertTrue(mappings.containsKey(index));
             assertTrue(mappings.get(index).containsKey(type));
             assertEquals(mappings.get(index).get(type), mappingMetaData);
+        }
+
+        {
+            GetMappingsResponse getMappingsResponse =
+                    client.admin().indices().prepareGetMappings(index).setTypes("not_exists").execute().actionGet();
+            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = getMappingsResponse.getMappings();
+            assertTrue(mappings.containsKey(index));
+            assertFalse(mappings.get(index).containsKey("not_exists"));
         }
     }
 
