@@ -27,6 +27,7 @@ import org.codelibs.curl.CurlResponse;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
@@ -231,5 +232,13 @@ public class HttpAction {
 
     protected Exception toElasticsearchException(CurlResponse response, Exception e) {
         return new ElasticsearchException(response.getContentAsString(), e);
+    }
+
+    protected <T> void unwrapElasticsearchException(ActionListener<T> listener, Exception e) {
+        if (e.getCause() instanceof ElasticsearchException) {
+            listener.onFailure((ElasticsearchException) e.getCause());
+        } else {
+            listener.onFailure(e);
+        }
     }
 }

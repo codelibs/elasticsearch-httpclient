@@ -71,6 +71,6 @@ public class HttpIndicesAliasesAction extends HttpAction {
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
-        }, listener::onFailure);
+        }, e -> unwrapElasticsearchException(listener, e));
     }
 }

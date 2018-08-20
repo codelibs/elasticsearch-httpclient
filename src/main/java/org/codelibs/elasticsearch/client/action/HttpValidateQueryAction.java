@@ -66,7 +66,7 @@ public class HttpValidateQueryAction extends HttpAction {
                     } catch (final Exception e) {
                         listener.onFailure(toElasticsearchException(response, e));
                     }
-                }, listener::onFailure);
+                }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected ValidateQueryResponse getValidateQueryResponse(final XContentParser parser, final Supplier<ValidateQueryResponse> newResponse)

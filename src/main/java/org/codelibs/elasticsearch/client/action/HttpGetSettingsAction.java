@@ -49,7 +49,7 @@ public class HttpGetSettingsAction extends HttpAction {
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
-        }, listener::onFailure);
+        }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected GetSettingsResponse getGetSettingsResponse(final XContentParser parser) throws IOException {

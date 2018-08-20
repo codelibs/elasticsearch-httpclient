@@ -64,7 +64,7 @@ public class HttpGetFieldMappingsAction extends HttpAction {
                     } catch (final Exception e) {
                         listener.onFailure(toElasticsearchException(response, e));
                     }
-                }, listener::onFailure);
+                }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected GetFieldMappingsResponse getGetFieldMappingsResponse(final XContentParser parser,

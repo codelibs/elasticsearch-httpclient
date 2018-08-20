@@ -94,7 +94,7 @@ public class HttpBulkAction extends HttpAction {
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
-        }, listener::onFailure);
+        }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected CurlRequest getCurlRequest(final BulkRequest request) {

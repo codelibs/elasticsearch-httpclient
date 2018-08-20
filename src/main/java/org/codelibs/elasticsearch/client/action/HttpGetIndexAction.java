@@ -55,7 +55,7 @@ public class HttpGetIndexAction extends HttpAction {
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
-        }, listener::onFailure);
+        }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected GetIndexResponse getGetIndexResponse(final XContentParser parser, final Supplier<GetIndexResponse> newResponse)

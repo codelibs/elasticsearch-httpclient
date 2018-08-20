@@ -53,7 +53,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
                     } catch (final Exception e) {
                         listener.onFailure(toElasticsearchException(response, e));
                     }
-                }, listener::onFailure);
+                }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser,

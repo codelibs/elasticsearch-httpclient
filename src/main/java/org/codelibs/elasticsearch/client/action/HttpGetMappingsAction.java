@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.action.ActionListener;
@@ -31,6 +32,7 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
+import org.elasticsearch.index.IndexNotFoundException;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
@@ -44,7 +46,10 @@ public class HttpGetMappingsAction extends HttpAction {
     }
 
     public void execute(final GetMappingsRequest request, final ActionListener<GetMappingsResponse> listener) {
-        client.getCurlRequest(GET, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
+            if (response.getHttpStatusCode() == 404) {
+                throw new IndexNotFoundException(String.join(",", request.indices()));
+            }
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetMappingsResponse getMappingsResponse = getGetMappingsResponse(parser, action::newResponse);
@@ -52,7 +57,14 @@ public class HttpGetMappingsAction extends HttpAction {
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
-        }, listener::onFailure);
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetMappingsRequest request) {
+        // RestGetMappingAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_mapping/" + String.join(",", request.types()), request.indices());
+        curlRequest.param("local", Boolean.toString(request.local()));
+        return curlRequest;
     }
 
     protected GetMappingsResponse getGetMappingsResponse(final XContentParser parser, final Supplier<GetMappingsResponse> newResponse)
