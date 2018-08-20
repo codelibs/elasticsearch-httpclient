@@ -15,16 +15,22 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 public class HttpSearchAction extends HttpAction {
 
@@ -36,7 +42,7 @@ public class HttpSearchAction extends HttpAction {
     }
 
     public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
-        getCurlRequest(request).body(request.source() != null ? request.source().toString() : null).execute(response -> {
+        getCurlRequest(request).body(getQuerySource(request)).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
@@ -47,9 +53,22 @@ public class HttpSearchAction extends HttpAction {
         }, e -> unwrapElasticsearchException(listener, e));
     }
 
+    protected String getQuerySource(final SearchRequest request) {
+        SearchSourceBuilder source = request.source();
+        if (source != null) {
+            try {
+                return XContentHelper.toXContent(source, XContentType.JSON, ToXContent.EMPTY_PARAMS, false).utf8ToString();
+            } catch (IOException e) {
+                throw new ElasticsearchException(e);
+            }
+        }
+        return null;
+    }
+
     protected CurlRequest getCurlRequest(final SearchRequest request) {
         // RestSearchAction
         CurlRequest curlRequest = client.getCurlRequest(POST, "/_search", request.indices());
+        curlRequest.param("typed_keys", "true");
         curlRequest.param("batched_reduce_size", Integer.toString(request.getBatchedReduceSize()));
         curlRequest.param("pre_filter_shard_size", Integer.toString(request.getPreFilterShardSize()));
         if (request.getMaxConcurrentShardRequests() > 0) {
