@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
@@ -34,15 +35,26 @@ public class HttpDeleteStoredScriptAction extends HttpAction {
     }
 
     public void execute(final DeleteStoredScriptRequest request, final ActionListener<DeleteStoredScriptResponse> listener) {
-        client.getCurlRequest(DELETE, "/_scripts/" + request.id())
-                .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final DeleteStoredScriptResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
-                        listener.onResponse(deleteStoredScriptResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final DeleteStoredScriptResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
+                listener.onResponse(deleteStoredScriptResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final DeleteStoredScriptRequest request) {
+        // RestDeleteStoredScriptAction
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_scripts/" + request.id());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 }

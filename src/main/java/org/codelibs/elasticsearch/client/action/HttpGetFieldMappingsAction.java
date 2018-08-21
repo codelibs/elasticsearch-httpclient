@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -47,6 +48,19 @@ public class HttpGetFieldMappingsAction extends HttpAction {
     }
 
     public void execute(final GetFieldMappingsRequest request, final ActionListener<GetFieldMappingsResponse> listener) {
+        getCurlRequest(request).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final GetFieldMappingsResponse getFieldMappingsResponse = getGetFieldMappingsResponse(parser, action::newResponse);
+                listener.onResponse(getFieldMappingsResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetFieldMappingsRequest request) {
+        // RestGetFieldMappingsAction
         final StringBuilder pathSuffix = new StringBuilder(100);
         if (request.types().length > 0) {
             pathSuffix.append(String.join(",", request.types())).append('/');
@@ -55,16 +69,10 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         if (request.fields().length > 0) {
             pathSuffix.append(String.join(",", request.fields()));
         }
-        client.getCurlRequest(GET, "/_mapping/" + pathSuffix.toString(), request.indices())
-                .param("include_defaults", String.valueOf(request.includeDefaults())).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final GetFieldMappingsResponse getFieldMappingsResponse = getGetFieldMappingsResponse(parser, action::newResponse);
-                        listener.onResponse(getFieldMappingsResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_mapping/" + pathSuffix.toString(), request.indices());
+        curlRequest.param("include_defaults", Boolean.toString(request.includeDefaults()));
+        curlRequest.param("local", Boolean.toString(request.local()));
+        return curlRequest;
     }
 
     protected GetFieldMappingsResponse getGetFieldMappingsResponse(final XContentParser parser,

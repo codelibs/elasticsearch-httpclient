@@ -28,6 +28,7 @@ import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
@@ -239,6 +240,15 @@ public class HttpAction {
             listener.onFailure((ElasticsearchException) e.getCause());
         } else {
             listener.onFailure(e);
+        }
+    }
+
+    protected int getActiveShardsCountValue(final ActiveShardCount activeShardCount) {
+        try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            activeShardCount.writeTo(out);
+            return out.toStreamInput().readInt();
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
         }
     }
 }

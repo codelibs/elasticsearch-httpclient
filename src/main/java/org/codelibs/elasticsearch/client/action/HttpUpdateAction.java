@@ -80,7 +80,7 @@ public class HttpUpdateAction extends HttpAction {
             curlRequest.param("refresh", request.getRefreshPolicy().getValue());
         }
         if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
-            curlRequest.param("wait_for_active_shards", request.waitForActiveShards().toString());
+            curlRequest.param("wait_for_active_shards", String.valueOf(getActiveShardsCountValue(request.waitForActiveShards())));
         }
         curlRequest.param("doc_as_upsert", Boolean.toString(request.docAsUpsert()));
         curlRequest.param("retry_on_conflict", String.valueOf(request.retryOnConflict()));

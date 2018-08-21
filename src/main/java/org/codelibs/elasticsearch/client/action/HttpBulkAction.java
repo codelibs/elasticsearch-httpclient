@@ -101,7 +101,7 @@ public class HttpBulkAction extends HttpAction {
         // RestBulkAction
         final CurlRequest curlRequest = client.getCurlRequest(POST, "/_bulk");
         if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
-            curlRequest.param("wait_for_active_shards", request.waitForActiveShards().toString());
+            curlRequest.param("wait_for_active_shards", String.valueOf(getActiveShardsCountValue(request.waitForActiveShards())));
         }
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());

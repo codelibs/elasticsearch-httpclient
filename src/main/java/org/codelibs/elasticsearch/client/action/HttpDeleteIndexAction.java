@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
@@ -34,7 +35,7 @@ public class HttpDeleteIndexAction extends HttpAction {
     }
 
     public void execute(final DeleteIndexRequest request, final ActionListener<DeleteIndexResponse> listener) {
-        client.getCurlRequest(DELETE, "/", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final DeleteIndexResponse deleteIndexResponse = DeleteIndexResponse.fromXContent(parser);
@@ -43,5 +44,17 @@ public class HttpDeleteIndexAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final DeleteIndexRequest request) {
+        // RestDeleteIndexAction
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/", request.indices());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 }

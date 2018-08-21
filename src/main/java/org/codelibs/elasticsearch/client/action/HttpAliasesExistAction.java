@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -32,7 +33,7 @@ public class HttpAliasesExistAction extends HttpAction {
     }
 
     public void execute(final GetAliasesRequest request, final ActionListener<AliasesExistResponse> listener) {
-        client.getCurlRequest(HEAD, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {
             case 200:
@@ -51,5 +52,12 @@ public class HttpAliasesExistAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetAliasesRequest request) {
+        // RestGetAliasesAction
+        final CurlRequest curlRequest = client.getCurlRequest(HEAD, "/_alias/" + String.join(",", request.aliases()), request.indices());
+        curlRequest.param("local", Boolean.toString(request.local()));
+        return curlRequest;
     }
 }

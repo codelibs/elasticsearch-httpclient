@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -32,7 +33,7 @@ public class HttpTypesExistsAction extends HttpAction {
     }
 
     public void execute(final TypesExistsRequest request, final ActionListener<TypesExistsResponse> listener) {
-        client.getCurlRequest(HEAD, "/_mapping/" + String.join(",", request.types()), request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {
             case 200:
@@ -51,5 +52,11 @@ public class HttpTypesExistsAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final TypesExistsRequest request) {
+        // RestTypesExistsAction
+        final CurlRequest curlRequest = client.getCurlRequest(HEAD, "/_mapping/" + String.join(",", request.types()), request.indices());
+        return curlRequest;
     }
 }

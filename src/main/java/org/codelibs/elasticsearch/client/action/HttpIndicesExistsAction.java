@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -32,7 +33,7 @@ public class HttpIndicesExistsAction extends HttpAction {
     }
 
     public void execute(final IndicesExistsRequest request, final ActionListener<IndicesExistsResponse> listener) {
-        client.getCurlRequest(HEAD, null, request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             boolean exists = false;
             switch (response.getHttpStatusCode()) {
             case 200:
@@ -51,5 +52,11 @@ public class HttpIndicesExistsAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final IndicesExistsRequest request) {
+        // RestIndicesExistsAction
+        final CurlRequest curlRequest = client.getCurlRequest(HEAD, null, request.indices());
+        return curlRequest;
     }
 }

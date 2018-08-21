@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.codelibs.curl.Curl;
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.action.ActionListener;
@@ -46,7 +48,7 @@ public class HttpGetAliasesAction extends HttpAction {
     }
 
     public void execute(final GetAliasesRequest request, final ActionListener<GetAliasesResponse> listener) {
-        client.getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser, action::newResponse);
@@ -55,6 +57,13 @@ public class HttpGetAliasesAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetAliasesRequest request) {
+        // RestGetAliasesAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_alias/" + String.join(",", request.aliases()), request.indices());
+        curlRequest.param("local", Boolean.toString(request.local()));
+        return curlRequest;
     }
 
     protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser, final Supplier<GetAliasesResponse> newResponse)

@@ -21,6 +21,9 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.function.Supplier;
 
+import javax.print.attribute.standard.RequestingUserName;
+
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.action.ActionListener;
@@ -43,7 +46,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
     }
 
     public void execute(final PendingClusterTasksRequest request, final ActionListener<PendingClusterTasksResponse> listener) {
-        client.getCurlRequest(GET, "/_cluster/pending_tasks").execute(
+        getCurlRequest(request).execute(
                 response -> {
                     try (final InputStream in = response.getContentAsStream()) {
                         final XContentParser parser = createParser(in);
@@ -54,6 +57,16 @@ public class HttpPendingClusterTasksAction extends HttpAction {
                         listener.onFailure(toElasticsearchException(response, e));
                     }
                 }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final PendingClusterTasksRequest request) {
+        // RestPendingClusterTasksAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_cluster/pending_tasks");
+        curlRequest.param("local", Boolean.toString(request.local()));
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 
     protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser,

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.action.ActionListener;
@@ -47,7 +48,7 @@ public class HttpGetIndexAction extends HttpAction {
     }
 
     public void execute(final GetIndexRequest request, final ActionListener<GetIndexResponse> listener) {
-        client.getCurlRequest(GET, "/", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetIndexResponse getIndexResponse = getGetIndexResponse(parser, action::newResponse);
@@ -56,6 +57,13 @@ public class HttpGetIndexAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetIndexRequest request) {
+        // RestGetIndexAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/", request.indices());
+        curlRequest.param("include_defaults", Boolean.toString(request.includeDefaults()));
+        return curlRequest;
     }
 
     protected GetIndexResponse getGetIndexResponse(final XContentParser parser, final Supplier<GetIndexResponse> newResponse)

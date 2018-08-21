@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
@@ -34,7 +35,7 @@ public class HttpCloseIndexAction extends HttpAction {
     }
 
     public void execute(final CloseIndexRequest request, final ActionListener<CloseIndexResponse> listener) {
-        client.getCurlRequest(POST, "/_close", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final CloseIndexResponse closeIndexResponse = CloseIndexResponse.fromXContent(parser);
@@ -43,5 +44,17 @@ public class HttpCloseIndexAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final CloseIndexRequest request) {
+        // RestCloseIndexAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_close", request.indices());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 }

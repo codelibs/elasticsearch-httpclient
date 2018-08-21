@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.HttpClient.ContentType;
 import org.elasticsearch.ElasticsearchException;
@@ -44,7 +45,7 @@ public class HttpMultiSearchAction extends HttpAction {
         } catch (final Exception e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch").body(source).execute(response -> {
+        getCurlRequest(request).body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final MultiSearchResponse multiSearchResponse = MultiSearchResponse.fromXContext(parser);
@@ -53,5 +54,12 @@ public class HttpMultiSearchAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final MultiSearchRequest request) {
+        // RestMultiSearchAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch");
+        curlRequest.param("max_concurrent_searches", Integer.toString(request.maxConcurrentSearchRequests()));
+        return curlRequest;
     }
 }

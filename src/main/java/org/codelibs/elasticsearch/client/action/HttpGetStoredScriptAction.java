@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -38,7 +39,7 @@ public class HttpGetStoredScriptAction extends HttpAction {
     }
 
     public void execute(final GetStoredScriptRequest request, final ActionListener<GetStoredScriptResponse> listener) {
-        client.getCurlRequest(GET, "/_scripts/" + request.id()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetStoredScriptResponse getStoredScriptResponse = getGetStoredScriptResponse(parser);
@@ -47,6 +48,12 @@ public class HttpGetStoredScriptAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetStoredScriptRequest request) {
+        // RestGetStoredScriptAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_scripts/" + request.id());
+        return curlRequest;
     }
 
     protected GetStoredScriptResponse getGetStoredScriptResponse(final XContentParser parser) {

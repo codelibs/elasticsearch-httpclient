@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
@@ -34,7 +35,7 @@ public class HttpRefreshAction extends HttpAction {
     }
 
     public void execute(final RefreshRequest request, final ActionListener<RefreshResponse> listener) {
-        client.getCurlRequest(POST, "/_refresh", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final RefreshResponse refreshResponse = RefreshResponse.fromXContent(parser);
@@ -43,5 +44,11 @@ public class HttpRefreshAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final RefreshRequest request) {
+        // RestRefreshAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_refresh", request.indices());
+        return curlRequest;
     }
 }
