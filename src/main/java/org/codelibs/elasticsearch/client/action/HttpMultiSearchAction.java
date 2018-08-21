@@ -59,7 +59,9 @@ public class HttpMultiSearchAction extends HttpAction {
     protected CurlRequest getCurlRequest(final MultiSearchRequest request) {
         // RestMultiSearchAction
         final CurlRequest curlRequest = client.getCurlRequest(GET, ContentType.X_NDJSON, "/_msearch");
-        curlRequest.param("max_concurrent_searches", Integer.toString(request.maxConcurrentSearchRequests()));
+        if(request.maxConcurrentSearchRequests() > 0) {
+            curlRequest.param("max_concurrent_searches", Integer.toString(request.maxConcurrentSearchRequests()));
+        }
         return curlRequest;
     }
 }
