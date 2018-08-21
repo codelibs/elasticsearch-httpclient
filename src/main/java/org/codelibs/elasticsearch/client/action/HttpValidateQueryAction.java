@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
@@ -56,17 +57,25 @@ public class HttpValidateQueryAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
-                request.indices()).param("explain", String.valueOf(request.explain())).param("rewrite", String.valueOf(request.rewrite()))
-                .param("all_shards", String.valueOf(request.allShards())).body(source).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);
-                        listener.onResponse(validateQueryResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).body(source).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);
+                listener.onResponse(validateQueryResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ValidateQueryRequest request) {
+        final CurlRequest curlRequest =
+                client.getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
+                        request.indices());
+        curlRequest.param("explain", Boolean.toString(request.explain()));
+        curlRequest.param("rewrite", Boolean.toString(request.rewrite()));
+        curlRequest.param("all_shards", Boolean.toString(request.allShards()));
+        return curlRequest;
     }
 
     protected ValidateQueryResponse getValidateQueryResponse(final XContentParser parser, final Supplier<ValidateQueryResponse> newResponse)

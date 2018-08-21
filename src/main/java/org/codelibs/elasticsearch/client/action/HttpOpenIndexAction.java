@@ -17,11 +17,13 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpOpenIndexAction extends HttpAction {
@@ -34,7 +36,7 @@ public class HttpOpenIndexAction extends HttpAction {
     }
 
     public void execute(final OpenIndexRequest request, final ActionListener<OpenIndexResponse> listener) {
-        client.getCurlRequest(POST, "/_open", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final OpenIndexResponse openIndexResponse = OpenIndexResponse.fromXContent(parser);
@@ -43,5 +45,20 @@ public class HttpOpenIndexAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final OpenIndexRequest request) {
+        // RestOpenIndexAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_open", request.indices());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
+            curlRequest.param("wait_for_active_shards", request.waitForActiveShards().toString());
+        }
+        return curlRequest;
     }
 }

@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -47,8 +48,7 @@ public class HttpRolloverAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""),
-                request.getAlias()).param("dry_run", (request.isDryRun() ? "" : null)).body(source).execute(response -> {
+        getCurlRequest(request).body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final RolloverResponse rolloverResponse = RolloverResponse.fromXContent(parser);
@@ -57,5 +57,16 @@ public class HttpRolloverAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final RolloverRequest request) {
+        // RestRolloverAction
+        final CurlRequest curlRequest =
+                client.getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""),
+                        request.getAlias());
+        if (request.isDryRun()) {
+            curlRequest.param("dry_run", "");
+        }
+        return curlRequest;
     }
 }

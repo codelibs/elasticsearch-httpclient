@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -47,7 +48,7 @@ public class HttpClusterUpdateSettingsAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(PUT, "/_cluster/settings").body(source).execute(response -> {
+        getCurlRequest(request).body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final ClusterUpdateSettingsResponse clusterUpdateSettingsResponse = ClusterUpdateSettingsResponse.fromXContent(parser);
@@ -56,5 +57,17 @@ public class HttpClusterUpdateSettingsAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ClusterUpdateSettingsRequest request) {
+        // RestClusterUpdateSettingsAction
+        final CurlRequest curlRequest = client.getCurlRequest(PUT, "/_cluster/settings");
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 }

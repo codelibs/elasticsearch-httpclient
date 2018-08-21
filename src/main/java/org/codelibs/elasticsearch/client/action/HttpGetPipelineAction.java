@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.GetPipelineAction;
@@ -42,7 +43,7 @@ public class HttpGetPipelineAction extends HttpAction {
     }
 
     public void execute(final GetPipelineRequest request, final ActionListener<GetPipelineResponse> listener) {
-        client.getCurlRequest(GET, "/_ingest/pipeline/" + String.join(",", request.getIds())).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetPipelineResponse getPipelineResponse = getGetPipelineResponse(parser);
@@ -51,6 +52,15 @@ public class HttpGetPipelineAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetPipelineRequest request) {
+        // RestGetPipelineAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_ingest/pipeline/" + String.join(",", request.getIds()));
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 
     protected GetPipelineResponse getGetPipelineResponse(final XContentParser parser) throws IOException {

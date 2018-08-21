@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
@@ -34,20 +35,26 @@ public class HttpClearIndicesCacheAction extends HttpAction {
     }
 
     public void execute(final ClearIndicesCacheRequest request, final ActionListener<ClearIndicesCacheResponse> listener) {
-        String fields = null;
+        getCurlRequest(request).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
+                listener.onResponse(clearIndicesCacheResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ClearIndicesCacheRequest request) {
+        // RestClearIndicesCacheAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_cache/clear", request.indices());
         if (request.fields() != null && request.fields().length > 0) {
-            fields = String.join(",", request.fields());
+            curlRequest.param("fields", String.join(",", request.fields()));
         }
-        client.getCurlRequest(POST, "/_cache/clear", request.indices()).param("fielddata", String.valueOf(request.fieldDataCache()))
-                .param("query", String.valueOf(request.queryCache())).param("request", String.valueOf(request.requestCache()))
-                .param("fields", fields).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
-                        listener.onResponse(clearIndicesCacheResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        curlRequest.param("fielddata", String.valueOf(request.fieldDataCache()));
+        curlRequest.param("query", String.valueOf(request.queryCache()));
+        curlRequest.param("request", String.valueOf(request.requestCache()));
+        return curlRequest;
     }
 }

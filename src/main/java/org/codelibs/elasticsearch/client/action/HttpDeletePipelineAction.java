@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.DeletePipelineAction;
@@ -34,15 +35,26 @@ public class HttpDeletePipelineAction extends HttpAction {
     }
 
     public void execute(final DeletePipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
-        client.getCurlRequest(DELETE, "/_ingest/pipeline/" + request.getId())
-                .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final WritePipelineResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
-                        listener.onResponse(deletePipelineResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final WritePipelineResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                listener.onResponse(deletePipelineResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final DeletePipelineRequest request) {
+        // RestDeletePipelineAction
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_ingest/pipeline/" + request.getId());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 }

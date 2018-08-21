@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -45,7 +46,7 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
     }
 
     public void execute(final FieldCapabilitiesRequest request, final ActionListener<FieldCapabilitiesResponse> listener) {
-        client.getCurlRequest(GET, "/_field_caps?fields=" + String.join(",", request.fields()), request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final FieldCapabilitiesResponse fieldCapabilitiesResponse = getFieldCapabilitiesResponse(parser);
@@ -54,6 +55,15 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final FieldCapabilitiesRequest request) {
+        // RestFieldCapabilitiesAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_field_caps", request.indices());
+        if (request.fields() != null) {
+            curlRequest.param("fields", String.join(",", request.fields()));
+        }
+        return curlRequest;
     }
 
     protected FieldCapabilitiesResponse getFieldCapabilitiesResponse(final XContentParser parser) {

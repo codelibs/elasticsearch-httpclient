@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -48,7 +49,7 @@ public class HttpClearScrollAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }
-        client.getCurlRequest(DELETE, "/_search/scroll").body(source).execute(response -> {
+        getCurlRequest(request).body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final ClearScrollResponse clearScrollResponse = ClearScrollResponse.fromXContent(parser);
@@ -57,5 +58,11 @@ public class HttpClearScrollAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ClearScrollRequest request) {
+        // RestClearScrollAction
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_search/scroll");
+        return curlRequest;
     }
 }

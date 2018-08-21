@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.List;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
@@ -27,11 +28,13 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.health.ClusterIndexHealth;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.analysis.FingerprintAnalyzer;
 
 public class HttpClusterHealthAction extends HttpAction {
 
@@ -43,30 +46,49 @@ public class HttpClusterHealthAction extends HttpAction {
     }
 
     public void execute(final ClusterHealthRequest request, final ActionListener<ClusterHealthResponse> listener) {
-        String waitForStatus = null;
-        try {
-            if (request.waitForStatus() != null) {
-                final ClusterHealthStatus clusterHealthStatus = ClusterHealthStatus.fromValue(request.waitForStatus().value());
-                waitForStatus = clusterHealthStatus.toString().toLowerCase();
+        getCurlRequest(request).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
+                listener.onResponse(clusterHealthResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
-        } catch (final IOException e) {
-            throw new ElasticsearchException("Failed to parse a request.", e);
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ClusterHealthRequest request) {
+        // RestClusterHealthAction
+        final CurlRequest curlRequest =
+                client.getCurlRequest(GET, "/_cluster/health"
+                        + (request.indices() == null ? "" : "/" + String.join(",", request.indices())));
+        curlRequest.param("wait_for_no_relocating_shards", Boolean.toString(request.waitForNoRelocatingShards()));
+        curlRequest.param("wait_for_no_initializing_shards", Boolean.toString(request.waitForNoInitializingShards()));
+        curlRequest.param("wait_for_nodes", request.waitForNodes());
+        if (request.waitForStatus() != null) {
+            try {
+                curlRequest.param("wait_for_status", ClusterHealthStatus.fromValue(request.waitForStatus().value()).toString()
+                        .toLowerCase());
+            } catch (final IOException e) {
+                throw new ElasticsearchException("Failed to parse a request.", e);
+            }
         }
-        client.getCurlRequest(GET, "/_cluster/health" + (request.indices() == null ? "" : "/" + String.join(",", request.indices())))
-                .param("wait_for_status", waitForStatus)
-                .param("wait_for_no_relocating_shards", String.valueOf(request.waitForNoRelocatingShards()))
-                .param("wait_for_no_initializing_shards", String.valueOf(request.waitForNoInitializingShards()))
-                .param("wait_for_active_shards", (request.waitForActiveShards() == null ? null : request.waitForActiveShards().toString()))
-                .param("wait_for_nodes", request.waitForNodes())
-                .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
-                        listener.onResponse(clusterHealthResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        if (request.waitForActiveShards() != null) {
+            curlRequest.param("wait_for_active_shards", String.valueOf(getActiveShardsCountValue(request.waitForActiveShards())));
+        }
+        if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
+            curlRequest.param("wait_for_active_shards", request.waitForActiveShards().toString());
+        }
+        if (request.waitForEvents() != null) {
+            curlRequest.param("wait_for_events", request.waitForEvents().toString());
+        }
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 
     protected ClusterHealthResponse getClusterHealthResponse(final XContentParser parser) throws IOException {

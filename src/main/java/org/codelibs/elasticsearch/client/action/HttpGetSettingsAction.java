@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
@@ -41,7 +42,7 @@ public class HttpGetSettingsAction extends HttpAction {
     }
 
     public void execute(final GetSettingsRequest request, final ActionListener<GetSettingsResponse> listener) {
-        client.getCurlRequest(GET, "/_settings", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final GetSettingsResponse getSettingsResponse = getGetSettingsResponse(parser);
@@ -50,6 +51,13 @@ public class HttpGetSettingsAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final GetSettingsRequest request) {
+        // RestGetSettingsAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_settings", request.indices());
+        curlRequest.param("local", Boolean.toString(request.local()));
+        return curlRequest;
     }
 
     protected GetSettingsResponse getGetSettingsResponse(final XContentParser parser) throws IOException {

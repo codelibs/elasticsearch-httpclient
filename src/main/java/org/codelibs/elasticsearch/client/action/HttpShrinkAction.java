@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
@@ -34,7 +35,7 @@ public class HttpShrinkAction extends HttpAction {
     }
 
     public void execute(final ResizeRequest request, final ActionListener<ResizeResponse> listener) {
-        client.getCurlRequest(POST, "/_shrink/" + request.getTargetIndexRequest().index(), request.getSourceIndex()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final ResizeResponse resizeResponse = ResizeResponse.fromXContent(parser);
@@ -43,5 +44,12 @@ public class HttpShrinkAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ResizeRequest request) {
+        // RestShrinkAction
+        final CurlRequest curlRequest =
+                client.getCurlRequest(POST, "/_shrink/" + request.getTargetIndexRequest().index(), request.getSourceIndex());
+        return curlRequest;
     }
 }

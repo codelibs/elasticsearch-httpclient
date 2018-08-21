@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
@@ -58,7 +59,7 @@ public class HttpSyncedFlushAction extends HttpAction {
     }
 
     public void execute(final SyncedFlushRequest request, final ActionListener<SyncedFlushResponse> listener) {
-        client.getCurlRequest(POST, "/_flush/synced", request.indices()).execute(response -> {
+        getCurlRequest(request).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);
@@ -67,6 +68,12 @@ public class HttpSyncedFlushAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final SyncedFlushRequest request) {
+        // RestSyncedFlushAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_flush/synced", request.indices());
+        return curlRequest;
     }
 
     protected SyncedFlushResponse getSyncedFlushResponse(final XContentParser parser, final Supplier<SyncedFlushResponse> newResponse)

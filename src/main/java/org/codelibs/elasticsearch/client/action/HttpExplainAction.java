@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.Collection;
 
 import org.apache.lucene.search.Explanation;
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -51,16 +52,34 @@ public class HttpExplainAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index())
-                .param("routing", request.routing()).param("preference", request.preference()).body(source).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final ExplainResponse explainResponse = getExplainResponse(parser);
-                        listener.onResponse(explainResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).body(source).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final ExplainResponse explainResponse = getExplainResponse(parser);
+                listener.onResponse(explainResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ExplainRequest request) {
+        // RestExplainAction
+        final CurlRequest curlRequest =
+                client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index());
+        if (request.routing() != null) {
+            curlRequest.param("routing", request.routing());
+        }
+        if (request.preference() != null) {
+            curlRequest.param("preference", request.preference());
+        }
+        if (request.query() != null) {
+            // 
+        }
+        if (request.storedFields() != null) {
+            curlRequest.param("stored_fields", String.join(",", request.storedFields()));
+        }
+        return curlRequest;
     }
 
     protected ExplainResponse getExplainResponse(final XContentParser parser) {

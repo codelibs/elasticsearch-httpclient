@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -47,7 +48,7 @@ public class HttpMultiGetAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(GET, "/_mget").body(source).execute(response -> {
+        getCurlRequest(request).body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
@@ -56,5 +57,16 @@ public class HttpMultiGetAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final MultiGetRequest request) {
+        // RestMultiGetAction
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_mget");
+        curlRequest.param("refresh", Boolean.toString(request.refresh()));
+        curlRequest.param("realtime", Boolean.toString(request.realtime()));
+        if (request.preference() != null) {
+            curlRequest.param("preference", request.preference());
+        }
+        return curlRequest;
     }
 }

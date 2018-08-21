@@ -18,17 +18,21 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.analysis.FingerprintAnalyzer;
 
 public class HttpCreateIndexAction extends HttpAction {
 
@@ -47,7 +51,7 @@ public class HttpCreateIndexAction extends HttpAction {
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
-        client.getCurlRequest(PUT, "/", request.index()).body(source).execute(response -> {
+        getCurlRequest(request).body(source).execute(response -> {
             try (final InputStream in = response.getContentAsStream()) {
                 final XContentParser parser = createParser(in);
                 final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);
@@ -56,5 +60,20 @@ public class HttpCreateIndexAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final CreateIndexRequest request) {
+        // RestCreateIndexAction
+        final CurlRequest curlRequest = client.getCurlRequest(PUT, "/", request.index());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
+            curlRequest.param("wait_for_active_shards", String.valueOf(getActiveShardsCountValue(request.waitForActiveShards())));
+        }
+        return curlRequest;
     }
 }

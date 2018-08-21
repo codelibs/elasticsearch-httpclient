@@ -18,6 +18,7 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -39,19 +40,30 @@ public class HttpPutPipelineAction extends HttpAction {
     public void execute(final PutPipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
         String source = null;
         try {
-            source = XContentHelper.convertToJson(request.getSource(), true);
+            source = XContentHelper.convertToJson(request.getSource(), false);
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }
-        client.getCurlRequest(PUT, "/_ingest/pipeline/" + request.getId())
-                .param("timeout", (request.timeout() == null ? null : request.timeout().toString())).body(source).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final WritePipelineResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
-                        listener.onResponse(putPipelineResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).body(source).execute(response -> {
+            try (final InputStream in = response.getContentAsStream()) {
+                final XContentParser parser = createParser(in);
+                final WritePipelineResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                listener.onResponse(putPipelineResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final PutPipelineRequest request) {
+        // RestPutPipelineAction
+        final CurlRequest curlRequest = client.getCurlRequest(PUT, "/_ingest/pipeline/" + request.getId());
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        return curlRequest;
     }
 }
