@@ -26,6 +26,7 @@ import org.codelibs.curl.CurlResponse;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -36,6 +37,8 @@ import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestStatus;
 
 public class HttpAction {
 
@@ -234,8 +237,17 @@ public class HttpAction {
         return objectParser.apply(parser, null);
     }
 
-    protected Exception toElasticsearchException(CurlResponse response, Exception e) {
-        return new ElasticsearchException(response.getContentAsString(), e);
+    protected ElasticsearchStatusException toElasticsearchException(CurlResponse response, Exception e) {
+        ElasticsearchStatusException elasticsearchException;
+        try (final XContentParser parser = createParser(response)) {
+            elasticsearchException = BytesRestResponse.errorFromXContent(parser);
+            elasticsearchException.addSuppressed(e);
+        } catch (Exception ex) {
+            elasticsearchException =
+                    new ElasticsearchStatusException(response.getContentAsString(), RestStatus.fromCode(response.getHttpStatusCode()), e);
+            elasticsearchException.addSuppressed(ex);
+        }
+        return elasticsearchException;
     }
 
     protected <T> void unwrapElasticsearchException(ActionListener<T> listener, Exception e) {
