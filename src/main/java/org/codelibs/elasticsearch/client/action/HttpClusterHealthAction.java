@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.List;
 
@@ -34,7 +33,6 @@ import org.elasticsearch.cluster.health.ClusterIndexHealth;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.analysis.FingerprintAnalyzer;
 
 public class HttpClusterHealthAction extends HttpAction {
 
@@ -47,8 +45,7 @@ public class HttpClusterHealthAction extends HttpAction {
 
     public void execute(final ClusterHealthRequest request, final ActionListener<ClusterHealthResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
                 listener.onResponse(clusterHealthResponse);
             } catch (final Exception e) {

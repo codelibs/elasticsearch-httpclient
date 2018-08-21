@@ -16,12 +16,9 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.function.Supplier;
-
-import javax.print.attribute.standard.RequestingUserName;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -48,8 +45,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
     public void execute(final PendingClusterTasksRequest request, final ActionListener<PendingClusterTasksResponse> listener) {
         getCurlRequest(request).execute(
                 response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
+                    try (final XContentParser parser = createParser(response)) {
                         final PendingClusterTasksResponse pendingClusterTasksResponse =
                                 getPendingClusterTasksResponse(parser, action::newResponse);
                         listener.onResponse(pendingClusterTasksResponse);

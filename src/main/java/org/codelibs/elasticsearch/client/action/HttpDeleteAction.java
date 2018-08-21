@@ -15,7 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
 import java.util.Locale;
 
 import org.codelibs.curl.CurlRequest;
@@ -40,8 +39,7 @@ public class HttpDeleteAction extends HttpAction {
 
     public void execute(final DeleteRequest request, final ActionListener<DeleteResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final DeleteResponse deleteResponse = DeleteResponse.fromXContent(parser);
                 listener.onResponse(deleteResponse);
             } catch (final Exception e) {

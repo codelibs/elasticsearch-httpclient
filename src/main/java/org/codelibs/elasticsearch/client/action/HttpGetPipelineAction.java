@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,8 +43,7 @@ public class HttpGetPipelineAction extends HttpAction {
 
     public void execute(final GetPipelineRequest request, final ActionListener<GetPipelineResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final GetPipelineResponse getPipelineResponse = getGetPipelineResponse(parser);
                 listener.onResponse(getPipelineResponse);
             } catch (final Exception e) {

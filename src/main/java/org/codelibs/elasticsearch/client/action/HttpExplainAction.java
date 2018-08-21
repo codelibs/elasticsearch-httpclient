@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
 
 import org.apache.lucene.search.Explanation;
@@ -53,8 +52,7 @@ public class HttpExplainAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         getCurlRequest(request).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final ExplainResponse explainResponse = getExplainResponse(parser);
                 listener.onResponse(explainResponse);
             } catch (final Exception e) {

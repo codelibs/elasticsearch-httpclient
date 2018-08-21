@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -49,8 +48,7 @@ public class HttpGetIndexAction extends HttpAction {
 
     public void execute(final GetIndexRequest request, final ActionListener<GetIndexResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final GetIndexResponse getIndexResponse = getGetIndexResponse(parser, action::newResponse);
                 listener.onResponse(getIndexResponse);
             } catch (final Exception e) {

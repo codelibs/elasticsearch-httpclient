@@ -15,9 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
-import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -37,8 +34,7 @@ public class HttpFlushAction extends HttpAction {
 
     public void execute(final FlushRequest request, final ActionListener<FlushResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
                 listener.onResponse(flushResponse);
             } catch (final Exception e) {

@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -33,7 +32,6 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -209,13 +207,14 @@ public class HttpAction {
         this.client = client;
     }
 
-    protected XContentParser createParser(final InputStream in) throws IOException {
-        final XContent xContent = XContentFactory.xContent(XContentType.JSON);
-        return xContent.createParser(getNamedXContentRegistry(), LoggingDeprecationHandler.INSTANCE, in);
-    }
-
-    protected NamedXContentRegistry getNamedXContentRegistry() {
-        return NamedXContentRegistry.EMPTY;
+    protected XContentParser createParser(final CurlResponse response) throws IOException {
+        String contentType = response.getHeaderValue("Content-Type");
+        if (contentType == null) {
+            contentType = "application/json";
+        }
+        final XContentType xContentType = XContentType.fromMediaTypeOrFormat(contentType);
+        final XContent xContent = XContentFactory.xContent(xContentType);
+        return xContent.createParser(client.getNamedXContentRegistry(), LoggingDeprecationHandler.INSTANCE, response.getContentAsStream());
     }
 
     protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse) {

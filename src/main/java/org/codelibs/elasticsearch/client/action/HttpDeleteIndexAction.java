@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -36,8 +34,7 @@ public class HttpDeleteIndexAction extends HttpAction {
 
     public void execute(final DeleteIndexRequest request, final ActionListener<DeleteIndexResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final DeleteIndexResponse deleteIndexResponse = DeleteIndexResponse.fromXContent(parser);
                 listener.onResponse(deleteIndexResponse);
             } catch (final Exception e) {

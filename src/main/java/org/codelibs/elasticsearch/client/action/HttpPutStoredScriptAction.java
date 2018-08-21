@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -45,8 +44,7 @@ public class HttpPutStoredScriptAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }
         getCurlRequest(request).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final PutStoredScriptResponse putStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(putStoredScriptResponse);
             } catch (final Exception e) {

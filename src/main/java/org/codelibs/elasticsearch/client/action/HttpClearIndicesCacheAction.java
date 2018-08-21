@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -36,8 +34,7 @@ public class HttpClearIndicesCacheAction extends HttpAction {
 
     public void execute(final ClearIndicesCacheRequest request, final ActionListener<ClearIndicesCacheResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final ClearIndicesCacheResponse clearIndicesCacheResponse = ClearIndicesCacheResponse.fromXContent(parser);
                 listener.onResponse(clearIndicesCacheResponse);
             } catch (final Exception e) {

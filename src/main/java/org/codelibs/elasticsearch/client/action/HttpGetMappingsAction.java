@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -50,8 +49,7 @@ public class HttpGetMappingsAction extends HttpAction {
             if (response.getHttpStatusCode() == 404) {
                 throw new IndexNotFoundException(String.join(",", request.indices()));
             }
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final GetMappingsResponse getMappingsResponse = getGetMappingsResponse(parser, action::newResponse);
                 listener.onResponse(getMappingsResponse);
             } catch (final Exception e) {

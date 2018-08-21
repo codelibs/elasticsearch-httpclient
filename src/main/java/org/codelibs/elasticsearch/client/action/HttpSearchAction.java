@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -26,7 +25,6 @@ import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -44,19 +42,13 @@ public class HttpSearchAction extends HttpAction {
 
     public void execute(final SearchRequest request, final ActionListener<SearchResponse> listener) {
         getCurlRequest(request).body(getQuerySource(request)).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
                 listener.onResponse(searchResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
-    }
-
-    @Override
-    protected NamedXContentRegistry getNamedXContentRegistry() {
-        return new NamedXContentRegistry(client.getSearchModule().getNamedXContents());
     }
 
     protected String getQuerySource(final SearchRequest request) {

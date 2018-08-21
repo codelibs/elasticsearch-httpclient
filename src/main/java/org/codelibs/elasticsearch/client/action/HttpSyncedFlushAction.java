@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -60,8 +59,7 @@ public class HttpSyncedFlushAction extends HttpAction {
 
     public void execute(final SyncedFlushRequest request, final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);
                 listener.onResponse(syncedFlushResponse);
             } catch (final Exception e) {

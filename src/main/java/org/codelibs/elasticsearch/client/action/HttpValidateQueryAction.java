@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.List;
@@ -58,8 +57,7 @@ public class HttpValidateQueryAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         getCurlRequest(request).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final ValidateQueryResponse validateQueryResponse = getValidateQueryResponse(parser, action::newResponse);
                 listener.onResponse(validateQueryResponse);
             } catch (final Exception e) {

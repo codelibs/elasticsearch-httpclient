@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -37,8 +35,7 @@ public class HttpOpenIndexAction extends HttpAction {
 
     public void execute(final OpenIndexRequest request, final ActionListener<OpenIndexResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final OpenIndexResponse openIndexResponse = OpenIndexResponse.fromXContent(parser);
                 listener.onResponse(openIndexResponse);
             } catch (final Exception e) {

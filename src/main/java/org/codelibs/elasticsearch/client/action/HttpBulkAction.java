@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 
 import org.codelibs.curl.CurlRequest;
@@ -87,8 +86,7 @@ public class HttpBulkAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         getCurlRequest(request).body(buf.toString()).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final BulkResponse bulkResponse = BulkResponse.fromXContent(parser);
                 listener.onResponse(bulkResponse);
             } catch (final Exception e) {

@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -36,8 +34,7 @@ public class HttpCloseIndexAction extends HttpAction {
 
     public void execute(final CloseIndexRequest request, final ActionListener<CloseIndexResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final CloseIndexResponse closeIndexResponse = CloseIndexResponse.fromXContent(parser);
                 listener.onResponse(closeIndexResponse);
             } catch (final Exception e) {

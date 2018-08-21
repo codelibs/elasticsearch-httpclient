@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.HttpClient.ContentType;
@@ -46,8 +44,7 @@ public class HttpMultiSearchAction extends HttpAction {
             throw new ElasticsearchException("Failed to parse a request.", e);
         }
         getCurlRequest(request).body(source).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final MultiSearchResponse multiSearchResponse = MultiSearchResponse.fromXContext(parser);
                 listener.onResponse(multiSearchResponse);
             } catch (final Exception e) {

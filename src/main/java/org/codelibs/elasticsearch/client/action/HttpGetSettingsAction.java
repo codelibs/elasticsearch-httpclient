@@ -16,7 +16,6 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,8 +42,7 @@ public class HttpGetSettingsAction extends HttpAction {
 
     public void execute(final GetSettingsRequest request, final ActionListener<GetSettingsResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final GetSettingsResponse getSettingsResponse = getGetSettingsResponse(parser);
                 listener.onResponse(getSettingsResponse);
             } catch (final Exception e) {

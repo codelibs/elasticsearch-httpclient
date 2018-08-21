@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -36,8 +34,7 @@ public class HttpDeletePipelineAction extends HttpAction {
 
     public void execute(final DeletePipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final WritePipelineResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(deletePipelineResponse);
             } catch (final Exception e) {

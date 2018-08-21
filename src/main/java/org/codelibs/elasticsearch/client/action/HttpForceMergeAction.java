@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
@@ -37,8 +35,7 @@ public class HttpForceMergeAction extends HttpAction {
         client.getCurlRequest(POST, "/_forcemerge", request.indices()).param("max_num_segments", String.valueOf(request.maxNumSegments()))
                 .param("only_expunge_deletes", String.valueOf(request.onlyExpungeDeletes()))
                 .param("flush", String.valueOf(request.flush())).execute(response -> {
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
+                    try (final XContentParser parser = createParser(response)) {
                         final ForceMergeResponse forceMergeResponse = ForceMergeResponse.fromXContent(parser);
                         listener.onResponse(forceMergeResponse);
                     } catch (final Exception e) {

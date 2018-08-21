@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
@@ -36,8 +34,7 @@ public class HttpPutMappingAction extends HttpAction {
 
     public void execute(final PutMappingRequest request, final ActionListener<PutMappingResponse> listener) {
         getCurlRequest(request).body(request.source()).execute(response -> {
-            try (final InputStream in = response.getContentAsStream()) {
-                final XContentParser parser = createParser(in);
+            try (final XContentParser parser = createParser(response)) {
                 final PutMappingResponse putMappingResponse = PutMappingResponse.fromXContent(parser);
                 listener.onResponse(putMappingResponse);
             } catch (final Exception e) {

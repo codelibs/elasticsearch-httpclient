@@ -15,7 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.InputStream;
 import java.util.Locale;
 
 import org.codelibs.curl.CurlRequest;
@@ -43,13 +42,13 @@ public class HttpGetAction extends HttpAction {
                     if (response.getHttpStatusCode() == 404) {
                         listener.onResponse(new GetResponse(new GetResult(request.index(), request.type(), request.id(), request.version(),
                                 false, null, null)));
-                    }
-                    try (final InputStream in = response.getContentAsStream()) {
-                        final XContentParser parser = createParser(in);
-                        final GetResponse getResponse = GetResponse.fromXContent(parser);
-                        listener.onResponse(getResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
+                    } else {
+                        try (final XContentParser parser = createParser(response)) {
+                            final GetResponse getResponse = GetResponse.fromXContent(parser);
+                            listener.onResponse(getResponse);
+                        } catch (final Exception e) {
+                            listener.onFailure(toElasticsearchException(response, e));
+                        }
                     }
                 }, e -> unwrapElasticsearchException(listener, e));
     }
