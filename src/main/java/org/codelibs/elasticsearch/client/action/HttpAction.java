@@ -211,7 +211,11 @@ public class HttpAction {
 
     protected XContentParser createParser(final InputStream in) throws IOException {
         final XContent xContent = XContentFactory.xContent(XContentType.JSON);
-        return xContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, in);
+        return xContent.createParser(getNamedXContentRegistry(), LoggingDeprecationHandler.INSTANCE, in);
+    }
+
+    protected NamedXContentRegistry getNamedXContentRegistry() {
+        return NamedXContentRegistry.EMPTY;
     }
 
     protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse) {

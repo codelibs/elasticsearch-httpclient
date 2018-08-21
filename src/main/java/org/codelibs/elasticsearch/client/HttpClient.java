@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
@@ -208,6 +209,7 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.search.SearchModule;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
@@ -225,6 +227,8 @@ public class HttpClient extends AbstractClient {
     protected String[] hosts;
 
     protected final Map<Action<?, ?, ?>, BiConsumer<ActionRequest, ActionListener<?>>> actions = new HashMap<>();
+
+    protected final SearchModule searchModule;
 
     public enum ContentType {
         JSON("application/json"), X_NDJSON("application/x-ndjson");
@@ -251,6 +255,8 @@ public class HttpClient extends AbstractClient {
         if (hosts.length == 0) {
             throw new ElasticsearchException("http.hosts is empty.");
         }
+
+        searchModule = new SearchModule(settings, false, Collections.emptyList());
 
         actions.put(SearchAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.search.SearchAction
@@ -612,5 +618,9 @@ public class HttpClient extends AbstractClient {
         // TODO other request headers
         // TODO threadPool
         return method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(ForkJoinPool.commonPool());
+    }
+
+    public SearchModule getSearchModule() {
+        return searchModule;
     }
 }
