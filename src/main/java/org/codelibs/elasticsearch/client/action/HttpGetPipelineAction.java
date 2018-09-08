@@ -15,22 +15,13 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.GetPipelineRequest;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentParser.Token;
-import org.elasticsearch.common.xcontent.XContentParserUtils;
-import org.elasticsearch.ingest.PipelineConfiguration;
 
 public class HttpGetPipelineAction extends HttpAction {
 
@@ -44,7 +35,7 @@ public class HttpGetPipelineAction extends HttpAction {
     public void execute(final GetPipelineRequest request, final ActionListener<GetPipelineResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final GetPipelineResponse getPipelineResponse = getGetPipelineResponse(parser);
+                final GetPipelineResponse getPipelineResponse = GetPipelineResponse.fromXContent(parser);
                 listener.onResponse(getPipelineResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -59,21 +50,5 @@ public class HttpGetPipelineAction extends HttpAction {
             curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
         }
         return curlRequest;
-    }
-
-    protected GetPipelineResponse getGetPipelineResponse(final XContentParser parser) throws IOException {
-        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        final List<PipelineConfiguration> pipelines = new ArrayList<>();
-        while (parser.nextToken().equals(Token.FIELD_NAME)) {
-            final String pipelineId = parser.currentName();
-            parser.nextToken();
-            final XContentBuilder contentBuilder = XContentBuilder.builder(parser.contentType().xContent());
-            contentBuilder.generator().copyCurrentStructure(parser);
-            final PipelineConfiguration pipeline =
-                    new PipelineConfiguration(pipelineId, BytesReference.bytes(contentBuilder), contentBuilder.contentType());
-            pipelines.add(pipeline);
-        }
-        XContentParserUtils.ensureExpectedToken(XContentParser.Token.END_OBJECT, parser.currentToken(), parser::getTokenLocation);
-        return new GetPipelineResponse(pipelines);
     }
 }

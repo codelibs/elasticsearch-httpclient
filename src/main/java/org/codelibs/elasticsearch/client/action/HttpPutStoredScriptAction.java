@@ -39,7 +39,7 @@ public class HttpPutStoredScriptAction extends HttpAction {
     public void execute(final PutStoredScriptRequest request, final ActionListener<PutStoredScriptResponse> listener) {
         String source = null;
         try {
-            source = XContentHelper.convertToJson(request.content(), true);
+            source = XContentHelper.convertToJson(request.content(), true, false, request.xContentType());
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }

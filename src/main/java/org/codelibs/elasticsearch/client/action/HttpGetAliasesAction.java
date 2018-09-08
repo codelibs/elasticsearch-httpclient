@@ -65,7 +65,6 @@ public class HttpGetAliasesAction extends HttpAction {
 
     protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser, final Supplier<GetAliasesResponse> newResponse)
             throws IOException {
-        @SuppressWarnings("unchecked")
         final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);

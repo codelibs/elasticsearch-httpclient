@@ -7,7 +7,7 @@
 	<artifactId>elasticsearch-httpclient</artifactId>
 	<packaging>jar</packaging>
 	<name>elasticsearch-httpclient</name>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>6.4.0-SNAPSHOT</version>
 	<description />
 	<url>https://github.com/codelibs/elasticsearch-httpclient</url>
 	<inceptionYear>2012</inceptionYear>
@@ -34,7 +34,7 @@
 	</parent>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<elasticsearch.version>6.3.2</elasticsearch.version>
+		<elasticsearch.version>6.4.0</elasticsearch.version>
 		<junit.jupiter.version>5.2.0</junit.jupiter.version>
 	</properties>
 	<build>
@@ -165,7 +165,7 @@
 		<dependency>
 			<groupId>org.codelibs</groupId>
 			<artifactId>curl4j</artifactId>
-			<version>1.2.0-SNAPSHOT</version>
+			<version>1.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.codelibs</groupId>

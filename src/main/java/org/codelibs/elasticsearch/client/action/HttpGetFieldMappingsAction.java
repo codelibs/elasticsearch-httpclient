@@ -15,26 +15,12 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
-
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
-import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse.FieldMappingMetaData;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
-import org.elasticsearch.common.xcontent.ObjectParser;
-import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpGetFieldMappingsAction extends HttpAction {
@@ -49,7 +35,7 @@ public class HttpGetFieldMappingsAction extends HttpAction {
     public void execute(final GetFieldMappingsRequest request, final ActionListener<GetFieldMappingsResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final GetFieldMappingsResponse getFieldMappingsResponse = getGetFieldMappingsResponse(parser, action::newResponse);
+                final GetFieldMappingsResponse getFieldMappingsResponse = GetFieldMappingsResponse.fromXContent(parser);
                 listener.onResponse(getFieldMappingsResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -72,80 +58,4 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         curlRequest.param("local", Boolean.toString(request.local()));
         return curlRequest;
     }
-
-    protected GetFieldMappingsResponse getGetFieldMappingsResponse(final XContentParser parser,
-            final Supplier<GetFieldMappingsResponse> newResponse) throws IOException {
-        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-
-        final Map<String, Map<String, Map<String, FieldMappingMetaData>>> mappings = new HashMap<>();
-        if (parser.nextToken() == XContentParser.Token.FIELD_NAME) {
-            while (parser.currentToken() == XContentParser.Token.FIELD_NAME) {
-                final String index = parser.currentName();
-
-                final Map<String, Map<String, FieldMappingMetaData>> typeMappings = parseTypeMappings(parser, index);
-                mappings.put(index, typeMappings);
-
-                parser.nextToken();
-            }
-        }
-
-        return newGetFieldMappingsResponse(mappings);
-    }
-
-    protected Map<String, Map<String, FieldMappingMetaData>> parseTypeMappings(final XContentParser parser, final String index)
-            throws IOException {
-        final ObjectParser<Map<String, Map<String, FieldMappingMetaData>>, String> objectParser =
-                new ObjectParser<>(MAPPINGS_FIELD.getPreferredName(), true, HashMap::new);
-
-        objectParser.declareField((p, typeMappings, idx) -> {
-            p.nextToken();
-            while (p.currentToken() == XContentParser.Token.FIELD_NAME) {
-                final String typeName = p.currentName();
-
-                if (p.nextToken() == XContentParser.Token.START_OBJECT) {
-                    final Map<String, FieldMappingMetaData> typeMapping = new HashMap<>();
-                    typeMappings.put(typeName, typeMapping);
-
-                    while (p.nextToken() == XContentParser.Token.FIELD_NAME) {
-                        final String fieldName = p.currentName();
-                        final FieldMappingMetaData fieldMappingMetaData = getFieldMappingMetaData(p);
-                        typeMapping.put(fieldName, fieldMappingMetaData);
-                    }
-                } else {
-                    p.skipChildren();
-                }
-                p.nextToken();
-            }
-        }, MAPPINGS_FIELD, ObjectParser.ValueType.OBJECT);
-
-        return objectParser.parse(parser, index);
-    }
-
-    protected FieldMappingMetaData getFieldMappingMetaData(final XContentParser parser) throws IOException {
-        final ConstructingObjectParser<FieldMappingMetaData, String> objectParser =
-                new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new FieldMappingMetaData((String) a[0],
-                        (BytesReference) a[1]));
-
-        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
-                ObjectParser.ValueType.STRING);
-        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(),
-                (p, c) -> BytesReference.bytes(XContentFactory.jsonBuilder().copyCurrentStructure(p)), MAPPING_FIELD,
-                ObjectParser.ValueType.OBJECT);
-
-        return objectParser.parse(parser, null);
-    }
-
-    protected GetFieldMappingsResponse newGetFieldMappingsResponse(
-            final Map<String, Map<String, Map<String, FieldMappingMetaData>>> mappings) {
-        final Class<GetFieldMappingsResponse> clazz = GetFieldMappingsResponse.class;
-        final Class<?>[] types = { Map.class };
-        try {
-            final Constructor<GetFieldMappingsResponse> constructor = clazz.getDeclaredConstructor(types);
-            constructor.setAccessible(true);
-            return constructor.newInstance(mappings);
-        } catch (final Exception e) {
-            throw new ElasticsearchException("Failed to create GetFieldMappingsResponse.", e);
-        }
-    }
-
 }

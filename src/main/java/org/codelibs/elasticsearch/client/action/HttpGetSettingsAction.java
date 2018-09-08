@@ -15,21 +15,13 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentParserUtils;
 
 public class HttpGetSettingsAction extends HttpAction {
 
@@ -43,7 +35,7 @@ public class HttpGetSettingsAction extends HttpAction {
     public void execute(final GetSettingsRequest request, final ActionListener<GetSettingsResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final GetSettingsResponse getSettingsResponse = getGetSettingsResponse(parser);
+                final GetSettingsResponse getSettingsResponse = GetSettingsResponse.fromXContent(parser);
                 listener.onResponse(getSettingsResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -56,52 +48,5 @@ public class HttpGetSettingsAction extends HttpAction {
         final CurlRequest curlRequest = client.getCurlRequest(GET, "/_settings", request.indices());
         curlRequest.param("local", Boolean.toString(request.local()));
         return curlRequest;
-    }
-
-    protected GetSettingsResponse getGetSettingsResponse(final XContentParser parser) throws IOException {
-        final HashMap<String, Settings> indexToSettings = new HashMap<>();
-
-        if (parser.currentToken() == null) {
-            parser.nextToken();
-        }
-        XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.currentToken(), parser::getTokenLocation);
-        parser.nextToken();
-
-        while (!parser.isClosed()) {
-            if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
-                parseIndexEntry(parser, indexToSettings);
-            } else if (parser.currentToken() == XContentParser.Token.START_ARRAY) {
-                parser.skipChildren();
-            } else {
-                parser.nextToken();
-            }
-        }
-
-        final ImmutableOpenMap<String, Settings> settingsMap =
-                ImmutableOpenMap.<String, Settings> builder().putAll(indexToSettings).build();
-
-        return new GetSettingsResponse(settingsMap);
-    }
-
-    protected void parseIndexEntry(final XContentParser parser, final Map<String, Settings> indexToSettings) throws IOException {
-        final String indexName = parser.currentName();
-        parser.nextToken();
-        while (!parser.isClosed() && parser.currentToken() != XContentParser.Token.END_OBJECT) {
-            parseSettingsField(parser, indexName, indexToSettings);
-        }
-    }
-
-    protected void parseSettingsField(final XContentParser parser, final String currentIndexName,
-            final Map<String, Settings> indexToSettings) throws IOException {
-        if (parser.currentToken() == XContentParser.Token.START_OBJECT) {
-            if (SETTINGS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
-                indexToSettings.put(currentIndexName, Settings.fromXContent(parser));
-            } else {
-                parser.skipChildren();
-            }
-        } else if (parser.currentToken() == XContentParser.Token.START_ARRAY) {
-            parser.skipChildren();
-        }
-        parser.nextToken();
     }
 }

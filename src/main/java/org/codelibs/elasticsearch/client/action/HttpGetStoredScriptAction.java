@@ -15,18 +15,13 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import java.lang.reflect.Constructor;
-
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptRequest;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.script.StoredScriptSource;
 
 public class HttpGetStoredScriptAction extends HttpAction {
 
@@ -40,7 +35,7 @@ public class HttpGetStoredScriptAction extends HttpAction {
     public void execute(final GetStoredScriptRequest request, final ActionListener<GetStoredScriptResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final GetStoredScriptResponse getStoredScriptResponse = getGetStoredScriptResponse(parser);
+                final GetStoredScriptResponse getStoredScriptResponse = GetStoredScriptResponse.fromXContent(parser);
                 listener.onResponse(getStoredScriptResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -52,29 +47,5 @@ public class HttpGetStoredScriptAction extends HttpAction {
         // RestGetStoredScriptAction
         final CurlRequest curlRequest = client.getCurlRequest(GET, "/_scripts/" + request.id());
         return curlRequest;
-    }
-
-    protected GetStoredScriptResponse getGetStoredScriptResponse(final XContentParser parser) {
-        @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<GetStoredScriptResponse, String> objectParser =
-                new ConstructingObjectParser<>("get_stored_script_response", true,
-                        (a, c) -> newGetStoredScriptResponse((StoredScriptSource) a[0]));
-
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> StoredScriptSource.fromXContent(p),
-                SCRIPT_FIELD);
-
-        return objectParser.apply(parser, null);
-    }
-
-    protected GetStoredScriptResponse newGetStoredScriptResponse(final StoredScriptSource storedScriptSource) {
-        final Class<GetStoredScriptResponse> clazz = GetStoredScriptResponse.class;
-        final Class<?>[] types = { StoredScriptSource.class };
-        try {
-            final Constructor<GetStoredScriptResponse> constructor = clazz.getDeclaredConstructor(types);
-            constructor.setAccessible(true);
-            return constructor.newInstance(storedScriptSource);
-        } catch (final Exception e) {
-            throw new ElasticsearchException("Failed to create GetStoredScriptResponse.", e);
-        }
     }
 }

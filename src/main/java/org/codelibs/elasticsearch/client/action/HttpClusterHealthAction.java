@@ -16,12 +16,9 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.util.List;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.codelibs.elasticsearch.client.io.stream.ByteArrayStreamOutput;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
@@ -29,9 +26,6 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.cluster.health.ClusterIndexHealth;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpClusterHealthAction extends HttpAction {
@@ -46,7 +40,7 @@ public class HttpClusterHealthAction extends HttpAction {
     public void execute(final ClusterHealthRequest request, final ActionListener<ClusterHealthResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final ClusterHealthResponse clusterHealthResponse = getClusterHealthResponse(parser);
+                final ClusterHealthResponse clusterHealthResponse = ClusterHealthResponse.fromXContent(parser);
                 listener.onResponse(clusterHealthResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -86,89 +80,5 @@ public class HttpClusterHealthAction extends HttpAction {
             curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
         }
         return curlRequest;
-    }
-
-    protected ClusterHealthResponse getClusterHealthResponse(final XContentParser parser) throws IOException {
-        final ConstructingObjectParser<ClusterHealthResponse, Void> objectParser =
-                new ConstructingObjectParser<>("cluster_health_response", true, parsedObjects -> {
-                    try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-                        int i = 0;
-
-                        // ClusterStateHealth fields
-                        final int numberOfNodes = (int) parsedObjects[i++];
-                        final int numberOfDataNodes = (int) parsedObjects[i++];
-                        final int activeShards = (int) parsedObjects[i++];
-                        final int relocatingShards = (int) parsedObjects[i++];
-                        final int activePrimaryShards = (int) parsedObjects[i++];
-                        final int initializingShards = (int) parsedObjects[i++];
-                        final int unassignedShards = (int) parsedObjects[i++];
-                        final double activeShardsPercent = (double) parsedObjects[i++];
-                        final String statusStr = (String) parsedObjects[i++];
-                        final ClusterHealthStatus clusterHealthStatus = ClusterHealthStatus.fromString(statusStr);
-
-                        @SuppressWarnings("unchecked")
-                        // Can be absent if LEVEL == 'cluster'
-                        // null because no level option in 6.3
-                        final List<ClusterIndexHealth> indexList = null;
-                        final int indices_size = (indexList != null && !indexList.isEmpty() ? indexList.size() : 0);
-
-                        // ClusterHealthResponse fields
-                        final String clusterName = (String) parsedObjects[i++];
-                        final int numberOfPendingTasks = (int) parsedObjects[i++];
-                        final int numberOfInFlightFetch = (int) parsedObjects[i++];
-                        final int delayedUnassignedShards = (int) parsedObjects[i++];
-                        final TimeValue taskMaxWaitingTime = new TimeValue((long) parsedObjects[i++]);
-                        final boolean timedOut = (boolean) parsedObjects[i];
-
-                        out.writeString(clusterName);
-                        out.writeByte(clusterHealthStatus.value());
-
-                        // write ClusterStateHealth to out
-                        out.writeVInt(activePrimaryShards);
-                        out.writeVInt(activeShards);
-                        out.writeVInt(relocatingShards);
-                        out.writeVInt(initializingShards);
-                        out.writeVInt(unassignedShards);
-                        out.writeVInt(numberOfNodes);
-                        out.writeVInt(numberOfDataNodes);
-                        out.writeByte(clusterHealthStatus.value());
-                        out.writeVInt(indices_size);
-                        for (int j = 0; j < indices_size; j++) {
-                            indexList.get(i).writeTo(out);
-                        }
-                        out.writeDouble(activeShardsPercent);
-
-                        out.writeInt(numberOfPendingTasks);
-                        out.writeBoolean(timedOut);
-                        out.writeInt(numberOfInFlightFetch);
-                        out.writeInt(delayedUnassignedShards);
-                        out.writeTimeValue(taskMaxWaitingTime);
-
-                        return ClusterHealthResponse.readResponseFrom(out.toStreamInput());
-                    } catch (final IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
-
-        // ClusterStateHealth fields
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_NODES_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_DATA_NODES_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), ACTIVE_SHARDS_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), RELOCATING_SHARDS_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), ACTIVE_PRIMARY_SHARDS_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), INITIALIZING_SHARDS_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), UNASSIGNED_SHARDS_FIELD);
-        objectParser.declareDouble(ConstructingObjectParser.constructorArg(), ACTIVE_SHARDS_PERCENT_AS_NUMBER_FIELD);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), STATUS_FIELD);
-
-        // ClusterHealthResponse fields
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), CLUSTER_NAME_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_PENDING_TASKS_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), NUMBER_OF_IN_FLIGHT_FETCH_FIELD);
-        objectParser.declareInt(ConstructingObjectParser.constructorArg(), DELAYED_UNASSIGNED_SHARDS_FIELD);
-        objectParser.declareLong(ConstructingObjectParser.constructorArg(), TASK_MAX_WAIT_TIME_IN_QUEUE_IN_MILLIS_FIELD);
-        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), TIMED_OUT_FIELD);
-
-        return objectParser.apply(parser, null);
     }
 }

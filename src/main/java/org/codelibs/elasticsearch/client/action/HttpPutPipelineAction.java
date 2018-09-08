@@ -39,7 +39,7 @@ public class HttpPutPipelineAction extends HttpAction {
     public void execute(final PutPipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
         String source = null;
         try {
-            source = XContentHelper.convertToJson(request.getSource(), false);
+            source = XContentHelper.convertToJson(request.getSource(), false, false, request.getXContentType());
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);
         }

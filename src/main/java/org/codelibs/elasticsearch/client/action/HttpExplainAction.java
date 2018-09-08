@@ -16,9 +16,7 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.util.Collection;
 
-import org.apache.lucene.search.Explanation;
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
@@ -27,11 +25,9 @@ import org.elasticsearch.action.explain.ExplainAction;
 import org.elasticsearch.action.explain.ExplainRequest;
 import org.elasticsearch.action.explain.ExplainResponse;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.get.GetResult;
 
 public class HttpExplainAction extends HttpAction {
 
@@ -53,7 +49,7 @@ public class HttpExplainAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final ExplainResponse explainResponse = getExplainResponse(parser);
+                final ExplainResponse explainResponse = ExplainResponse.fromXContent(parser, true);
                 listener.onResponse(explainResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -80,37 +76,4 @@ public class HttpExplainAction extends HttpAction {
         return curlRequest;
     }
 
-    protected ExplainResponse getExplainResponse(final XContentParser parser) {
-        @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<ExplainResponse, Boolean> objectParser =
-                new ConstructingObjectParser<>("explain", true, (arg, exists) -> new ExplainResponse((String) arg[0], (String) arg[1],
-                        (String) arg[2], exists, (Explanation) arg[3], (GetResult) arg[4]));
-
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _INDEX_FIELD);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _TYPE_FIELD);
-        objectParser.declareString(ConstructingObjectParser.constructorArg(), _ID_FIELD);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), getExplanationParser(), EXPLANATION_FIELD);
-        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> GetResult.fromXContentEmbedded(p),
-                GET_FIELD);
-
-        return objectParser.apply(parser, true);
-    }
-
-    protected ConstructingObjectParser getExplanationParser() {
-        @SuppressWarnings("unchecked")
-        final ConstructingObjectParser<Explanation, Boolean> explanationParser =
-                new ConstructingObjectParser<>("explanation", true, arg -> {
-                    if ((float) arg[0] > 0) {
-                        return Explanation.match((float) arg[0], (String) arg[1], (Collection<Explanation>) arg[2]);
-                    } else {
-                        return Explanation.noMatch((String) arg[1], (Collection<Explanation>) arg[2]);
-                    }
-                });
-
-        explanationParser.declareFloat(ConstructingObjectParser.constructorArg(), VALUE_FIELD);
-        explanationParser.declareString(ConstructingObjectParser.constructorArg(), DESCRIPTION_FIELD);
-        explanationParser.declareObjectArray(ConstructingObjectParser.constructorArg(), explanationParser, DETAILS_FIELD);
-
-        return explanationParser;
-    }
 }
