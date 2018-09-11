@@ -1152,6 +1152,16 @@ public class HttpClientTest {
         assertTrue(deleteStoredScriptResponse.isAcknowledged());
     }
 
+    // TODO PutIndexTemplateAction
+    // TODO GetIndexTemplatesAction
+    // TODO DeleteIndexTemplateAction
+    // TODO CancelTasksAction
+    // TODO ListTasksAction
+    // TODO VerifyRepositoryAction
+    // TODO PutRepositoryAction
+    // TODO GetRepositoriesAction
+    // TODO DeleteRepositoryAction
+
     // needs x-pack
     void test_info() throws Exception {
         {
