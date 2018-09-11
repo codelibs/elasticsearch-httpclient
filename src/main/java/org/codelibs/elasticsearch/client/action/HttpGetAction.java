@@ -24,8 +24,8 @@ import org.elasticsearch.action.get.GetAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.VersionType;
-import org.elasticsearch.index.get.GetResult;
 
 public class HttpGetAction extends HttpAction {
 
@@ -37,20 +37,18 @@ public class HttpGetAction extends HttpAction {
     }
 
     public void execute(final GetRequest request, final ActionListener<GetResponse> listener) {
-        getCurlRequest(request).execute(
-                response -> {
-                    if (response.getHttpStatusCode() == 404) {
-                        listener.onResponse(new GetResponse(new GetResult(request.index(), request.type(), request.id(), request.version(),
-                                false, null, null)));
-                    } else {
-                        try (final XContentParser parser = createParser(response)) {
-                            final GetResponse getResponse = GetResponse.fromXContent(parser);
-                            listener.onResponse(getResponse);
-                        } catch (final Exception e) {
-                            listener.onFailure(toElasticsearchException(response, e));
-                        }
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).execute(response -> {
+            if (response.getHttpStatusCode() == 404) {
+                throw new IndexNotFoundException(request.index());
+            } else {
+                try (final XContentParser parser = createParser(response)) {
+                    final GetResponse getResponse = GetResponse.fromXContent(parser);
+                    listener.onResponse(getResponse);
+                } catch (final Exception e) {
+                    listener.onFailure(toElasticsearchException(response, e));
+                }
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
     }
 
     private CurlRequest getCurlRequest(final GetRequest request) {

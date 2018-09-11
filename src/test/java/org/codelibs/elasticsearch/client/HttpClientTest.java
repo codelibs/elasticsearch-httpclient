@@ -20,6 +20,7 @@ import static org.elasticsearch.action.ActionListener.wrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -579,8 +580,12 @@ public class HttpClientTest {
         final String id = "1";
 
         // Get the document
-        final GetResponse getResponse1 = client.prepareGet(index, type, id).execute().actionGet();
-        assertFalse(getResponse1.isExists());
+        try {
+            client.prepareGet(index, type, id).execute().actionGet();
+            fail();
+        } catch (IndexNotFoundException e) {
+            // ok
+        }
 
         // Create a document
         final IndexResponse indexResponse =
@@ -611,8 +616,12 @@ public class HttpClientTest {
         assertEquals(RestStatus.OK, deleteResponse.status());
 
         // make sure the document was deleted
-        final GetResponse getResponse3 = client.prepareGet(index, type, id).execute().actionGet();
-        assertFalse(getResponse3.isExists());
+        try {
+            client.prepareGet(index, type, id).execute().actionGet();
+            fail();
+        } catch (IndexNotFoundException e) {
+            // ok
+        }
     }
 
     @Test
