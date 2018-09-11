@@ -742,6 +742,7 @@ public class HttpClient extends AbstractClient {
                 new HttpDeleteRepositoryAction(this, DeleteRepositoryAction.INSTANCE).execute((DeleteRepositoryRequest) request,
                         actionListener);
             });
+        
         // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
 
         // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
