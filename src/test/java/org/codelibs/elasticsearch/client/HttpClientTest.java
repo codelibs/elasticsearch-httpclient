@@ -38,6 +38,7 @@ import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRe
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
+import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
@@ -225,8 +226,15 @@ public class HttpClientTest {
         latch.await();
 
         {
-            CreateIndexResponse createIndexResponse = client.admin().indices().prepareCreate(index2).execute().actionGet();
+            String settingsSource =
+                    "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}";
+            String mappingSource =
+                    "{\"dynamic_templates\":[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}],\"properties\":{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}}";
+            CreateIndexResponse createIndexResponse =
+                    client.admin().indices().prepareCreate(index2).setSettings(settingsSource, XContentType.JSON)
+                            .addMapping("doc", mappingSource, XContentType.JSON).addAlias(new Alias("fess.suggest")).execute().actionGet();
             assertTrue(createIndexResponse.isAcknowledged());
+            // TODO check response
         }
     }
 
