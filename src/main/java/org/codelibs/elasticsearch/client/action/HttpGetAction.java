@@ -38,13 +38,13 @@ public class HttpGetAction extends HttpAction {
 
     public void execute(final GetRequest request, final ActionListener<GetResponse> listener) {
         getCurlRequest(request).execute(response -> {
-            if (response.getHttpStatusCode() == 404) {
-                throw new IndexNotFoundException(request.index());
-            } else {
-                try (final XContentParser parser = createParser(response)) {
-                    final GetResponse getResponse = GetResponse.fromXContent(parser);
-                    listener.onResponse(getResponse);
-                } catch (final Exception e) {
+            try (final XContentParser parser = createParser(response)) {
+                final GetResponse getResponse = GetResponse.fromXContent(parser);
+                listener.onResponse(getResponse);
+            } catch (final Exception e) {
+                if (response.getHttpStatusCode() == 404) {
+                    throw new IndexNotFoundException(request.index(), e);
+                } else {
                     listener.onFailure(toElasticsearchException(response, e));
                 }
             }

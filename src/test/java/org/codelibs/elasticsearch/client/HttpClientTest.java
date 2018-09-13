@@ -616,12 +616,8 @@ public class HttpClientTest {
         assertEquals(RestStatus.OK, deleteResponse.status());
 
         // make sure the document was deleted
-        try {
-            client.prepareGet(index, type, id).execute().actionGet();
-            fail();
-        } catch (IndexNotFoundException e) {
-            // ok
-        }
+        GetResponse response = client.prepareGet(index, type, id).execute().actionGet();
+        assertFalse(response.isExists());
     }
 
     @Test
