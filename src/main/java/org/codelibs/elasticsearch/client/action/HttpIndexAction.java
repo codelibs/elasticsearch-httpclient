@@ -61,9 +61,12 @@ public class HttpIndexAction extends HttpAction {
 
     private CurlRequest getCurlRequest(final IndexRequest request) {
         // RestIndexAction
-        CurlRequest curlRequest =
-                client.getCurlRequest(OpType.CREATE.equals(request.opType()) ? PUT : POST, "/" + request.type() + "/" + request.id(),
-                        request.index());
+        final boolean isCreated = OpType.CREATE.equals(request.opType()) || request.id() == null;
+        final StringBuilder pathBuf = new StringBuilder(100).append('/').append(request.type()).append('/');
+        if (request.id() != null) {
+            pathBuf.append(request.id());
+        }
+        CurlRequest curlRequest = client.getCurlRequest(isCreated ? PUT : POST, pathBuf.toString(), request.index());
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }
