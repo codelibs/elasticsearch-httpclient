@@ -1,12 +1,19 @@
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
+
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeRequest;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpAnalyzeAction extends HttpAction {
 
@@ -18,7 +25,14 @@ public class HttpAnalyzeAction extends HttpAction {
     }
 
     public void execute(final AnalyzeRequest request, final ActionListener<AnalyzeResponse> listener) {
-        getCurlRequest(request).execute(response -> {
+        String source = null;
+        try {
+            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+            source = BytesReference.bytes(builder).utf8ToString();
+        } catch (final IOException e) {
+            throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+        getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
                 final AnalyzeResponse cancelTasksResponse = AnalyzeResponse.fromXContent(parser);
                 listener.onResponse(cancelTasksResponse);
