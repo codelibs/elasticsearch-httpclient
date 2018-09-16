@@ -20,6 +20,7 @@ import java.util.Locale;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest.OpType;
@@ -63,9 +64,9 @@ public class HttpIndexAction extends HttpAction {
         // RestIndexAction
         final OpType opType = request.id() == null ? OpType.CREATE : request.opType();
         final boolean isPutMethod = request.id() != null && OpType.CREATE.equals(opType);
-        final StringBuilder pathBuf = new StringBuilder(100).append('/').append(request.type()).append('/');
+        final StringBuilder pathBuf = new StringBuilder(100).append('/').append(UrlUtils.encode(request.type())).append('/');
         if (request.id() != null) {
-            pathBuf.append(request.id());
+            pathBuf.append(UrlUtils.encode(request.id()));
         }
         CurlRequest curlRequest = client.getCurlRequest(isPutMethod ? PUT : POST, pathBuf.toString(), request.index());
         if (request.routing() != null) {

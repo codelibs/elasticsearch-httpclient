@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeResponse;
@@ -46,7 +47,8 @@ public class HttpShrinkAction extends HttpAction {
     protected CurlRequest getCurlRequest(final ResizeRequest request) {
         // RestShrinkAction
         final CurlRequest curlRequest =
-                client.getCurlRequest(POST, "/_shrink/" + request.getTargetIndexRequest().index(), request.getSourceIndex());
+                client.getCurlRequest(POST, "/_shrink/" + UrlUtils.encode(request.getTargetIndexRequest().index()),
+                        request.getSourceIndex());
         return curlRequest;
     }
 }

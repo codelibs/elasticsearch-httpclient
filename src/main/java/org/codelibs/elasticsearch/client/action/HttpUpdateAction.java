@@ -20,6 +20,7 @@ import java.util.Locale;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActiveShardCount;
@@ -64,7 +65,8 @@ public class HttpUpdateAction extends HttpAction {
     protected CurlRequest getCurlRequest(final UpdateRequest request) {
         // RestUpdateAction
         final CurlRequest curlRequest =
-                client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_update", request.index());
+                client.getCurlRequest(POST, "/" + UrlUtils.encode(request.type()) + "/" + UrlUtils.encode(request.id()) + "/_update",
+                        request.index());
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }

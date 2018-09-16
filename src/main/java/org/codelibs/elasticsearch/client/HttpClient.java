@@ -91,6 +91,7 @@ import org.codelibs.elasticsearch.client.action.HttpUpdateAction;
 import org.codelibs.elasticsearch.client.action.HttpUpdateSettingsAction;
 import org.codelibs.elasticsearch.client.action.HttpValidateQueryAction;
 import org.codelibs.elasticsearch.client.action.HttpVerifyRepositoryAction;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
@@ -857,7 +858,7 @@ public class HttpClient extends AbstractClient {
         final StringBuilder buf = new StringBuilder(100);
         buf.append(getHost());
         if (indices.length > 0) {
-            buf.append('/').append(String.join(",", indices));
+            buf.append('/').append(UrlUtils.joinAndEncode(",", indices));
         }
         if (path != null) {
             buf.append(path);

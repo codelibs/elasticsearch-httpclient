@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.GetPipelineRequest;
@@ -45,7 +46,7 @@ public class HttpGetPipelineAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final GetPipelineRequest request) {
         // RestGetPipelineAction
-        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_ingest/pipeline/" + String.join(",", request.getIds()));
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_ingest/pipeline/" + UrlUtils.joinAndEncode(",", request.getIds()));
         if (request.masterNodeTimeout() != null) {
             curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
         }

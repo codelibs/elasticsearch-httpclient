@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
@@ -51,8 +52,8 @@ public class HttpClusterHealthAction extends HttpAction {
     protected CurlRequest getCurlRequest(final ClusterHealthRequest request) {
         // RestClusterHealthAction
         final CurlRequest curlRequest =
-                client.getCurlRequest(GET, "/_cluster/health"
-                        + (request.indices() == null ? "" : "/" + String.join(",", request.indices())));
+                client.getCurlRequest(GET,
+                        "/_cluster/health" + (request.indices() == null ? "" : "/" + UrlUtils.joinAndEncode(",", request.indices())));
         curlRequest.param("wait_for_no_relocating_shards", Boolean.toString(request.waitForNoRelocatingShards()));
         curlRequest.param("wait_for_no_initializing_shards", Boolean.toString(request.waitForNoInitializingShards()));
         curlRequest.param("wait_for_nodes", request.waitForNodes());

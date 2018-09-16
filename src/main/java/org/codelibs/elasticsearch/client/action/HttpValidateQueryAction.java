@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
@@ -59,8 +60,8 @@ public class HttpValidateQueryAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final ValidateQueryRequest request) {
         final CurlRequest curlRequest =
-                client.getCurlRequest(GET, (request.types() == null ? "" : "/" + String.join(",", request.types())) + "/_validate/query",
-                        request.indices());
+                client.getCurlRequest(GET, (request.types() == null ? "" : "/" + UrlUtils.joinAndEncode(",", request.types()))
+                        + "/_validate/query", request.indices());
         curlRequest.param("explain", Boolean.toString(request.explain()));
         curlRequest.param("rewrite", Boolean.toString(request.rewrite()));
         curlRequest.param("all_shards", Boolean.toString(request.allShards()));

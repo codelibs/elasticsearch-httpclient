@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptRequest;
@@ -45,7 +46,7 @@ public class HttpGetStoredScriptAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final GetStoredScriptRequest request) {
         // RestGetStoredScriptAction
-        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_scripts/" + request.id());
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_scripts/" + UrlUtils.encode(request.id()));
         return curlRequest;
     }
 }

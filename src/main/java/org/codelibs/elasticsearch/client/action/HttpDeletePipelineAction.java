@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.DeletePipelineAction;
 import org.elasticsearch.action.ingest.DeletePipelineRequest;
@@ -45,7 +46,7 @@ public class HttpDeletePipelineAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final DeletePipelineRequest request) {
         // RestDeletePipelineAction
-        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_ingest/pipeline/" + request.getId());
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_ingest/pipeline/" + UrlUtils.encode(request.getId()));
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
         }

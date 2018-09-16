@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction;
@@ -56,7 +57,8 @@ public class HttpTypesExistsAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final TypesExistsRequest request) {
         // RestTypesExistsAction
-        final CurlRequest curlRequest = client.getCurlRequest(HEAD, "/_mapping/" + String.join(",", request.types()), request.indices());
+        final CurlRequest curlRequest =
+                client.getCurlRequest(HEAD, "/_mapping/" + UrlUtils.joinAndEncode(",", request.types()), request.indices());
         return curlRequest;
     }
 }

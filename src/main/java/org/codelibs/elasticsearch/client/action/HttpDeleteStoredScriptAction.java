@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRequest;
@@ -45,7 +46,7 @@ public class HttpDeleteStoredScriptAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final DeleteStoredScriptRequest request) {
         // RestDeleteStoredScriptAction
-        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_scripts/" + request.id());
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_scripts/" + UrlUtils.encode(request.id()));
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
         }

@@ -19,6 +19,7 @@ import java.util.Locale;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetAction;
 import org.elasticsearch.action.get.GetRequest;
@@ -53,7 +54,8 @@ public class HttpGetAction extends HttpAction {
 
     private CurlRequest getCurlRequest(final GetRequest request) {
         // RestGetAction
-        final CurlRequest curlRequest = client.getCurlRequest(GET, "/" + request.type() + "/" + request.id(), request.index());
+        final CurlRequest curlRequest =
+                client.getCurlRequest(GET, "/" + UrlUtils.encode(request.type()) + "/" + UrlUtils.encode(request.id()), request.index());
         if (request.refresh()) {
             curlRequest.param("refresh", "true");
         }

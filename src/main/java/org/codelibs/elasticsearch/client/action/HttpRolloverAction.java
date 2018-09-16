@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
@@ -60,7 +61,8 @@ public class HttpRolloverAction extends HttpAction {
     protected CurlRequest getCurlRequest(final RolloverRequest request) {
         // RestRolloverAction
         final CurlRequest curlRequest =
-                client.getCurlRequest(POST, "/_rollover" + (request.getNewIndexName() != null ? "/" + request.getNewIndexName() : ""),
+                client.getCurlRequest(POST,
+                        "/_rollover" + (request.getNewIndexName() != null ? "/" + UrlUtils.encode(request.getNewIndexName()) : ""),
                         request.getAlias());
         if (request.isDryRun()) {
             curlRequest.param("dry_run", "");

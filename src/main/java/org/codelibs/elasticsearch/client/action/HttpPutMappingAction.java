@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -45,7 +46,7 @@ public class HttpPutMappingAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final PutMappingRequest request) {
         // RestPutMappingAction
-        final CurlRequest curlRequest = client.getCurlRequest(PUT, "/_mapping/" + request.type(), request.indices());
+        final CurlRequest curlRequest = client.getCurlRequest(PUT, "/_mapping/" + UrlUtils.encode(request.type()), request.indices());
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
         }

@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction;
@@ -55,7 +56,7 @@ public class HttpPutStoredScriptAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final PutStoredScriptRequest request) {
         // RestPutStoredScriptAction
-        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_scripts/" + request.id());
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_scripts/" + UrlUtils.encode(request.id()));
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
         }

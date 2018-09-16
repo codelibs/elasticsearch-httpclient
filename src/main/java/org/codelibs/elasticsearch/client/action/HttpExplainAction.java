@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.explain.ExplainAction;
@@ -60,7 +61,8 @@ public class HttpExplainAction extends HttpAction {
     protected CurlRequest getCurlRequest(final ExplainRequest request) {
         // RestExplainAction
         final CurlRequest curlRequest =
-                client.getCurlRequest(POST, "/" + request.type() + "/" + request.id() + "/_explain", request.index());
+                client.getCurlRequest(POST, "/" + UrlUtils.encode(request.type()) + "/" + UrlUtils.encode(request.id()) + "/_explain",
+                        request.index());
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }

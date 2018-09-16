@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
@@ -45,15 +46,15 @@ public class HttpGetFieldMappingsAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final GetFieldMappingsRequest request) {
         // RestGetFieldMappingsAction
-        final StringBuilder pathSuffix = new StringBuilder(100);
+        final StringBuilder pathSuffix = new StringBuilder(100).append("/_mapping/");
         if (request.types().length > 0) {
-            pathSuffix.append(String.join(",", request.types())).append('/');
+            pathSuffix.append(UrlUtils.joinAndEncode(",", request.types())).append('/');
         }
         pathSuffix.append("field/");
         if (request.fields().length > 0) {
-            pathSuffix.append(String.join(",", request.fields()));
+            pathSuffix.append(UrlUtils.joinAndEncode(",", request.fields()));
         }
-        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_mapping/" + pathSuffix.toString(), request.indices());
+        final CurlRequest curlRequest = client.getCurlRequest(GET, pathSuffix.toString(), request.indices());
         curlRequest.param("include_defaults", Boolean.toString(request.includeDefaults()));
         curlRequest.param("local", Boolean.toString(request.local()));
         return curlRequest;
