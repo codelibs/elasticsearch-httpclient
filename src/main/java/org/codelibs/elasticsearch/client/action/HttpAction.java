@@ -74,16 +74,6 @@ public class HttpAction {
 
     protected static final ParseField NON_AGGREGATABLE_INDICES_FIELD = new ParseField("non_aggregatable_indices");
 
-    protected static final ParseField _INDEX_FIELD = new ParseField("_index");
-
-    protected static final ParseField _TYPE_FIELD = new ParseField("_type");
-
-    protected static final ParseField _ID_FIELD = new ParseField("_id");
-
-    protected static final ParseField _ROUTING_FIELD = new ParseField("_routing");
-
-    protected static final ParseField _VERSION_FIELD = new ParseField("_version");
-
     protected static final ParseField EXPLANATION_FIELD = new ParseField("explanation");
 
     protected static final ParseField VALUE_FIELD = new ParseField("value");

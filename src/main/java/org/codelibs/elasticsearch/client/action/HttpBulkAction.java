@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -113,18 +114,24 @@ public class HttpBulkAction extends HttpAction {
     protected String getStringfromDocWriteRequest(final DocWriteRequest<?> request) {
         final StringBuilder buf = new StringBuilder(100);
         buf.append("{\"").append(request.opType().getLowercase()).append("\":{");
-        appendStr(buf, _INDEX_FIELD.getPreferredName(), request.index());
+        appendStr(buf, "_index", request.index());
         if (request.type() != null) {
-            appendStr(buf.append(','), _TYPE_FIELD.getPreferredName(), request.type());
+            appendStr(buf.append(','), "_type", request.type());
         }
         if (request.id() != null) {
-            appendStr(buf.append(','), _ID_FIELD.getPreferredName(), request.id());
+            appendStr(buf.append(','), "_id", request.id());
         }
         if (request.routing() != null) {
-            appendStr(buf.append(','), _ROUTING_FIELD.getPreferredName(), request.routing());
+            appendStr(buf.append(','), "routing", request.routing());
+        }
+        if (request.parent() != null) {
+            appendStr(buf.append(','), "parent", request.parent());
         }
         if (request.version() >= 0) {
-            buf.append(',').append('"').append(_VERSION_FIELD.getPreferredName()).append("\":").append(request.version());
+            buf.append(',').append('"').append("version").append("\":").append(request.version());
+        }
+        if (request.versionType() != null) {
+            appendStr(buf.append(','), "version_type", request.versionType().name().toLowerCase(Locale.ROOT));
         }
         buf.append('}');
         buf.append('}');
