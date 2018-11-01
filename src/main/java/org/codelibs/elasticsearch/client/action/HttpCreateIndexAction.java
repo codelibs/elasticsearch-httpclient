@@ -42,8 +42,8 @@ public class HttpCreateIndexAction extends HttpAction {
 
     public void execute(final CreateIndexRequest request, final ActionListener<CreateIndexResponse> listener) {
         String source = null;
-        try {
-            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+        try (final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
+            builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);

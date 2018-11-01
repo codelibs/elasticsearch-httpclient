@@ -42,8 +42,8 @@ public class HttpPutIndexTemplateAction extends HttpAction {
 
     public void execute(final PutIndexTemplateRequest request, final ActionListener<PutIndexTemplateResponse> listener) {
         String source = null;
-        try {
-            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+        try (final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
+            builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);

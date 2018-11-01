@@ -41,9 +41,9 @@ public class HttpValidateQueryAction extends HttpAction {
 
     public void execute(final ValidateQueryRequest request, final ActionListener<ValidateQueryResponse> listener) {
         String source = null;
-        try {
-            final XContentBuilder builder =
-                    XContentFactory.jsonBuilder().startObject().field(QUERY_FIELD.getPreferredName(), request.query()).endObject();
+        try (final XContentBuilder builder =
+                XContentFactory.jsonBuilder().startObject().field(QUERY_FIELD.getPreferredName(), request.query()).endObject()) {
+            builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);

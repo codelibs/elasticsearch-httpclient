@@ -40,10 +40,9 @@ public class HttpClearScrollAction extends HttpAction {
 
     public void execute(final ClearScrollRequest request, final ActionListener<ClearScrollResponse> listener) {
         String source = null;
-        try {
-            final XContentBuilder builder =
-                    XContentFactory.jsonBuilder().startObject().array("scroll_id", request.getScrollIds().toArray(new String[0]))
-                            .endObject();
+        try (final XContentBuilder builder =
+                XContentFactory.jsonBuilder().startObject().array("scroll_id", request.getScrollIds().toArray(new String[0])).endObject()) {
+            builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a reqsuest.", e);

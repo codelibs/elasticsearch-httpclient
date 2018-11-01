@@ -41,8 +41,7 @@ public class HttpIndicesAliasesAction extends HttpAction {
 
     public void execute(final IndicesAliasesRequest request, final ActionListener<IndicesAliasesResponse> listener) {
         String source = null;
-        try {
-            final XContentBuilder builder = XContentFactory.jsonBuilder().startObject().startArray("actions");
+        try (final XContentBuilder builder = XContentFactory.jsonBuilder().startObject().startArray("actions")) {
             for (final AliasActions aliasAction : request.getAliasActions()) {
                 builder.startObject().startObject(aliasAction.actionType().toString().toLowerCase());
                 builder.array("indices", aliasAction.indices());
@@ -59,6 +58,7 @@ public class HttpIndicesAliasesAction extends HttpAction {
                 builder.endObject().endObject();
             }
             builder.endArray().endObject();
+            builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);

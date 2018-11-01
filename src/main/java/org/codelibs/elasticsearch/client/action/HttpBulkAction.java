@@ -70,10 +70,12 @@ public class HttpBulkAction extends HttpAction {
                     break;
                 }
                 case 2: { // UPDATE
-                    final XContentBuilder builder =
-                            ((UpdateRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
-                    buf.append(BytesReference.bytes(builder).utf8ToString());
-                    buf.append('\n');
+                    try (final XContentBuilder builder =
+                            ((UpdateRequest) req).toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
+                        builder.flush();
+                        buf.append(BytesReference.bytes(builder).utf8ToString());
+                        buf.append('\n');
+                    }
                     break;
                 }
                 case 3: { // DELETE

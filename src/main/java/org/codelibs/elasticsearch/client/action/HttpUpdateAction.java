@@ -46,8 +46,8 @@ public class HttpUpdateAction extends HttpAction {
 
     public void execute(final UpdateRequest request, final ActionListener<UpdateResponse> listener) {
         String source = null;
-        try {
-            final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS);
+        try (final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
+            builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
