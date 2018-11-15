@@ -5,7 +5,7 @@
 	<artifactId>elasticsearch-httpclient</artifactId>
 	<packaging>jar</packaging>
 	<name>elasticsearch-httpclient</name>
-	<version>6.4.0</version>
+	<version>6.4.1-SNAPSHOT</version>
 	<description />
 	<url>https://github.com/codelibs/elasticsearch-httpclient</url>
 	<inceptionYear>2012</inceptionYear>
