@@ -23,7 +23,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -39,7 +39,7 @@ public class HttpUpdateSettingsAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final UpdateSettingsRequest request, final ActionListener<UpdateSettingsResponse> listener) {
+    public void execute(final UpdateSettingsRequest request, final ActionListener<AcknowledgedResponse> listener) {
         String source = null;
         try (final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
             builder.flush();
@@ -49,7 +49,7 @@ public class HttpUpdateSettingsAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final UpdateSettingsResponse updateSettingsResponse = UpdateSettingsResponse.fromXContent(parser);
+                final AcknowledgedResponse updateSettingsResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(updateSettingsResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

@@ -21,7 +21,7 @@ import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
-import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpDeleteRepositoryAction extends HttpAction {
@@ -33,10 +33,10 @@ public class HttpDeleteRepositoryAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final DeleteRepositoryRequest request, final ActionListener<DeleteRepositoryResponse> listener) {
+    public void execute(final DeleteRepositoryRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final DeleteRepositoryResponse deleteRepositoryResponse = DeleteRepositoryResponse.fromXContent(parser);
+                final AcknowledgedResponse deleteRepositoryResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deleteRepositoryResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

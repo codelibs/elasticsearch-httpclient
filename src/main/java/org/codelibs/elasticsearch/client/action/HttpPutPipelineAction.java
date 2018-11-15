@@ -24,7 +24,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.PutPipelineAction;
 import org.elasticsearch.action.ingest.PutPipelineRequest;
-import org.elasticsearch.action.ingest.WritePipelineResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 
@@ -37,7 +37,7 @@ public class HttpPutPipelineAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final PutPipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
+    public void execute(final PutPipelineRequest request, final ActionListener<AcknowledgedResponse> listener) {
         String source = null;
         try {
             source = XContentHelper.convertToJson(request.getSource(), false, false, request.getXContentType());
@@ -46,7 +46,7 @@ public class HttpPutPipelineAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final WritePipelineResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(putPipelineResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

@@ -21,7 +21,7 @@ import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpPutMappingAction extends HttpAction {
@@ -33,10 +33,10 @@ public class HttpPutMappingAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final PutMappingRequest request, final ActionListener<PutMappingResponse> listener) {
+    public void execute(final PutMappingRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).body(request.source()).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final PutMappingResponse putMappingResponse = PutMappingResponse.fromXContent(parser);
+                final AcknowledgedResponse putMappingResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(putMappingResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

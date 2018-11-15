@@ -109,13 +109,11 @@ import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
-import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryResponse;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesRequest;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesResponse;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
-import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryResponse;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryResponse;
@@ -127,7 +125,6 @@ import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotReq
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
@@ -136,19 +133,16 @@ import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusRe
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRequest;
-import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptRequest;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptRequest;
-import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
@@ -162,13 +156,11 @@ import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheReque
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
-import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -195,7 +187,6 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -210,19 +201,16 @@ import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeResponse;
 import org.elasticsearch.action.admin.indices.shrink.ShrinkAction;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
-import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateResponse;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
-import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateResponse;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryRequest;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryResponse;
@@ -257,7 +245,6 @@ import org.elasticsearch.action.ingest.PutPipelineRequest;
 import org.elasticsearch.action.ingest.SimulatePipelineAction;
 import org.elasticsearch.action.ingest.SimulatePipelineRequest;
 import org.elasticsearch.action.ingest.SimulatePipelineResponse;
-import org.elasticsearch.action.ingest.WritePipelineResponse;
 import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
@@ -272,6 +259,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateAction;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -448,7 +436,7 @@ public class HttpClient extends AbstractClient {
         actions.put(DeleteIndexAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.delete.DeleteIndexAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<DeleteIndexResponse> actionListener = (ActionListener<DeleteIndexResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteIndexAction(this, DeleteIndexAction.INSTANCE).execute((DeleteIndexRequest) request, actionListener);
             });
         actions.put(GetIndexAction.INSTANCE, (request, listener) -> {
@@ -466,7 +454,7 @@ public class HttpClient extends AbstractClient {
         actions.put(CloseIndexAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.close.CloseIndexAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<CloseIndexResponse> actionListener = (ActionListener<CloseIndexResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpCloseIndexAction(this, CloseIndexAction.INSTANCE).execute((CloseIndexRequest) request, actionListener);
             });
         actions.put(IndicesExistsAction.INSTANCE, (request, listener) -> {
@@ -478,13 +466,13 @@ public class HttpClient extends AbstractClient {
         actions.put(IndicesAliasesAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<IndicesAliasesResponse> actionListener = (ActionListener<IndicesAliasesResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpIndicesAliasesAction(this, IndicesAliasesAction.INSTANCE).execute((IndicesAliasesRequest) request, actionListener);
             });
         actions.put(PutMappingAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<PutMappingResponse> actionListener = (ActionListener<PutMappingResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpPutMappingAction(this, PutMappingAction.INSTANCE).execute((PutMappingRequest) request, actionListener);
             });
         actions.put(GetMappingsAction.INSTANCE, (request, listener) -> {
@@ -576,7 +564,7 @@ public class HttpClient extends AbstractClient {
         actions.put(UpdateSettingsAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<UpdateSettingsResponse> actionListener = (ActionListener<UpdateSettingsResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpUpdateSettingsAction(this, UpdateSettingsAction.INSTANCE).execute((UpdateSettingsRequest) request, actionListener);
             });
         actions.put(GetSettingsAction.INSTANCE, (request, listener) -> {
@@ -670,7 +658,7 @@ public class HttpClient extends AbstractClient {
         actions.put(PutPipelineAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.ingest.PutPipelineAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpPutPipelineAction(this, PutPipelineAction.INSTANCE).execute((PutPipelineRequest) request, actionListener);
             });
         actions.put(GetPipelineAction.INSTANCE, (request, listener) -> {
@@ -682,13 +670,13 @@ public class HttpClient extends AbstractClient {
         actions.put(DeletePipelineAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.ingest.DeletePipelineAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<WritePipelineResponse> actionListener = (ActionListener<WritePipelineResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeletePipelineAction(this, DeletePipelineAction.INSTANCE).execute((DeletePipelineRequest) request, actionListener);
             });
         actions.put(PutStoredScriptAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<PutStoredScriptResponse> actionListener = (ActionListener<PutStoredScriptResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpPutStoredScriptAction(this, PutStoredScriptAction.INSTANCE).execute((PutStoredScriptRequest) request,
                         actionListener);
             });
@@ -699,18 +687,17 @@ public class HttpClient extends AbstractClient {
                 new HttpGetStoredScriptAction(this, GetStoredScriptAction.INSTANCE).execute((GetStoredScriptRequest) request,
                         actionListener);
             });
-        actions.put(DeleteStoredScriptAction.INSTANCE,
-                (request, listener) -> {
-                    // org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction
+        actions.put(DeleteStoredScriptAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<DeleteStoredScriptResponse> actionListener = (ActionListener<DeleteStoredScriptResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteStoredScriptAction(this, DeleteStoredScriptAction.INSTANCE).execute((DeleteStoredScriptRequest) request,
                         actionListener);
             });
         actions.put(PutIndexTemplateAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<PutIndexTemplateResponse> actionListener = (ActionListener<PutIndexTemplateResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpPutIndexTemplateAction(this, PutIndexTemplateAction.INSTANCE).execute((PutIndexTemplateRequest) request,
                         actionListener);
             });
@@ -724,7 +711,7 @@ public class HttpClient extends AbstractClient {
         actions.put(DeleteIndexTemplateAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<DeleteIndexTemplateResponse> actionListener = (ActionListener<DeleteIndexTemplateResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteIndexTemplateAction(this, DeleteIndexTemplateAction.INSTANCE).execute((DeleteIndexTemplateRequest) request,
                         actionListener);
             });
@@ -750,7 +737,7 @@ public class HttpClient extends AbstractClient {
         actions.put(PutRepositoryAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<PutRepositoryResponse> actionListener = (ActionListener<PutRepositoryResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpPutRepositoryAction(this, PutRepositoryAction.INSTANCE).execute((PutRepositoryRequest) request, actionListener);
             });
         actions.put(GetRepositoriesAction.INSTANCE, (request, listener) -> {
@@ -763,7 +750,7 @@ public class HttpClient extends AbstractClient {
         actions.put(DeleteRepositoryAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<DeleteRepositoryResponse> actionListener = (ActionListener<DeleteRepositoryResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteRepositoryAction(this, DeleteRepositoryAction.INSTANCE).execute((DeleteRepositoryRequest) request,
                         actionListener);
             });
@@ -802,7 +789,7 @@ public class HttpClient extends AbstractClient {
         actions.put(DeleteSnapshotAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<DeleteSnapshotResponse> actionListener = (ActionListener<DeleteSnapshotResponse>) listener;
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteSnapshotAction(this, DeleteSnapshotAction.INSTANCE).execute((DeleteSnapshotRequest) request, actionListener);
             });
 

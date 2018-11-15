@@ -21,7 +21,7 @@ import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptRequest;
-import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpDeleteStoredScriptAction extends HttpAction {
@@ -33,10 +33,10 @@ public class HttpDeleteStoredScriptAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final DeleteStoredScriptRequest request, final ActionListener<DeleteStoredScriptResponse> listener) {
+    public void execute(final DeleteStoredScriptRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final DeleteStoredScriptResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(deleteStoredScriptResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

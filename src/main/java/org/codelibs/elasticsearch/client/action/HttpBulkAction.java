@@ -52,8 +52,7 @@ public class HttpBulkAction extends HttpAction {
         // http://ndjson.org/
         final StringBuilder buf = new StringBuilder(10000);
         try {
-            @SuppressWarnings("rawtypes")
-            final List<DocWriteRequest> bulkRequests = request.requests();
+            final List<DocWriteRequest<?>> bulkRequests = request.requests();
             for (@SuppressWarnings("rawtypes")
             final DocWriteRequest req : bulkRequests) {
                 buf.append(getStringfromDocWriteRequest(req));

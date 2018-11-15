@@ -24,7 +24,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -39,7 +39,7 @@ public class HttpIndicesAliasesAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final IndicesAliasesRequest request, final ActionListener<IndicesAliasesResponse> listener) {
+    public void execute(final IndicesAliasesRequest request, final ActionListener<AcknowledgedResponse> listener) {
         String source = null;
         try (final XContentBuilder builder = XContentFactory.jsonBuilder().startObject().startArray("actions")) {
             for (final AliasActions aliasAction : request.getAliasActions()) {
@@ -65,7 +65,7 @@ public class HttpIndicesAliasesAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final IndicesAliasesResponse indicesAliasesResponse = IndicesAliasesResponse.fromXContent(parser);
+                final AcknowledgedResponse indicesAliasesResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(indicesAliasesResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

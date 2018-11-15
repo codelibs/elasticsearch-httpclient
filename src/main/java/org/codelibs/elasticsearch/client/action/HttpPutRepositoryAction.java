@@ -21,7 +21,7 @@ import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
-import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpPutRepositoryAction extends HttpAction {
@@ -33,10 +33,10 @@ public class HttpPutRepositoryAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final PutRepositoryRequest request, final ActionListener<PutRepositoryResponse> listener) {
+    public void execute(final PutRepositoryRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final PutRepositoryResponse putRepositoryResponse = PutRepositoryResponse.fromXContent(parser);
+                final AcknowledgedResponse putRepositoryResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(putRepositoryResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

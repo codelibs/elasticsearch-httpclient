@@ -24,7 +24,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptAction;
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptRequest;
-import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 
@@ -37,7 +37,7 @@ public class HttpPutStoredScriptAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final PutStoredScriptRequest request, final ActionListener<PutStoredScriptResponse> listener) {
+    public void execute(final PutStoredScriptRequest request, final ActionListener<AcknowledgedResponse> listener) {
         String source = null;
         try {
             source = XContentHelper.convertToJson(request.content(), true, false, request.xContentType());
@@ -46,7 +46,7 @@ public class HttpPutStoredScriptAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final PutStoredScriptResponse putStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse putStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(putStoredScriptResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

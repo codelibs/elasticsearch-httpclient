@@ -21,7 +21,7 @@ import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpDeleteSnapshotAction extends HttpAction {
@@ -33,10 +33,10 @@ public class HttpDeleteSnapshotAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final DeleteSnapshotRequest request, final ActionListener<DeleteSnapshotResponse> listener) {
+    public void execute(final DeleteSnapshotRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final DeleteSnapshotResponse cancelTasksResponse = DeleteSnapshotResponse.fromXContent(parser);
+                final AcknowledgedResponse cancelTasksResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(cancelTasksResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

@@ -20,7 +20,7 @@ import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
-import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpCloseIndexAction extends HttpAction {
@@ -32,10 +32,10 @@ public class HttpCloseIndexAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final CloseIndexRequest request, final ActionListener<CloseIndexResponse> listener) {
+    public void execute(final CloseIndexRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final CloseIndexResponse closeIndexResponse = CloseIndexResponse.fromXContent(parser);
+                final AcknowledgedResponse closeIndexResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(closeIndexResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

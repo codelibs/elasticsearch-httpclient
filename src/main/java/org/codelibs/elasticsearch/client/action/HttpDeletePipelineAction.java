@@ -21,7 +21,7 @@ import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ingest.DeletePipelineAction;
 import org.elasticsearch.action.ingest.DeletePipelineRequest;
-import org.elasticsearch.action.ingest.WritePipelineResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpDeletePipelineAction extends HttpAction {
@@ -33,10 +33,10 @@ public class HttpDeletePipelineAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final DeletePipelineRequest request, final ActionListener<WritePipelineResponse> listener) {
+    public void execute(final DeletePipelineRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final WritePipelineResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(deletePipelineResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

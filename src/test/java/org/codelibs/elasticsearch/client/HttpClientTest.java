@@ -35,18 +35,13 @@ import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
-import org.elasticsearch.action.admin.cluster.storedscripts.DeleteStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
-import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
-import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
@@ -55,12 +50,10 @@ import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeResponse;
 import org.elasticsearch.action.admin.indices.shrink.ShrinkAction;
@@ -77,7 +70,6 @@ import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
-import org.elasticsearch.action.ingest.WritePipelineResponse;
 import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.main.MainRequest;
 import org.elasticsearch.action.main.MainResponse;
@@ -86,6 +78,7 @@ import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -258,7 +251,7 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate(index2).execute().actionGet();
-            DeleteIndexResponse deleteIndexResponse = client.admin().indices().prepareDelete(index2).execute().actionGet();
+            AcknowledgedResponse deleteIndexResponse = client.admin().indices().prepareDelete(index2).execute().actionGet();
             assertTrue(deleteIndexResponse.isAcknowledged());
         }
     }
@@ -347,7 +340,7 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate(index2).execute().actionGet();
-            CloseIndexResponse closeIndexResponse = client.admin().indices().prepareClose(index2).execute().actionGet();
+            AcknowledgedResponse closeIndexResponse = client.admin().indices().prepareClose(index2).execute().actionGet();
             assertTrue(closeIndexResponse.isAcknowledged());
         }
     }
@@ -396,7 +389,7 @@ public class HttpClientTest {
         latch.await();
 
         {
-            IndicesAliasesResponse indicesAliasesResponse =
+            AcknowledgedResponse indicesAliasesResponse =
                     client.admin().indices().prepareAliases().addAlias(index, alias2).execute().actionGet();
             assertTrue(indicesAliasesResponse.isAcknowledged());
         }
@@ -426,7 +419,7 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate(index2).execute().actionGet();
-            PutMappingResponse putMappingResponse =
+            AcknowledgedResponse putMappingResponse =
                     client.admin().indices().preparePutMapping(index2).setType(type).setSource(source, XContentType.JSON).execute()
                             .actionGet();
             assertTrue(putMappingResponse.isAcknowledged());
@@ -766,7 +759,7 @@ public class HttpClientTest {
         latch.await();
 
         {
-            UpdateSettingsResponse updateSettingsResponse =
+            AcknowledgedResponse updateSettingsResponse =
                     client.admin().indices().prepareUpdateSettings(index)
                             .setSettings(Settings.builder().put("index.number_of_replicas", 0)).execute().actionGet();
             assertTrue(updateSettingsResponse.isAcknowledged());
@@ -1133,7 +1126,7 @@ public class HttpClientTest {
                 "{\"description\":\"my set of processors\"," + "\"processors\":[{\"set\":{\"field\":\"foo\",\"value\":\"bar\"}}]}";
         final String id = "test_crud_pipeline";
 
-        WritePipelineResponse putPipelineResponse =
+        AcknowledgedResponse putPipelineResponse =
                 client.admin().cluster().preparePutPipeline(id, new BytesArray(source.getBytes(StandardCharsets.UTF_8))).execute()
                         .actionGet();
         assertTrue(putPipelineResponse.isAcknowledged());
@@ -1141,7 +1134,7 @@ public class HttpClientTest {
         GetPipelineResponse getPipelineResponse = client.admin().cluster().prepareGetPipeline(id).execute().actionGet();
         assertTrue(getPipelineResponse.isFound());
 
-        WritePipelineResponse deletePipelineResponse = client.admin().cluster().prepareDeletePipeline(id).execute().actionGet();
+        AcknowledgedResponse deletePipelineResponse = client.admin().cluster().prepareDeletePipeline(id).execute().actionGet();
         assertTrue(deletePipelineResponse.isAcknowledged());
     }
 
@@ -1152,7 +1145,7 @@ public class HttpClientTest {
                         + " }\n" + "}\n";
         final String id = "test_crud_storedscript";
 
-        PutStoredScriptResponse putStoredScriptResponse =
+        AcknowledgedResponse putStoredScriptResponse =
                 client.admin().cluster().preparePutStoredScript().setId(id)
                         .setContent(new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON).execute().actionGet();
         assertTrue(putStoredScriptResponse.isAcknowledged());
@@ -1160,7 +1153,7 @@ public class HttpClientTest {
         GetStoredScriptResponse getStoredScriptResponse = client.admin().cluster().prepareGetStoredScript().setId(id).execute().actionGet();
         assertTrue(getStoredScriptResponse.getSource() != null);
 
-        DeleteStoredScriptResponse deleteStoredScriptResponse =
+        AcknowledgedResponse deleteStoredScriptResponse =
                 client.admin().cluster().prepareDeleteStoredScript().setId(id).execute().actionGet();
         assertTrue(deleteStoredScriptResponse.isAcknowledged());
     }
