@@ -60,7 +60,7 @@ public class HttpSyncedFlushAction extends HttpAction {
     public void execute(final SyncedFlushRequest request, final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final SyncedFlushResponse syncedFlushResponse = getSFResponse(parser, action::newResponse);
+                final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);
                 listener.onResponse(syncedFlushResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -74,7 +74,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         return curlRequest;
     }
 
-    protected SyncedFlushResponse getSFResponse(final XContentParser parser, final Supplier<SyncedFlushResponse> newResponse)
+    protected SyncedFlushResponse getSyncedFlushResponse(final XContentParser parser, final Supplier<SyncedFlushResponse> newResponse)
             throws IOException {
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
@@ -109,7 +109,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                 } else {
                     final String uuid = ""; // cannot know from the info returned at REST
                     final Index idx = new Index(index, uuid);
-                    shardsResultPerIndex.put(index, parseShardsSFResults(parser, idx));
+                    shardsResultPerIndex.put(index, parseShardsSyncedFlushResults(parser, idx));
                 }
             }
         }
@@ -132,7 +132,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         }
     }
 
-    protected List<ShardsSyncedFlushResult> parseShardsSFResults(final XContentParser parser, final Index index)
+    protected List<ShardsSyncedFlushResult> parseShardsSyncedFlushResults(final XContentParser parser, final Index index)
             throws IOException {
         // "failures" fields
         final List<ShardsSyncedFlushResult> shardsSyncedFlushResults = new ArrayList<>();
@@ -146,7 +146,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                 if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
                         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, token, parser::getTokenLocation);
-                        shardsSyncedFlushResults.add(parseShardFailures(parser, index, total));
+                        shardsSyncedFlushResults.add(parseShardFailuresResults(parser, index, total));
                     }
                 } else {
                     parser.skipChildren();
@@ -167,7 +167,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         return shardsSyncedFlushResults;
     }
 
-    protected ShardsSyncedFlushResult parseShardFailures(final XContentParser parser, final Index index, final int totalShards)
+    protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser, final Index index, final int totalShards)
             throws IOException {
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
