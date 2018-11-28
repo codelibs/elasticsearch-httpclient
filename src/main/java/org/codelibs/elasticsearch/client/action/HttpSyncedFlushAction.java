@@ -195,7 +195,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         }
     }
 
-    protected ShardRouting parseShardRouting(final XContentParser parser) {
+    protected ShardRouting parseShardRouting(final XContentParser parser) throws IOException {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<ShardRouting, Void> objectParser = new ConstructingObjectParser<>("routing", true, a -> {
             try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
