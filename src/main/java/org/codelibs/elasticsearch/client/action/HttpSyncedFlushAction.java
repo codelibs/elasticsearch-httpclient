@@ -15,8 +15,6 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
-import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.text.SimpleDateFormat;
@@ -53,6 +51,7 @@ import org.elasticsearch.indices.flush.SyncedFlushService;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import static org.elasticsearch.common.xcontent.ConstructingObjectParser.constructorArg;
 import static org.elasticsearch.common.xcontent.ConstructingObjectParser.optionalConstructorArg;
+import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 public class HttpSyncedFlushAction extends HttpAction {
 
