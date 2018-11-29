@@ -66,7 +66,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
     }
 
     protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser,
-            final Supplier<PendingClusterTasksResponse> newResponse) throws IOException {
+            final Supplier<PendingClusterTasksResponse> newResponse) {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<PendingClusterTasksResponse, Void> objectParser =
                 new ConstructingObjectParser<>("pending_cluster_tasks", true, a -> {
