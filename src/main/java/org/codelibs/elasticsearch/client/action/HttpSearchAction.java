@@ -52,11 +52,11 @@ public class HttpSearchAction extends HttpAction {
     }
 
     protected String getQuerySource(final SearchRequest request) {
-        SearchSourceBuilder source = request.source();
+        final SearchSourceBuilder source = request.source();
         if (source != null) {
             try {
                 return XContentHelper.toXContent(source, XContentType.JSON, ToXContent.EMPTY_PARAMS, false).utf8ToString();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new ElasticsearchException(e);
             }
         }
@@ -65,7 +65,7 @@ public class HttpSearchAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final SearchRequest request) {
         // RestSearchAction
-        CurlRequest curlRequest = client.getCurlRequest(POST, "/_search", request.indices());
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_search", request.indices());
         curlRequest.param("typed_keys", "true");
         curlRequest.param("batched_reduce_size", Integer.toString(request.getBatchedReduceSize()));
         curlRequest.param("pre_filter_shard_size", Integer.toString(request.getPreFilterShardSize()));

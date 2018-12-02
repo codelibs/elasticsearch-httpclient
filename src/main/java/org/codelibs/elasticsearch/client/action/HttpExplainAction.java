@@ -70,7 +70,7 @@ public class HttpExplainAction extends HttpAction {
             curlRequest.param("preference", request.preference());
         }
         if (request.query() != null) {
-            // 
+            //
         }
         if (request.storedFields() != null) {
             curlRequest.param("stored_fields", String.join(",", request.storedFields()));

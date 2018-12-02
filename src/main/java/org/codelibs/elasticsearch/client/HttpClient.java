@@ -856,7 +856,7 @@ public class HttpClient extends AbstractClient {
     }
 
     protected List<NamedXContentRegistry.Entry> getDefaultNamedXContents() {
-        Map<String, ContextParser<Object, ? extends Aggregation>> map = new HashMap<>();
+        final Map<String, ContextParser<Object, ? extends Aggregation>> map = new HashMap<>();
         map.put(CardinalityAggregationBuilder.NAME, (p, c) -> ParsedCardinality.fromXContent(p, (String) c));
         map.put(InternalHDRPercentiles.NAME, (p, c) -> ParsedHDRPercentiles.fromXContent(p, (String) c));
         map.put(InternalHDRPercentileRanks.NAME, (p, c) -> ParsedHDRPercentileRanks.fromXContent(p, (String) c));
@@ -901,7 +901,7 @@ public class HttpClient extends AbstractClient {
         map.put(IpRangeAggregationBuilder.NAME, (p, c) -> ParsedBinaryRange.fromXContent(p, (String) c));
         map.put(TopHitsAggregationBuilder.NAME, (p, c) -> ParsedTopHits.fromXContent(p, (String) c));
         map.put(CompositeAggregationBuilder.NAME, (p, c) -> ParsedComposite.fromXContent(p, (String) c));
-        List<NamedXContentRegistry.Entry> entries =
+        final List<NamedXContentRegistry.Entry> entries =
                 map.entrySet().stream()
                         .map(entry -> new NamedXContentRegistry.Entry(Aggregation.class, new ParseField(entry.getKey()), entry.getValue()))
                         .collect(Collectors.toList());
@@ -915,8 +915,8 @@ public class HttpClient extends AbstractClient {
     }
 
     protected List<NamedXContentRegistry.Entry> getProvidedNamedXContents() {
-        List<NamedXContentRegistry.Entry> entries = new ArrayList<>();
-        for (NamedXContentProvider service : ServiceLoader.load(NamedXContentProvider.class)) {
+        final List<NamedXContentRegistry.Entry> entries = new ArrayList<>();
+        for (final NamedXContentProvider service : ServiceLoader.load(NamedXContentProvider.class)) {
             entries.addAll(service.getNamedXContentParsers());
         }
         return entries;

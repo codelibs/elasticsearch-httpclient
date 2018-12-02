@@ -45,7 +45,7 @@ public final class UrlUtils {
         }
         try {
             return URLEncoder.encode(element.toString(), "UTF-8");
-        } catch (UnsupportedEncodingException e) {
+        } catch (final UnsupportedEncodingException e) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Invalid encoding.", e);
             }

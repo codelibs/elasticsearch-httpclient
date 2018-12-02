@@ -68,7 +68,7 @@ public class HttpIndexAction extends HttpAction {
         if (request.id() != null) {
             pathBuf.append(UrlUtils.encode(request.id()));
         }
-        CurlRequest curlRequest = client.getCurlRequest(isPutMethod ? PUT : POST, pathBuf.toString(), request.index());
+        final CurlRequest curlRequest = client.getCurlRequest(isPutMethod ? PUT : POST, pathBuf.toString(), request.index());
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }

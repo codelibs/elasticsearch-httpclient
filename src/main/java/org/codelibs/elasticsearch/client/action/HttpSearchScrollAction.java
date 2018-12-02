@@ -57,7 +57,7 @@ public class HttpSearchScrollAction extends HttpAction {
         }, e -> unwrapElasticsearchException(listener, e));
     }
 
-    protected CurlRequest getCurlRequest(SearchScrollRequest request) {
+    protected CurlRequest getCurlRequest(final SearchScrollRequest request) {
         // RestSearchScrollAction
         final CurlRequest curlRequest = client.getCurlRequest(POST, "/_search/scroll");
         if (request.scrollId() != null) {

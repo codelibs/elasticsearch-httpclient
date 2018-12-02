@@ -91,8 +91,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
         return objectParser.apply(parser, null);
     }
 
-    protected ConstructingObjectParser getPendingClusterTaskParser() {
-        @SuppressWarnings("unchecked")
+    protected ConstructingObjectParser<PendingClusterTask, Void> getPendingClusterTaskParser() {
         final ConstructingObjectParser<PendingClusterTask, Void> objectParser =
                 new ConstructingObjectParser<>("tasks", true, a -> new PendingClusterTask((long) a[0], Priority.valueOf((String) a[1]),
                         new Text((String) a[2]), (long) a[3], (a[4] != null ? (Boolean) a[4] : false)));

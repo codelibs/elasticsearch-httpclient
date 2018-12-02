@@ -227,12 +227,12 @@ public class HttpAction {
         return objectParser.apply(parser, null);
     }
 
-    protected ElasticsearchStatusException toElasticsearchException(CurlResponse response, Exception e) {
+    protected ElasticsearchStatusException toElasticsearchException(final CurlResponse response, final Exception e) {
         ElasticsearchStatusException elasticsearchException;
         try (final XContentParser parser = createParser(response)) {
             elasticsearchException = BytesRestResponse.errorFromXContent(parser);
             elasticsearchException.addSuppressed(e);
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             elasticsearchException =
                     new ElasticsearchStatusException(response.getContentAsString(), RestStatus.fromCode(response.getHttpStatusCode()), e);
             elasticsearchException.addSuppressed(ex);
@@ -240,7 +240,7 @@ public class HttpAction {
         return elasticsearchException;
     }
 
-    protected <T> void unwrapElasticsearchException(ActionListener<T> listener, Exception e) {
+    protected <T> void unwrapElasticsearchException(final ActionListener<T> listener, final Exception e) {
         if (e.getCause() instanceof ElasticsearchException) {
             listener.onFailure((ElasticsearchException) e.getCause());
         } else {

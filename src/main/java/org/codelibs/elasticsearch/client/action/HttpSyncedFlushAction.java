@@ -15,6 +15,10 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import static org.elasticsearch.common.xcontent.ConstructingObjectParser.constructorArg;
+import static org.elasticsearch.common.xcontent.ConstructingObjectParser.optionalConstructorArg;
+import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.text.SimpleDateFormat;
@@ -39,6 +43,7 @@ import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.joda.Joda;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentLocation;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -47,11 +52,6 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.flush.ShardsSyncedFlushResult;
 import org.elasticsearch.indices.flush.SyncedFlushService;
-
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
-import static org.elasticsearch.common.xcontent.ConstructingObjectParser.constructorArg;
-import static org.elasticsearch.common.xcontent.ConstructingObjectParser.optionalConstructorArg;
-import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 public class HttpSyncedFlushAction extends HttpAction {
 
@@ -86,7 +86,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         //  Fields for ShardCounts
         ShardCounts totalCounts = null;
         final Map<String, List<ShardsSyncedFlushResult>> shardsResultPerIndex = new HashMap<>();
-        XContentLocation startLoc = parser.getTokenLocation();
+        final XContentLocation startLoc = parser.getTokenLocation();
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
             if (_SHARDS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
                 ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
@@ -129,14 +129,14 @@ public class HttpSyncedFlushAction extends HttpAction {
         int total = 0;
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
             if (token == Token.START_ARRAY) {
-                String currentFieldName = parser.currentName();
+                final String currentFieldName = parser.currentName();
                 if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     parseFailuresField(parser, index, shardsSyncedFlushResults, total);
                 } else {
                     parser.skipChildren();
                 }
             } else if (token.isValue()) {
-                String currentFieldName = parser.currentName();
+                final String currentFieldName = parser.currentName();
                 if (TOTAL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     total = parser.intValue();
                 } else if (SUCCESSFUL_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
@@ -152,7 +152,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         return shardsSyncedFlushResults;
     }
 
-    protected void parseFailuresField(XContentParser parser, Index index, List<ShardsSyncedFlushResult> shardsSyncedFlushResults, int total)
+    protected void parseFailuresField(final XContentParser parser, final Index index, final List<ShardsSyncedFlushResult> shardsSyncedFlushResults, final int total)
             throws IOException {
         Token token;
         while ((token = parser.nextToken()) != Token.END_ARRAY) {
@@ -176,7 +176,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                     parser.skipChildren();
                 }
             } else if (token.isValue()) {
-                String currentFieldName = parser.currentName();
+                final String currentFieldName = parser.currentName();
                 if (SHARD_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     shardIdValue = parser.intValue();
                 } else if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
@@ -264,7 +264,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         UnassignedInfo.AllocationStatus allocationStatus = null;
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
             if (token.isValue()) {
-                String currentFieldName = parser.currentName();
+                final String currentFieldName = parser.currentName();
                 if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     reason = UnassignedInfo.Reason.values()[parser.intValue()];
                 } else if (AT_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
@@ -318,17 +318,17 @@ public class HttpSyncedFlushAction extends HttpAction {
             PARSER.declareInt(constructorArg(), FAILED_FIELD);
         }
 
-        private int total;
-        private int successful;
-        private int failed;
+        private final int total;
+        private final int successful;
+        private final int failed;
 
-        ShardCounts(int total, int successful, int failed) {
+        ShardCounts(final int total, final int successful, final int failed) {
             this.total = total;
             this.successful = successful;
             this.failed = failed;
         }
 
-        public static ShardCounts fromXContent(XContentParser parser) throws IOException {
+        public static ShardCounts fromXContent(final XContentParser parser) throws IOException {
             return PARSER.parse(parser, null);
         }
     }
