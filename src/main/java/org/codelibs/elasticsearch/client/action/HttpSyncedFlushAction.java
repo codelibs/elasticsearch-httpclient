@@ -268,7 +268,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                 if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     reason = UnassignedInfo.Reason.values()[parser.intValue()];
                 } else if (AT_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    final SimpleDateFormat formatter = new SimpleDateFormat(Joda.forPattern("dateOptionalTime").format());
+                    final SimpleDateFormat formatter = new SimpleDateFormat(Joda.forPattern("dateOptionalTime").pattern());
                     unassignedTimeMillis = formatter.parse(parser.text()).getTime();
                 } else if (FAILED_ATTEMPTS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     failedAllocations = parser.intValue();
