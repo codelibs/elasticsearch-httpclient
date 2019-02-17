@@ -62,9 +62,6 @@ public class HttpGetAction extends HttpAction {
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }
-        if (request.parent() != null) {
-            curlRequest.param("parent", request.parent());
-        }
         if (request.preference() != null) {
             curlRequest.param("preference", request.preference());
         }

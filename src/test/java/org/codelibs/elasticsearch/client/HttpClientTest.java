@@ -120,8 +120,9 @@ public class HttpClientTest {
         runner.onBuild((number, settingsBuilder) -> {
             settingsBuilder.put("http.cors.enabled", true);
             settingsBuilder.put("http.cors.allow-origin", "*");
-            settingsBuilder.putList("discovery.zen.ping.unicast.hosts", "localhost:9301-9305");
-        }).build(newConfigs().clusterName(clusterName).numOfNode(1));
+            //            settingsBuilder.putList("discovery.seed_hosts", "127.0.0.1:9301");
+                settingsBuilder.putList("cluster.initial_master_nodes", "127.0.0.1");
+            }).build(newConfigs().clusterName(clusterName).numOfNode(1));
 
         // wait for yellow status
         runner.ensureYellow();
@@ -170,8 +171,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -188,18 +192,21 @@ public class HttpClientTest {
         client.admin().indices().prepareCreate(index).execute().actionGet();
 
         client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
-            assertEquals(0, res.getHits().getTotalHits());
+            assertEquals(0, res.getHits().getTotalHits().value);
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
         {
             SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
-            assertEquals(0, searchResponse.getHits().getTotalHits());
+            assertEquals(0, searchResponse.getHits().getTotalHits().value);
         }
     }
 
@@ -214,8 +221,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -244,8 +254,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -283,8 +296,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -309,8 +325,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -333,8 +352,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -357,8 +379,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -383,8 +408,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -412,8 +440,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -459,8 +490,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -492,8 +526,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -537,30 +574,31 @@ public class HttpClientTest {
         final SearchRequestBuilder srb2 = client.prepareSearch().setQuery(QueryBuilders.matchQuery("name", "test")).setSize(1);
         CountDownLatch latch = new CountDownLatch(1);
 
-        try {
-            client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
-                long nbHits = 0;
-                for (MultiSearchResponse.Item item : res.getResponses()) {
-                    SearchResponse searchResponse = item.getResponse();
-                    nbHits += searchResponse.getHits().getTotalHits();
-                }
-                assertEquals(0, nbHits);
-                latch.countDown();
-            }, e -> {
-                latch.countDown();
-            }));
-            latch.await();
-        } catch (Exception e) {
+        client.prepareMultiSearch().add(srb1).add(srb2).execute(wrap(res -> {
+            long nbHits = 0;
+            for (MultiSearchResponse.Item item : res.getResponses()) {
+                SearchResponse searchResponse = item.getResponse();
+                nbHits += searchResponse.getHits().getTotalHits().value;
+            }
+            assertEquals(0, nbHits);
+            latch.countDown();
+        }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-        }
+            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
+        }));
+        latch.await();
 
         {
             MultiSearchResponse res = client.prepareMultiSearch().add(srb1).add(srb2).execute().actionGet();
             long nbHits = 0;
             for (MultiSearchResponse.Item item : res.getResponses()) {
                 SearchResponse searchResponse = item.getResponse();
-                nbHits += searchResponse.getHits().getTotalHits();
+                nbHits += searchResponse.getHits().getTotalHits().value;
             }
             assertEquals(0, nbHits);
         }
@@ -594,7 +632,7 @@ public class HttpClientTest {
         // Search the document
         final SearchResponse searchResponse =
                 client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).setSize(0).execute().actionGet();
-        assertEquals(1, searchResponse.getHits().getTotalHits());
+        assertEquals(1, searchResponse.getHits().getTotalHits().value);
 
         // Get the document
         final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet();
@@ -631,7 +669,7 @@ public class HttpClientTest {
 
         // Search the documents
         final SearchResponse searchResponse1 = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
-        assertEquals(NUM, searchResponse1.getHits().getTotalHits());
+        assertEquals(NUM, searchResponse1.getHits().getTotalHits().value);
 
         // Get the documents with MultiGet API
         MultiGetRequestBuilder mgetRequestBuilder = client.prepareMultiGet();
@@ -648,7 +686,7 @@ public class HttpClientTest {
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         final SearchResponse searchResponse2 = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
-        assertEquals(NUM - 1, searchResponse2.getHits().getTotalHits());
+        assertEquals(NUM - 1, searchResponse2.getHits().getTotalHits().value);
 
         // Delete all the documents with Bulk API
         final BulkRequestBuilder bulkRequestBuilder2 = client.prepareBulk();
@@ -660,7 +698,7 @@ public class HttpClientTest {
 
         // Search the documents
         final SearchResponse searchResponse3 = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
-        assertEquals(0, searchResponse3.getHits().getTotalHits());
+        assertEquals(0, searchResponse3.getHits().getTotalHits().value);
     }
 
     @Test
@@ -680,8 +718,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -718,8 +759,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -753,8 +797,11 @@ public class HttpClientTest {
                     latch.countDown();
                 }, e -> {
                     e.printStackTrace();
-                    assertTrue(false);
-                    latch.countDown();
+                    try {
+                        assertTrue(false);
+                    } finally {
+                        latch.countDown();
+                    }
                 }));
         latch.await();
 
@@ -783,8 +830,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -811,8 +861,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -834,8 +887,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -855,8 +911,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -880,8 +939,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -911,8 +973,11 @@ public class HttpClientTest {
                     latch.countDown();
                 }, e -> {
                     e.printStackTrace();
-                    assertTrue(false);
-                    latch.countDown();
+                    try {
+                        assertTrue(false);
+                    } finally {
+                        latch.countDown();
+                    }
                 }));
         latch.await();
 
@@ -933,8 +998,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -960,8 +1028,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -984,8 +1055,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -1014,8 +1088,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -1044,8 +1121,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -1070,8 +1150,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -1093,8 +1176,11 @@ public class HttpClientTest {
             latch.countDown();
         }, e -> {
             e.printStackTrace();
-            assertTrue(false);
-            latch.countDown();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
         }));
         latch.await();
 
@@ -1127,8 +1213,8 @@ public class HttpClientTest {
         final String id = "test_crud_pipeline";
 
         AcknowledgedResponse putPipelineResponse =
-                client.admin().cluster().preparePutPipeline(id, new BytesArray(source.getBytes(StandardCharsets.UTF_8))).execute()
-                        .actionGet();
+                client.admin().cluster().preparePutPipeline(id, new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON)
+                        .execute().actionGet();
         assertTrue(putPipelineResponse.isAcknowledged());
 
         GetPipelineResponse getPipelineResponse = client.admin().cluster().prepareGetPipeline(id).execute().actionGet();
@@ -1172,7 +1258,7 @@ public class HttpClientTest {
     void test_info() throws Exception {
         {
             MainResponse mainResponse = client.execute(MainAction.INSTANCE, new MainRequest()).actionGet();
-            assertTrue(mainResponse.isAvailable());
+            assertEquals("elasticsearch", mainResponse.getClusterName());
         }
     }
 }

@@ -72,9 +72,6 @@ public class HttpIndexAction extends HttpAction {
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }
-        if (request.parent() != null) {
-            curlRequest.param("parent", request.parent());
-        }
         if (request.getPipeline() != null) {
             curlRequest.param("pipeline", request.getPipeline());
         }

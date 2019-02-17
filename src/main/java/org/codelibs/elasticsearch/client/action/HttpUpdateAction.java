@@ -70,9 +70,6 @@ public class HttpUpdateAction extends HttpAction {
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }
-        if (request.parent() != null) {
-            curlRequest.param("parent", request.parent());
-        }
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
         }

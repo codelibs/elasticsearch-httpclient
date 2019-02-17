@@ -125,9 +125,6 @@ public class HttpBulkAction extends HttpAction {
         if (request.routing() != null) {
             appendStr(buf.append(','), "routing", request.routing());
         }
-        if (request.parent() != null) {
-            appendStr(buf.append(','), "parent", request.parent());
-        }
         if (request.version() >= 0) {
             buf.append(',').append('"').append("version").append("\":").append(request.version());
         }
