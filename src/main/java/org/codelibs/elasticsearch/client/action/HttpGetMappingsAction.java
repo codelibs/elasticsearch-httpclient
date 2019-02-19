@@ -49,7 +49,7 @@ public class HttpGetMappingsAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final GetMappingsRequest request) {
         // RestGetMappingAction
-        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_mapping/", request.indices());
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_mapping", request.indices());
         curlRequest.param("local", Boolean.toString(request.local()));
         return curlRequest;
     }

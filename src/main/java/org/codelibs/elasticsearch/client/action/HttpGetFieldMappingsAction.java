@@ -46,11 +46,7 @@ public class HttpGetFieldMappingsAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final GetFieldMappingsRequest request) {
         // RestGetFieldMappingsAction
-        final StringBuilder pathSuffix = new StringBuilder(100).append("/_mapping/");
-        if (request.types().length > 0) {
-            pathSuffix.append(UrlUtils.joinAndEncode(",", request.types())).append('/');
-        }
-        pathSuffix.append("field/");
+        final StringBuilder pathSuffix = new StringBuilder(100).append("/_mapping/field/");
         if (request.fields().length > 0) {
             pathSuffix.append(UrlUtils.joinAndEncode(",", request.fields()));
         }
