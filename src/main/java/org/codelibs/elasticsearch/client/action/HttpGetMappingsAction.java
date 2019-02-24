@@ -15,18 +15,26 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
+import java.util.Map;
+
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.IndexNotFoundException;
 
 public class HttpGetMappingsAction extends HttpAction {
 
     protected final GetMappingsAction action;
+
+    private static final ParseField MAPPINGS = new ParseField("mappings");
 
     public HttpGetMappingsAction(final HttpClient client, final GetMappingsAction action) {
         super(client);
@@ -39,7 +47,7 @@ public class HttpGetMappingsAction extends HttpAction {
                 throw new IndexNotFoundException(String.join(",", request.indices()));
             }
             try (final XContentParser parser = createParser(response)) {
-                final GetMappingsResponse getMappingsResponse = GetMappingsResponse.fromXContent(parser);
+                final GetMappingsResponse getMappingsResponse = /*GetMappingsResponse.*/fromXContent(parser);
                 listener.onResponse(getMappingsResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -53,4 +61,38 @@ public class HttpGetMappingsAction extends HttpAction {
         curlRequest.param("local", Boolean.toString(request.local()));
         return curlRequest;
     }
+
+    // TODO replace with GetMappingsResonse#fromXContent, but it cannot parse dynamic_templates in 7.0.0-beta1.
+    // from GetMappingsResonse
+    public static GetMappingsResponse fromXContent(XContentParser parser) throws IOException {
+        if (parser.currentToken() == null) {
+            parser.nextToken();
+        }
+        assert parser.currentToken() == XContentParser.Token.START_OBJECT;
+        Map<String, Object> parts = parser.map();
+
+        ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> builder = new ImmutableOpenMap.Builder<>();
+        for (Map.Entry<String, Object> entry : parts.entrySet()) {
+            final String indexName = entry.getKey();
+            assert entry.getValue() instanceof Map : "expected a map as type mapping, but got: " + entry.getValue().getClass();
+            final Map<String, Object> mapping = (Map<String, Object>) ((Map) entry.getValue()).get(MAPPINGS.getPreferredName());
+
+            ImmutableOpenMap.Builder<String, MappingMetaData> typeBuilder = new ImmutableOpenMap.Builder<>();
+            for (Map.Entry<String, Object> typeEntry : mapping.entrySet()) {
+                final String typeName = typeEntry.getKey();
+                assert typeEntry.getValue() instanceof Map : "expected a map as inner type mapping, but got: "
+                        + typeEntry.getValue().getClass();
+                if ("dynamic_templates".equals(typeName)) {
+                    continue;
+                }
+                final Map<String, Object> fieldMappings = (Map<String, Object>) typeEntry.getValue();
+                MappingMetaData mmd = new MappingMetaData(typeName, fieldMappings);
+                typeBuilder.put(typeName, mmd);
+            }
+            builder.put(indexName, typeBuilder.build());
+        }
+
+        return new GetMappingsResponse(builder.build());
+    }
+
 }
