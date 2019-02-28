@@ -561,7 +561,7 @@ public class HttpClientTest {
             hits = scrollResponse.getHits().getHits();
         }
 
-        // Test CrealScroll API
+        // Test Clear Scroll API
         ClearScrollResponse clearScrollResponse = client.prepareClearScroll().addScrollId(id).execute().actionGet();
         assertTrue(clearScrollResponse.isSucceeded());
     }
@@ -1103,38 +1103,6 @@ public class HttpClientTest {
             assertTrue(getFieldMappingsResponse.mappings().size() > 0);
         }
         */
-    }
-
-    @Test
-    void test_types_exists() throws Exception {
-        final String index = "test_types_exists";
-        final String type = "test_type";
-        final String id = "1";
-        CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex(index, type, id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
-        client.admin().indices().prepareRefresh(index).execute().actionGet();
-
-        client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute(wrap(res -> {
-            assertTrue(res.isExists());
-            latch.countDown();
-        }, e -> {
-            e.printStackTrace();
-            try {
-                assertTrue(false);
-            } finally {
-                latch.countDown();
-            }
-        }));
-        latch.await();
-
-        {
-            TypesExistsResponse typesExistsResponse =
-                    client.admin().indices().prepareTypesExists().setIndices(new String[] { index }).setTypes(type).execute().actionGet();
-            assertTrue(typesExistsResponse.isExists());
-        }
     }
 
     @Test

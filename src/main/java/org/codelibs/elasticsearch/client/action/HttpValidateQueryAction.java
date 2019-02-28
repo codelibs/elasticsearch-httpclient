@@ -59,9 +59,7 @@ public class HttpValidateQueryAction extends HttpAction {
     }
 
     protected CurlRequest getCurlRequest(final ValidateQueryRequest request) {
-        final CurlRequest curlRequest =
-                client.getCurlRequest(GET, (request.types() == null ? "" : "/" + UrlUtils.joinAndEncode(",", request.types()))
-                        + "/_validate/query", request.indices());
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_validate/query", request.indices());
         curlRequest.param("explain", Boolean.toString(request.explain()));
         curlRequest.param("rewrite", Boolean.toString(request.rewrite()));
         curlRequest.param("all_shards", Boolean.toString(request.allShards()));

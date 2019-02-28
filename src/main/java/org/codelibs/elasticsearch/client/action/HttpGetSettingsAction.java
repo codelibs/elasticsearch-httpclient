@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
+import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
@@ -45,8 +46,14 @@ public class HttpGetSettingsAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final GetSettingsRequest request) {
         // RestGetSettingsAction
-        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_settings", request.indices());
+        final CurlRequest curlRequest =
+                client.getCurlRequest(GET, "/_settings/" + UrlUtils.joinAndEncode(",", request.names()), request.indices());
+        curlRequest.param("human", Boolean.toString(request.humanReadable()));
+        curlRequest.param("include_defaults", Boolean.toString(request.includeDefaults()));
         curlRequest.param("local", Boolean.toString(request.local()));
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
         return curlRequest;
     }
 }

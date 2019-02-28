@@ -54,8 +54,7 @@ public class HttpGetAction extends HttpAction {
 
     private CurlRequest getCurlRequest(final GetRequest request) {
         // RestGetAction
-        final CurlRequest curlRequest =
-                client.getCurlRequest(GET, "/" + UrlUtils.encode(request.type()) + "/" + UrlUtils.encode(request.id()), request.index());
+        final CurlRequest curlRequest = client.getCurlRequest(GET, "/_doc/" + UrlUtils.encode(request.id()), request.index());
         if (request.refresh()) {
             curlRequest.param("refresh", "true");
         }

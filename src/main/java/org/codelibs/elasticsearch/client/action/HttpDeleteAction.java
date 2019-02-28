@@ -51,23 +51,18 @@ public class HttpDeleteAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final DeleteRequest request) {
         // RestDeleteAction
-        final CurlRequest curlRequest =
-                client.getCurlRequest(DELETE, "/" + UrlUtils.encode(request.type()) + "/" + UrlUtils.encode(request.id()), request.index());
-        if (request.routing() != null) {
-            curlRequest.param("routing", request.routing());
-        }
+        final CurlRequest curlRequest = client.getCurlRequest(DELETE, "/_doc/" + UrlUtils.encode(request.id()), request.index());
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
         }
         if (!RefreshPolicy.NONE.equals(request.getRefreshPolicy())) {
             curlRequest.param("refresh", request.getRefreshPolicy().getValue());
         }
-        if (request.version() >= 0) {
-            curlRequest.param("version", Long.toString(request.version()));
-        }
         if (!VersionType.INTERNAL.equals(request.versionType())) {
             curlRequest.param("version_type", request.versionType().name().toLowerCase(Locale.ROOT));
         }
+        curlRequest.param("if_seq_no", Long.toString(request.ifSeqNo()));
+        curlRequest.param("if_primary_term", Long.toString(request.ifPrimaryTerm()));
         if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
             curlRequest.param("wait_for_active_shards", String.valueOf(getActiveShardsCountValue(request.waitForActiveShards())));
         }

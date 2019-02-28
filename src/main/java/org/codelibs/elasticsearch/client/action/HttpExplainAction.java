@@ -60,9 +60,7 @@ public class HttpExplainAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final ExplainRequest request) {
         // RestExplainAction
-        final CurlRequest curlRequest =
-                client.getCurlRequest(POST, "/" + UrlUtils.encode(request.type()) + "/" + UrlUtils.encode(request.id()) + "/_explain",
-                        request.index());
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_explain/" + UrlUtils.encode(request.id()), request.index());
         if (request.routing() != null) {
             curlRequest.param("routing", request.routing());
         }

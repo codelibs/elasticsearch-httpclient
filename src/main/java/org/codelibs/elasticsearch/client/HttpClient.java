@@ -86,7 +86,6 @@ import org.codelibs.elasticsearch.client.action.HttpShrinkAction;
 import org.codelibs.elasticsearch.client.action.HttpSimulatePipelineAction;
 import org.codelibs.elasticsearch.client.action.HttpSnapshotsStatusAction;
 import org.codelibs.elasticsearch.client.action.HttpSyncedFlushAction;
-import org.codelibs.elasticsearch.client.action.HttpTypesExistsAction;
 import org.codelibs.elasticsearch.client.action.HttpUpdateAction;
 import org.codelibs.elasticsearch.client.action.HttpUpdateSettingsAction;
 import org.codelibs.elasticsearch.client.action.HttpValidateQueryAction;
@@ -96,7 +95,6 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
@@ -164,9 +162,6 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction;
-import org.elasticsearch.action.admin.indices.exists.types.TypesExistsRequest;
-import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
@@ -278,8 +273,6 @@ import org.elasticsearch.search.aggregations.bucket.filter.FilterAggregationBuil
 import org.elasticsearch.search.aggregations.bucket.filter.FiltersAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilter;
 import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilters;
-import org.elasticsearch.search.aggregations.bucket.geogrid.GeoGridAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.geogrid.ParsedGeoHashGrid;
 import org.elasticsearch.search.aggregations.bucket.global.GlobalAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.global.ParsedGlobal;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
@@ -356,10 +349,6 @@ import org.elasticsearch.search.aggregations.pipeline.ParsedSimpleValue;
 import org.elasticsearch.search.aggregations.pipeline.ParsedStatsBucket;
 import org.elasticsearch.search.aggregations.pipeline.PercentilesBucketPipelineAggregationBuilder;
 import org.elasticsearch.search.aggregations.pipeline.StatsBucketPipelineAggregationBuilder;
-import org.elasticsearch.search.suggest.Suggest;
-import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
-import org.elasticsearch.search.suggest.phrase.PhraseSuggestion;
-import org.elasticsearch.search.suggest.term.TermSuggestion;
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class HttpClient extends AbstractClient {
@@ -635,12 +624,6 @@ public class HttpClient extends AbstractClient {
                 @SuppressWarnings("unchecked")
                 final ActionListener<ResizeResponse> actionListener = (ActionListener<ResizeResponse>) listener;
                 new HttpShrinkAction(this, ShrinkAction.INSTANCE).execute((ResizeRequest) request, actionListener);
-            });
-        actions.put(TypesExistsAction.INSTANCE, (request, listener) -> {
-            // org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction
-                @SuppressWarnings("unchecked")
-                final ActionListener<TypesExistsResponse> actionListener = (ActionListener<TypesExistsResponse>) listener;
-                new HttpTypesExistsAction(this, TypesExistsAction.INSTANCE).execute((TypesExistsRequest) request, actionListener);
             });
         actions.put(RolloverAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.rollover.RolloverAction
