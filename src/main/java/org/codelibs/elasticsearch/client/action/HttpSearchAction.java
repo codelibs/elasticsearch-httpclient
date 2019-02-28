@@ -90,6 +90,7 @@ public class HttpSearchAction extends HttpAction {
         if (request.preference() != null) {
             curlRequest.param("preference", request.preference());
         }
+        curlRequest.param("ccs_minimize_roundtrips", Boolean.toString(request.isCcsMinimizeRoundtrips()));
         return curlRequest;
     }
 }

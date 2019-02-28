@@ -65,7 +65,6 @@ public class HttpSearchScrollAction extends HttpAction {
         }
         if (request.scroll() != null) {
             curlRequest.param("scroll", request.scroll().keepAlive().toString());
-
         }
         return curlRequest;
     }

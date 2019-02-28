@@ -15,6 +15,7 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
@@ -32,15 +33,21 @@ public class HttpForceMergeAction extends HttpAction {
     }
 
     public void execute(final ForceMergeRequest request, final ActionListener<ForceMergeResponse> listener) {
-        client.getCurlRequest(POST, "/_forcemerge", request.indices()).param("max_num_segments", String.valueOf(request.maxNumSegments()))
+        getCurlRequest(request).execute(response -> {
+            try (final XContentParser parser = createParser(response)) {
+                final ForceMergeResponse forceMergeResponse = ForceMergeResponse.fromXContent(parser);
+                listener.onResponse(forceMergeResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected CurlRequest getCurlRequest(final ForceMergeRequest request) {
+        // RestForceMergeAction
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_forcemerge", request.indices());
+        return curlRequest.param("max_num_segments", String.valueOf(request.maxNumSegments()))
                 .param("only_expunge_deletes", String.valueOf(request.onlyExpungeDeletes()))
-                .param("flush", String.valueOf(request.flush())).execute(response -> {
-                    try (final XContentParser parser = createParser(response)) {
-                        final ForceMergeResponse forceMergeResponse = ForceMergeResponse.fromXContent(parser);
-                        listener.onResponse(forceMergeResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+                .param("flush", String.valueOf(request.flush()));
     }
 }

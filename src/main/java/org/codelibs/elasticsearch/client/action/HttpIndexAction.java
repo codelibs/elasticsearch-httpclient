@@ -64,9 +64,9 @@ public class HttpIndexAction extends HttpAction {
         // RestIndexAction
         final OpType opType = request.id() == null ? OpType.CREATE : request.opType();
         final boolean isPutMethod = request.id() != null && OpType.CREATE.equals(opType);
-        final StringBuilder pathBuf = new StringBuilder(100).append('/').append(UrlUtils.encode(request.type())).append('/');
+        final StringBuilder pathBuf = new StringBuilder(100).append("/_doc");
         if (request.id() != null) {
-            pathBuf.append(UrlUtils.encode(request.id()));
+            pathBuf.append('/').append(UrlUtils.encode(request.id()));
         }
         final CurlRequest curlRequest = client.getCurlRequest(isPutMethod ? PUT : POST, pathBuf.toString(), request.index());
         if (request.routing() != null) {
