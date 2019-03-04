@@ -63,7 +63,7 @@ public class HttpGetMappingsAction extends HttpAction {
     }
 
     // TODO replace with GetMappingsResonse#fromXContent, but it cannot parse dynamic_templates in 7.0.0-beta1.
-    // from GetMappingsResonse
+    // from GetMappingsResponse
     public static GetMappingsResponse fromXContent(XContentParser parser) throws IOException {
         if (parser.currentToken() == null) {
             parser.nextToken();
