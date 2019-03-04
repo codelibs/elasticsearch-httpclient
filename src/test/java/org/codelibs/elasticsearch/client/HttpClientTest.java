@@ -171,7 +171,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -196,7 +196,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -221,7 +221,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -254,7 +254,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -295,7 +295,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -324,7 +324,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -351,7 +351,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -378,7 +378,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -407,7 +407,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -438,7 +438,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -459,12 +459,12 @@ public class HttpClientTest {
 
         try {
             client.admin().indices().prepareGetMappings("not_exists").execute().actionGet();
-            assertTrue(false);
+            fail();
         } catch (IndexNotFoundException e) {
             // ok
         } catch (Exception e) {
             e.printStackTrace();
-            assertTrue(false);
+            fail();
         }
 
         final XContentBuilder mappingBuilder =
@@ -487,7 +487,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -522,7 +522,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -580,7 +580,7 @@ public class HttpClientTest {
             e.printStackTrace();
             latch.countDown();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -713,7 +713,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -757,7 +757,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -796,7 +796,7 @@ public class HttpClientTest {
                 }, e -> {
                     e.printStackTrace();
                     try {
-                        assertTrue(false);
+                        fail();
                     } finally {
                         latch.countDown();
                     }
@@ -830,7 +830,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -862,7 +862,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -888,7 +888,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -912,7 +912,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -940,7 +940,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -974,7 +974,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -999,7 +999,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -1029,7 +1029,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -1056,7 +1056,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -1092,7 +1092,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -1123,7 +1123,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
@@ -1149,7 +1149,7 @@ public class HttpClientTest {
         }, e -> {
             e.printStackTrace();
             try {
-                assertTrue(false);
+                fail();
             } finally {
                 latch.countDown();
             }
