@@ -1072,19 +1072,14 @@ public class HttpClientTest {
     @Test
     void test_get_field_mappings() throws Exception {
         final String index = "test_get_field_mappings";
-        final String id = "0";
         final String field = "content";
-        client.prepareIndex()
-                .setIndex(index)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                .setSource(
-                        "{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field + "\": \"elasticsearch\""
-                                + "}", XContentType.JSON).execute().actionGet();
-        client.admin().indices().prepareRefresh(index).execute().actionGet();
+        final XContentBuilder mappingBuilder =
+                XContentFactory.jsonBuilder().startObject().startObject("properties").startObject(field).field("type", "text").endObject()
+                        .endObject().endObject();
+        final String source = BytesReference.bytes(mappingBuilder).utf8ToString();
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setSource(source, XContentType.JSON).execute().actionGet();
 
-        // TODO GetFieldMappingsResponse#fromXContent() does not work.
-        /*
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareGetFieldMappings().setIndices(index).setFields(field).execute(wrap(res -> {
             assertTrue(res.mappings().size() > 0);
@@ -1101,11 +1096,10 @@ public class HttpClientTest {
 
         {
             GetFieldMappingsResponse getFieldMappingsResponse =
-                    client.admin().indices().prepareGetFieldMappings().setIndices(index).setFields(field).execute()
-                            .actionGet();
+                    client.admin().indices().prepareGetFieldMappings().setIndices(index).setFields(field).execute().actionGet();
             assertTrue(getFieldMappingsResponse.mappings().size() > 0);
+            assertTrue(getFieldMappingsResponse.mappings().containsKey(index));
         }
-        */
     }
 
     @Test
