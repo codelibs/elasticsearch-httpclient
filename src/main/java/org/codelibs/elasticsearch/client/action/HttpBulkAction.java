@@ -38,6 +38,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.VersionType;
 
 public class HttpBulkAction extends HttpAction {
 
@@ -116,9 +117,6 @@ public class HttpBulkAction extends HttpAction {
         final StringBuilder buf = new StringBuilder(100);
         buf.append("{\"").append(request.opType().getLowercase()).append("\":{");
         appendStr(buf, "_index", request.index());
-        if (request.type() != null) {
-            appendStr(buf.append(','), "_type", request.type());
-        }
         if (request.id() != null) {
             appendStr(buf.append(','), "_id", request.id());
         }
@@ -128,7 +126,7 @@ public class HttpBulkAction extends HttpAction {
         if (request.version() >= 0) {
             buf.append(',').append('"').append("version").append("\":").append(request.version());
         }
-        if (request.versionType() != null) {
+        if (VersionType.INTERNAL.equals(request.versionType())) {
             appendStr(buf.append(','), "version_type", request.versionType().name().toLowerCase(Locale.ROOT));
         }
         buf.append('}');

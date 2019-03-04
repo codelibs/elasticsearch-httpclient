@@ -15,14 +15,26 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.util.UrlUtils;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.ObjectParser;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+
+import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 public class HttpGetFieldMappingsAction extends HttpAction {
 
@@ -36,7 +48,7 @@ public class HttpGetFieldMappingsAction extends HttpAction {
     public void execute(final GetFieldMappingsRequest request, final ActionListener<GetFieldMappingsResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final GetFieldMappingsResponse getFieldMappingsResponse = GetFieldMappingsResponse.fromXContent(parser);
+                final GetFieldMappingsResponse getFieldMappingsResponse = fromXContent(parser);
                 listener.onResponse(getFieldMappingsResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -54,5 +66,76 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         curlRequest.param("include_defaults", Boolean.toString(request.includeDefaults()));
         curlRequest.param("local", Boolean.toString(request.local()));
         return curlRequest;
+    }
+
+    protected GetFieldMappingsResponse fromXContent(final XContentParser parser) throws IOException {
+        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings = new HashMap<>();
+        if (parser.nextToken() == XContentParser.Token.FIELD_NAME) {
+            while (parser.currentToken() == XContentParser.Token.FIELD_NAME) {
+                final String index = parser.currentName();
+                final Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> typeMappings =
+                        parseTypeMappings(parser, index);
+                mappings.put(index, typeMappings);
+
+                parser.nextToken();
+            }
+        }
+
+        return newGetFieldMappingsResponse(mappings);
+    }
+
+    protected Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> parseTypeMappings(final XContentParser parser,
+            final String index) throws IOException {
+        final ObjectParser<Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>, String> objectParser =
+                new ObjectParser<>(MAPPINGS_FIELD.getPreferredName(), true, HashMap::new);
+        objectParser.declareField((p, typeMappings, idx) -> {
+            p.nextToken();
+            while (p.currentToken() == XContentParser.Token.FIELD_NAME) {
+                final String typeName = p.currentName();
+
+                if (p.nextToken() == XContentParser.Token.START_OBJECT) {
+                    final Map<String, GetFieldMappingsResponse.FieldMappingMetaData> typeMapping = new HashMap<>();
+                    typeMappings.put(typeName, typeMapping);
+                    do {
+                        final String fieldName = p.currentName();
+                        final GetFieldMappingsResponse.FieldMappingMetaData fieldMappingMetaData = getFieldMappingMetaData(p);
+                        typeMapping.put(fieldName, fieldMappingMetaData);
+                    } while (p.nextToken() == XContentParser.Token.START_OBJECT);
+                } else {
+                    p.skipChildren();
+                }
+                p.nextToken();
+            }
+        }, MAPPINGS_FIELD, ObjectParser.ValueType.OBJECT);
+
+        return objectParser.parse(parser, index);
+    }
+
+    protected GetFieldMappingsResponse.FieldMappingMetaData getFieldMappingMetaData(final XContentParser parser) throws IOException {
+        final ConstructingObjectParser<GetFieldMappingsResponse.FieldMappingMetaData, String> objectParser =
+                new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new GetFieldMappingsResponse.FieldMappingMetaData(
+                        (String) a[0], (BytesReference) a[1]));
+
+        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
+                ObjectParser.ValueType.STRING);
+        objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(),
+                (p, c) -> BytesReference.bytes(XContentFactory.jsonBuilder().copyCurrentStructure(p)), MAPPING_FIELD,
+                ObjectParser.ValueType.OBJECT);
+
+        return objectParser.parse(parser, null);
+    }
+
+    protected GetFieldMappingsResponse newGetFieldMappingsResponse(
+            final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings) {
+        final Class<GetFieldMappingsResponse> clazz = GetFieldMappingsResponse.class;
+        final Class<?>[] types = { Map.class };
+        try {
+            final Constructor<GetFieldMappingsResponse> constructor = clazz.getDeclaredConstructor(types);
+            constructor.setAccessible(true);
+            return constructor.newInstance(mappings);
+        } catch (final Exception e) {
+            throw new ElasticsearchException("Failed to create GetFieldMappingsResponse.", e);
+        }
     }
 }
