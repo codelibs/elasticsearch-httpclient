@@ -237,7 +237,7 @@ public class HttpClientTest {
                     client.admin().indices().prepareCreate(index2).setSettings(settingsSource, XContentType.JSON)
                             .addMapping("_doc", mappingSource, XContentType.JSON).addAlias(new Alias("fess.suggest")).execute().actionGet();
             assertTrue(createIndexResponse.isAcknowledged());
-            // TODO check response
+            assertEquals(index2, createIndexResponse.index());
         }
     }
 
