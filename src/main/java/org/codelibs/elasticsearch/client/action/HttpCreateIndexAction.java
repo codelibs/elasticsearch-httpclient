@@ -70,10 +70,6 @@ public class HttpCreateIndexAction extends HttpAction {
         if (!ActiveShardCount.DEFAULT.equals(request.waitForActiveShards())) {
             curlRequest.param("wait_for_active_shards", String.valueOf(getActiveShardsCountValue(request.waitForActiveShards())));
         }
-        if (!request.mappings().isEmpty()) {
-            // remove in a future release
-            curlRequest.param("include_type_name", "true");
-        }
         return curlRequest;
     }
 }
