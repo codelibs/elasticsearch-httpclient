@@ -116,9 +116,6 @@ public class HttpBulkAction extends HttpAction {
         final StringBuilder buf = new StringBuilder(100);
         buf.append("{\"").append(request.opType().getLowercase()).append("\":{");
         appendStr(buf, "_index", request.index());
-        if (request.type() != null) {
-            appendStr(buf.append(','), "_type", request.type());
-        }
         if (request.id() != null) {
             appendStr(buf.append(','), "_id", request.id());
         }

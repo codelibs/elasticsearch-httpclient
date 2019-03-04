@@ -43,7 +43,6 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushResponse;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
@@ -272,7 +271,6 @@ public class HttpClientTest {
     @Test
     void test_get_index() throws Exception {
         final String index = "test_get_index";
-        final String type = "_doc";
         final String alias = "test_alias";
         final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
                 .startObject()//
@@ -286,7 +284,7 @@ public class HttpClientTest {
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
         client.admin().indices().prepareAliases().addAlias(index, alias).execute().actionGet();
-        client.admin().indices().preparePutMapping(index).setType(type).setSource(source, XContentType.JSON).execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setSource(source, XContentType.JSON).execute().actionGet();
 
         client.admin().indices().prepareGetIndex().addIndices(index).execute(wrap(res -> {
             assertEquals(index, res.getIndices()[0]);
@@ -458,7 +456,6 @@ public class HttpClientTest {
     @Test
     void test_get_mappings() throws Exception {
         final String index = "test_get_mappings1";
-        final String type = "_doc";
 
         try {
             client.admin().indices().prepareGetMappings("not_exists").execute().actionGet();
@@ -477,7 +474,7 @@ public class HttpClientTest {
         Map<String, Object> mappingMap = XContentHelper.convertToMap(BytesReference.bytes(mappingBuilder), true, XContentType.JSON).v2();
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index).execute().actionGet();
-        client.admin().indices().preparePutMapping(index).setType(type).setSource(source, XContentType.JSON).execute().actionGet();
+        client.admin().indices().preparePutMapping(index).setSource(source, XContentType.JSON).execute().actionGet();
 
         client.admin().indices().prepareGetMappings(index).execute(wrap(res -> {
             try {
@@ -542,11 +539,10 @@ public class HttpClientTest {
     void test_scroll() throws Exception {
         final long NUM = 2;
         final String index = "test_scroll";
-        final String type = "test_type";
         final BulkRequestBuilder bulkRequestBuilder1 = client.prepareBulk();
         for (int i = 1; i <= NUM; i++) {
-            bulkRequestBuilder1.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
-                    "{ \"test\" :" + "\"test" + String.valueOf(i) + "\" }", XContentType.JSON));
+            bulkRequestBuilder1.add(client.prepareIndex().setIndex(index).setId(String.valueOf(i))
+                    .setSource("{ \"test\" :" + "\"test" + String.valueOf(i) + "\" }", XContentType.JSON));
         }
         bulkRequestBuilder1.execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
@@ -605,12 +601,11 @@ public class HttpClientTest {
     @Test
     void test_crud_index0() throws Exception {
         final String index = "test_crud_index";
-        final String type = "test_type";
         final String id = "1";
 
         // Get the document
         try {
-            client.prepareGet(index, type, id).execute().actionGet();
+            client.prepareGet().setIndex(index).setId(id).execute().actionGet();
             fail();
         } catch (IndexNotFoundException e) {
             // ok
@@ -618,7 +613,9 @@ public class HttpClientTest {
 
         // Create a document
         final IndexResponse indexResponse =
-                client.prepareIndex(index, type, id)
+                client.prepareIndex()
+                        .setIndex(index)
+                        .setId(id)
                         .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                         .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
                                 XContentType.JSON).execute().actionGet();
@@ -633,19 +630,19 @@ public class HttpClientTest {
         assertEquals(1, searchResponse.getHits().getTotalHits().value);
 
         // Get the document
-        final GetResponse getResponse2 = client.prepareGet(index, type, id).execute().actionGet();
+        final GetResponse getResponse2 = client.prepareGet().setIndex(index).setId(id).execute().actionGet();
         assertTrue(getResponse2.isExists());
 
         // Update the document
-        final UpdateResponse updateResponse = client.prepareUpdate(index, type, id).setDoc("foo", "bar").execute().actionGet();
+        final UpdateResponse updateResponse = client.prepareUpdate().setIndex(index).setId(id).setDoc("foo", "bar").execute().actionGet();
         assertEquals(Result.UPDATED, updateResponse.getResult());
 
         // Delete the document
-        final DeleteResponse deleteResponse = client.prepareDelete(index, type, id).execute().actionGet();
+        final DeleteResponse deleteResponse = client.prepareDelete().setIndex(index).setId(id).execute().actionGet();
         assertEquals(RestStatus.OK, deleteResponse.status());
 
         // make sure the document was deleted
-        GetResponse response = client.prepareGet(index, type, id).execute().actionGet();
+        GetResponse response = client.prepareGet().setIndex(index).setId(id).execute().actionGet();
         assertFalse(response.isExists());
     }
 
@@ -653,13 +650,12 @@ public class HttpClientTest {
     void test_crud_index1() throws Exception {
         final long NUM = 10;
         final String index = "test_bulk_multi";
-        final String type = "test_type";
 
         // Create documents with Bulk API
         final BulkRequestBuilder bulkRequestBuilder1 = client.prepareBulk();
         for (int i = 1; i <= NUM; i++) {
-            bulkRequestBuilder1.add(client.prepareIndex(index, type, String.valueOf(i)).setSource(
-                    "{ \"test\" :" + "\"test" + String.valueOf(i) + "\" }", XContentType.JSON));
+            bulkRequestBuilder1.add(client.prepareIndex().setIndex(index).setId(String.valueOf(i))
+                    .setSource("{ \"test\" :" + "\"test" + i + "\" }", XContentType.JSON));
         }
         final BulkResponse bulkResponse1 = bulkRequestBuilder1.execute().actionGet();
         assertFalse(bulkResponse1.hasFailures());
@@ -672,13 +668,13 @@ public class HttpClientTest {
         // Get the documents with MultiGet API
         MultiGetRequestBuilder mgetRequestBuilder = client.prepareMultiGet();
         for (int i = 1; i <= NUM; i++) {
-            mgetRequestBuilder.add(new MultiGetRequest.Item(index, type, String.valueOf(i)));
+            mgetRequestBuilder.add(new MultiGetRequest.Item(index, String.valueOf(i)));
         }
         final MultiGetResponse mgetResponse = mgetRequestBuilder.execute().actionGet();
         assertEquals(NUM, mgetResponse.getResponses().length);
 
         // Delete a document
-        final DeleteResponse deleteResponse = client.prepareDelete(index, type, "1").execute().actionGet();
+        final DeleteResponse deleteResponse = client.prepareDelete().setIndex(index).setId("1").execute().actionGet();
         assertEquals(RestStatus.OK, deleteResponse.status());
 
         client.admin().indices().prepareRefresh(index).execute().actionGet();
@@ -689,7 +685,7 @@ public class HttpClientTest {
         // Delete all the documents with Bulk API
         final BulkRequestBuilder bulkRequestBuilder2 = client.prepareBulk();
         for (int i = 2; i <= NUM; i++) {
-            bulkRequestBuilder2.add(client.prepareDelete(index, type, String.valueOf(i)));
+            bulkRequestBuilder2.add(client.prepareDelete().setIndex(index).setId(String.valueOf(i)));
         }
         final BulkResponse bulkResponse2 = bulkRequestBuilder2.setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
         assertFalse(bulkResponse2.hasFailures());
@@ -725,9 +721,9 @@ public class HttpClientTest {
         latch.await();
 
         {
-            ExplainResponse explainRespose =
+            ExplainResponse explainResponse =
                     client.prepareExplain(index, type, id).setQuery(QueryBuilders.termQuery("text", "test")).execute().actionGet();
-            assertTrue(explainRespose.hasExplanation());
+            assertTrue(explainResponse.hasExplanation());
         }
     }
 
@@ -735,16 +731,19 @@ public class HttpClientTest {
     void test_field_caps() throws Exception {
         final String index0 = "test_field_caps0";
         final String index1 = "test_field_caps1";
-        final String type = "test_type";
         final String id = "1";
         final String field0 = "user";
         final String field1 = "content";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex(index0, type, id)
+        client.prepareIndex()
+                .setIndex(index0)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":1" + "}",
                         XContentType.JSON).execute().actionGet();
-        client.prepareIndex(index1, type, id)
+        client.prepareIndex()
+                .setIndex(index1)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":\"test\"" + "}",
                         XContentType.JSON).execute().actionGet();
@@ -780,10 +779,11 @@ public class HttpClientTest {
     @Test
     void test_update_settings() throws Exception {
         final String index = "test_update_settings";
-        final String type = "test_type";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex(index, type, id)
+        client.prepareIndex()
+                .setIndex(index)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
                         XContentType.JSON).execute().actionGet();
@@ -814,10 +814,11 @@ public class HttpClientTest {
     @Test
     void test_get_settings() throws Exception {
         final String index = "test_get_settings";
-        final String type = "test_type";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex(index, type, id)
+        client.prepareIndex()
+                .setIndex(index)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
                         XContentType.JSON).execute().actionGet();
@@ -845,10 +846,11 @@ public class HttpClientTest {
     @Test
     void test_force_merge() throws Exception {
         final String index = "test_force_merge";
-        final String type = "test_type";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex(index, type, id)
+        client.prepareIndex()
+                .setIndex(index)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
                         XContentType.JSON).execute().actionGet();
@@ -955,34 +957,34 @@ public class HttpClientTest {
     @Test
     void test_validate_query() throws Exception {
         final String index = "test_validate_query";
-        final String type = "test_type";
         final String id = "0";
         CountDownLatch latch = new CountDownLatch(1);
 
-        client.prepareIndex(index, type, id)
+        client.prepareIndex()
+                .setIndex(index)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
                         XContentType.JSON).execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
-        client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true).setQuery(QueryBuilders.matchAllQuery())
-                .execute(wrap(res -> {
-                    assertTrue(res.isValid());
-                    latch.countDown();
-                }, e -> {
-                    e.printStackTrace();
-                    try {
-                        assertTrue(false);
-                    } finally {
-                        latch.countDown();
-                    }
-                }));
+        client.admin().indices().prepareValidateQuery(index).setExplain(true).setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
+            assertTrue(res.isValid());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            try {
+                assertTrue(false);
+            } finally {
+                latch.countDown();
+            }
+        }));
         latch.await();
 
         {
             ValidateQueryResponse validateQueryResponse =
-                    client.admin().indices().prepareValidateQuery(index).setTypes(type).setExplain(true)
-                            .setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+                    client.admin().indices().prepareValidateQuery(index).setExplain(true).setQuery(QueryBuilders.matchAllQuery()).execute()
+                            .actionGet();
             assertTrue(validateQueryResponse.isValid());
         }
     }
@@ -1070,10 +1072,11 @@ public class HttpClientTest {
     @Test
     void test_get_field_mappings() throws Exception {
         final String index = "test_get_field_mappings";
-        final String type = "_doc";
         final String id = "0";
         final String field = "content";
-        client.prepareIndex(index, type, id)
+        client.prepareIndex()
+                .setIndex(index)
+                .setId(id)
                 .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource(
                         "{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field + "\": \"elasticsearch\""
