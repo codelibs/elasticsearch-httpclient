@@ -31,65 +31,7 @@ import java.util.stream.Stream;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
-import org.codelibs.elasticsearch.client.action.HttpAliasesExistAction;
-import org.codelibs.elasticsearch.client.action.HttpAnalyzeAction;
-import org.codelibs.elasticsearch.client.action.HttpBulkAction;
-import org.codelibs.elasticsearch.client.action.HttpCancelTasksAction;
-import org.codelibs.elasticsearch.client.action.HttpClearIndicesCacheAction;
-import org.codelibs.elasticsearch.client.action.HttpClearScrollAction;
-import org.codelibs.elasticsearch.client.action.HttpCloseIndexAction;
-import org.codelibs.elasticsearch.client.action.HttpClusterHealthAction;
-import org.codelibs.elasticsearch.client.action.HttpClusterUpdateSettingsAction;
-import org.codelibs.elasticsearch.client.action.HttpCreateIndexAction;
-import org.codelibs.elasticsearch.client.action.HttpCreateSnapshotAction;
-import org.codelibs.elasticsearch.client.action.HttpDeleteAction;
-import org.codelibs.elasticsearch.client.action.HttpDeleteIndexAction;
-import org.codelibs.elasticsearch.client.action.HttpDeleteIndexTemplateAction;
-import org.codelibs.elasticsearch.client.action.HttpDeletePipelineAction;
-import org.codelibs.elasticsearch.client.action.HttpDeleteRepositoryAction;
-import org.codelibs.elasticsearch.client.action.HttpDeleteSnapshotAction;
-import org.codelibs.elasticsearch.client.action.HttpDeleteStoredScriptAction;
-import org.codelibs.elasticsearch.client.action.HttpExplainAction;
-import org.codelibs.elasticsearch.client.action.HttpFieldCapabilitiesAction;
-import org.codelibs.elasticsearch.client.action.HttpFlushAction;
-import org.codelibs.elasticsearch.client.action.HttpForceMergeAction;
-import org.codelibs.elasticsearch.client.action.HttpGetAction;
-import org.codelibs.elasticsearch.client.action.HttpGetAliasesAction;
-import org.codelibs.elasticsearch.client.action.HttpGetFieldMappingsAction;
-import org.codelibs.elasticsearch.client.action.HttpGetIndexAction;
-import org.codelibs.elasticsearch.client.action.HttpGetIndexTemplatesAction;
-import org.codelibs.elasticsearch.client.action.HttpGetMappingsAction;
-import org.codelibs.elasticsearch.client.action.HttpGetPipelineAction;
-import org.codelibs.elasticsearch.client.action.HttpGetRepositoriesAction;
-import org.codelibs.elasticsearch.client.action.HttpGetSettingsAction;
-import org.codelibs.elasticsearch.client.action.HttpGetSnapshotsAction;
-import org.codelibs.elasticsearch.client.action.HttpGetStoredScriptAction;
-import org.codelibs.elasticsearch.client.action.HttpIndexAction;
-import org.codelibs.elasticsearch.client.action.HttpIndicesAliasesAction;
-import org.codelibs.elasticsearch.client.action.HttpIndicesExistsAction;
-import org.codelibs.elasticsearch.client.action.HttpListTasksAction;
-import org.codelibs.elasticsearch.client.action.HttpMainAction;
-import org.codelibs.elasticsearch.client.action.HttpMultiGetAction;
-import org.codelibs.elasticsearch.client.action.HttpMultiSearchAction;
-import org.codelibs.elasticsearch.client.action.HttpOpenIndexAction;
-import org.codelibs.elasticsearch.client.action.HttpPendingClusterTasksAction;
-import org.codelibs.elasticsearch.client.action.HttpPutIndexTemplateAction;
-import org.codelibs.elasticsearch.client.action.HttpPutMappingAction;
-import org.codelibs.elasticsearch.client.action.HttpPutPipelineAction;
-import org.codelibs.elasticsearch.client.action.HttpPutRepositoryAction;
-import org.codelibs.elasticsearch.client.action.HttpPutStoredScriptAction;
-import org.codelibs.elasticsearch.client.action.HttpRefreshAction;
-import org.codelibs.elasticsearch.client.action.HttpRolloverAction;
-import org.codelibs.elasticsearch.client.action.HttpSearchAction;
-import org.codelibs.elasticsearch.client.action.HttpSearchScrollAction;
-import org.codelibs.elasticsearch.client.action.HttpShrinkAction;
-import org.codelibs.elasticsearch.client.action.HttpSimulatePipelineAction;
-import org.codelibs.elasticsearch.client.action.HttpSnapshotsStatusAction;
-import org.codelibs.elasticsearch.client.action.HttpSyncedFlushAction;
-import org.codelibs.elasticsearch.client.action.HttpUpdateAction;
-import org.codelibs.elasticsearch.client.action.HttpUpdateSettingsAction;
-import org.codelibs.elasticsearch.client.action.HttpValidateQueryAction;
-import org.codelibs.elasticsearch.client.action.HttpVerifyRepositoryAction;
+import org.codelibs.elasticsearch.client.action.*;
 import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.Action;
@@ -115,6 +57,8 @@ import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequ
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryResponse;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
@@ -126,6 +70,9 @@ import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotReq
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusResponse;
@@ -775,28 +722,39 @@ public class HttpClient extends AbstractClient {
                 final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteSnapshotAction(this, DeleteSnapshotAction.INSTANCE).execute((DeleteSnapshotRequest) request, actionListener);
             });
+        actions.put(ClusterRerouteAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
+                new HttpClusterRerouteAction(this, ClusterRerouteAction.INSTANCE).execute((ClusterRerouteRequest) request, actionListener);
+            });
+        actions.put(RestoreSnapshotAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<RestoreSnapshotResponse> actionListener = (ActionListener<RestoreSnapshotResponse>) listener;
+                new HttpRestoreSnapshotAction(this, RestoreSnapshotAction.INSTANCE).execute((RestoreSnapshotRequest) request,
+                        actionListener);
+            });
 
-        // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
-        // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
         // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
-        // org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction
         // org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAction
         // org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction
         // org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction
         // org.elasticsearch.action.admin.cluster.node.usage.NodesUsageAction
         // org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction
-        // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
+        // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
         // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
-        // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
-        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
-        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
-        // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
+        // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
+        // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
         // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
+        // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
+        // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
+        // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
+        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
+        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
+        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresActions
         // org.elasticsearch.action.termvectors.MultiTermVectorsAction
         // org.elasticsearch.action.termvectors.TermVectorsAction
-        // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
-        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresActions
-        // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
 
     }
 

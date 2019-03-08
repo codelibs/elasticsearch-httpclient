@@ -1219,6 +1219,12 @@ public class HttpClientTest {
     // TODO PutRepositoryAction
     // TODO GetRepositoriesAction
     // TODO DeleteRepositoryAction
+    // TODO ClusterRerouteAction
+    // TODO SnapshotsStatusAction
+    // TODO CreateSnapshotAction
+    // TODO GetSnapshotsAction
+    // TODO DeleteSnapshotAction
+    // TODO RestoreSnapshotAction
 
     // needs x-pack
     void test_info() throws Exception {
