@@ -44,6 +44,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksResponse;
+import org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
@@ -748,11 +749,11 @@ public class HttpClient extends AbstractClient {
         // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
         // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
         // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
+        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresActions
         // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
         // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
         // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
         // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
-        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresActions
         // org.elasticsearch.action.termvectors.MultiTermVectorsAction
         // org.elasticsearch.action.termvectors.TermVectorsAction
 
