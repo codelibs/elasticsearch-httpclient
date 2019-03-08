@@ -46,7 +46,7 @@ public class HttpPutStoredScriptAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final AcknowledgedResponse putStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse putStoredScriptResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(putStoredScriptResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

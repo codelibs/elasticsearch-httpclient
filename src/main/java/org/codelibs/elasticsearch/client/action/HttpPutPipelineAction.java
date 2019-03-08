@@ -46,7 +46,7 @@ public class HttpPutPipelineAction extends HttpAction {
         }
         getCurlRequest(request).body(source).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final AcknowledgedResponse putPipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse putPipelineResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(putPipelineResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

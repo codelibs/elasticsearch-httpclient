@@ -50,12 +50,12 @@ public class HttpGetSnapshotsAction extends HttpAction {
         if (request.repository() != null) {
             pathBuf.append('/').append(UrlUtils.encode(request.repository()));
         } else {
-            pathBuf.append("_all");
+            pathBuf.append("/_all");
         }
         if (request.snapshots() != null && request.snapshots().length > 0) {
             pathBuf.append('/').append(UrlUtils.joinAndEncode(",", request.snapshots()));
         } else {
-            pathBuf.append("_all");
+            pathBuf.append("/_all");
         }
         final CurlRequest curlRequest = client.getCurlRequest(GET, pathBuf.toString());
         curlRequest.param("ignore_unavailable", String.valueOf(request.ignoreUnavailable()));

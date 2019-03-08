@@ -39,6 +39,7 @@ import org.codelibs.elasticsearch.client.action.HttpClearIndicesCacheAction;
 import org.codelibs.elasticsearch.client.action.HttpClearScrollAction;
 import org.codelibs.elasticsearch.client.action.HttpCloseIndexAction;
 import org.codelibs.elasticsearch.client.action.HttpClusterHealthAction;
+import org.codelibs.elasticsearch.client.action.HttpClusterRerouteAction;
 import org.codelibs.elasticsearch.client.action.HttpClusterUpdateSettingsAction;
 import org.codelibs.elasticsearch.client.action.HttpCreateIndexAction;
 import org.codelibs.elasticsearch.client.action.HttpCreateSnapshotAction;
@@ -79,6 +80,7 @@ import org.codelibs.elasticsearch.client.action.HttpPutPipelineAction;
 import org.codelibs.elasticsearch.client.action.HttpPutRepositoryAction;
 import org.codelibs.elasticsearch.client.action.HttpPutStoredScriptAction;
 import org.codelibs.elasticsearch.client.action.HttpRefreshAction;
+import org.codelibs.elasticsearch.client.action.HttpRestoreSnapshotAction;
 import org.codelibs.elasticsearch.client.action.HttpRolloverAction;
 import org.codelibs.elasticsearch.client.action.HttpSearchAction;
 import org.codelibs.elasticsearch.client.action.HttpSearchScrollAction;
@@ -115,6 +117,8 @@ import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequ
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryResponse;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
@@ -126,6 +130,9 @@ import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotReq
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusResponse;
@@ -775,28 +782,39 @@ public class HttpClient extends AbstractClient {
                 final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
                 new HttpDeleteSnapshotAction(this, DeleteSnapshotAction.INSTANCE).execute((DeleteSnapshotRequest) request, actionListener);
             });
+        actions.put(ClusterRerouteAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
+                new HttpClusterRerouteAction(this, ClusterRerouteAction.INSTANCE).execute((ClusterRerouteRequest) request, actionListener);
+            });
+        actions.put(RestoreSnapshotAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<RestoreSnapshotResponse> actionListener = (ActionListener<RestoreSnapshotResponse>) listener;
+                new HttpRestoreSnapshotAction(this, RestoreSnapshotAction.INSTANCE).execute((RestoreSnapshotRequest) request,
+                        actionListener);
+            });
 
-        // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
-        // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
         // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
-        // org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction
         // org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAction
         // org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction
         // org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction
         // org.elasticsearch.action.admin.cluster.node.usage.NodesUsageAction
         // org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction
-        // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
+        // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
         // org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction
-        // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
-        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
-        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
-        // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
+        // org.elasticsearch.action.admin.cluster.state.ClusterStateAction
+        // org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction
         // org.elasticsearch.action.admin.indices.recovery.RecoveryAction
+        // org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction
+        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresActions
+        // org.elasticsearch.action.admin.indices.stats.IndicesStatsAction
+        // org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction
+        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction
+        // org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction
         // org.elasticsearch.action.termvectors.MultiTermVectorsAction
         // org.elasticsearch.action.termvectors.TermVectorsAction
-        // org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction
-        // org.elasticsearch.action.admin.indices.shards.IndicesShardStoresActions
-        // org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction
 
     }
 
