@@ -33,7 +33,11 @@ import java.util.logging.SimpleFormatter;
 
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.DocWriteResponse.Result;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequestBuilder;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
@@ -1210,6 +1214,16 @@ public class HttpClientTest {
         assertTrue(deleteStoredScriptResponse.isAcknowledged());
     }
 
+    @Test
+    void test_cluster_reroute() throws Exception {
+        ClusterRerouteRequest clusterRerouteRequest = new ClusterRerouteRequest();
+        {
+            AcknowledgedResponse clusterRerouteResponse =
+                    client.admin().cluster().execute(ClusterRerouteAction.INSTANCE, clusterRerouteRequest).actionGet();
+            assertTrue(clusterRerouteResponse.isAcknowledged());
+        }
+    }
+
     // TODO PutIndexTemplateAction
     // TODO GetIndexTemplatesAction
     // TODO DeleteIndexTemplateAction
@@ -1219,7 +1233,6 @@ public class HttpClientTest {
     // TODO PutRepositoryAction
     // TODO GetRepositoriesAction
     // TODO DeleteRepositoryAction
-    // TODO ClusterRerouteAction
     // TODO SnapshotsStatusAction
     // TODO CreateSnapshotAction
     // TODO GetSnapshotsAction
