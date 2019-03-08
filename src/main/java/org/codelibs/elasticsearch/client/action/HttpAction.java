@@ -16,9 +16,7 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlRequest;
@@ -29,9 +27,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActiveShardCount;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.ParseField;
-import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContent;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -210,23 +206,6 @@ public class HttpAction {
         final XContentType xContentType = XContentType.fromMediaTypeOrFormat(contentType);
         final XContent xContent = XContentFactory.xContent(xContentType);
         return xContent.createParser(client.getNamedXContentRegistry(), LoggingDeprecationHandler.INSTANCE, response.getContentAsStream());
-    }
-
-    protected <T extends AcknowledgedResponse> T getAcknowledgedResponse(final XContentParser parser, final Supplier<T> newResponse) {
-        final ConstructingObjectParser<T, Void> objectParser = new ConstructingObjectParser<>("acknowledged_reponse", true, a -> {
-            try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-                out.writeBoolean((boolean) a[0]);
-                final T response = newResponse.get();
-                response.readFrom(out.toStreamInput());
-                return response;
-            } catch (final IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
-
-        objectParser.declareBoolean(ConstructingObjectParser.constructorArg(), ACKNOWLEDGED_FIELD);
-
-        return objectParser.apply(parser, null);
     }
 
     protected ElasticsearchStatusException toElasticsearchException(final CurlResponse response, final Exception e) {

@@ -36,7 +36,7 @@ public class HttpDeleteIndexTemplateAction extends HttpAction {
     public void execute(final DeleteIndexTemplateRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final AcknowledgedResponse deleteIndexTemplateResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse deleteIndexTemplateResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deleteIndexTemplateResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

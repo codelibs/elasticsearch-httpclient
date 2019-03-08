@@ -36,7 +36,7 @@ public class HttpDeletePipelineAction extends HttpAction {
     public void execute(final DeletePipelineRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final AcknowledgedResponse deletePipelineResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse deletePipelineResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deletePipelineResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));

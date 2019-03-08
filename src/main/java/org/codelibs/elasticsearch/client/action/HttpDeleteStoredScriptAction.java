@@ -36,7 +36,7 @@ public class HttpDeleteStoredScriptAction extends HttpAction {
     public void execute(final DeleteStoredScriptRequest request, final ActionListener<AcknowledgedResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final AcknowledgedResponse deleteStoredScriptResponse = getAcknowledgedResponse(parser, action::newResponse);
+                final AcknowledgedResponse deleteStoredScriptResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deleteStoredScriptResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
