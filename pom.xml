@@ -32,7 +32,7 @@
 	</parent>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<elasticsearch.version>7.0.0-beta1</elasticsearch.version>
+		<elasticsearch.version>7.0.0-rc1</elasticsearch.version>
 		<junit.jupiter.version>5.2.0</junit.jupiter.version>
 	</properties>
 	<build>
@@ -193,17 +193,4 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-	<repositories>
-		<repository>
-			<id>elastic-lucene-snapshots</id>
-			<name>Elastic Lucene Snapshots</name>
-			<url>http://s3.amazonaws.com/download.elasticsearch.org/lucenesnapshots/83f9835</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
 </project>
