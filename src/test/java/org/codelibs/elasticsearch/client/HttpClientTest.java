@@ -35,6 +35,7 @@ import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequestBuilder;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteResponse;
@@ -1222,6 +1223,12 @@ public class HttpClientTest {
                     client.admin().cluster().execute(ClusterRerouteAction.INSTANCE, clusterRerouteRequest).actionGet();
             assertTrue(clusterRerouteResponse.isAcknowledged());
         }
+    }
+
+    @Test
+    void test_stats() throws Exception {
+        NodesStatsResponse response = client.admin().cluster().prepareNodesStats().execute().actionGet();
+        assertFalse(response.getNodes().isEmpty());
     }
 
     // TODO PutIndexTemplateAction

@@ -72,6 +72,7 @@ import org.codelibs.elasticsearch.client.action.HttpListTasksAction;
 import org.codelibs.elasticsearch.client.action.HttpMainAction;
 import org.codelibs.elasticsearch.client.action.HttpMultiGetAction;
 import org.codelibs.elasticsearch.client.action.HttpMultiSearchAction;
+import org.codelibs.elasticsearch.client.action.HttpNodesStatsAction;
 import org.codelibs.elasticsearch.client.action.HttpOpenIndexAction;
 import org.codelibs.elasticsearch.client.action.HttpPendingClusterTasksAction;
 import org.codelibs.elasticsearch.client.action.HttpPutIndexTemplateAction;
@@ -101,6 +102,9 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksResponse;
@@ -794,6 +798,12 @@ public class HttpClient extends AbstractClient {
                 final ActionListener<RestoreSnapshotResponse> actionListener = (ActionListener<RestoreSnapshotResponse>) listener;
                 new HttpRestoreSnapshotAction(this, RestoreSnapshotAction.INSTANCE).execute((RestoreSnapshotRequest) request,
                         actionListener);
+            });
+        actions.put(NodesStatsAction.INSTANCE, (request, listener) -> {
+            // org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction
+                @SuppressWarnings("unchecked")
+                final ActionListener<NodesStatsResponse> actionListener = (ActionListener<NodesStatsResponse>) listener;
+                new HttpNodesStatsAction(this, NodesStatsAction.INSTANCE).execute((NodesStatsRequest) request, actionListener);
             });
 
         // org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplainAction
