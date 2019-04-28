@@ -31,6 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import org.codelibs.elasticsearch.client.action.HttpNodesStatsAction;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequestBuilder;
@@ -1227,6 +1228,11 @@ public class HttpClientTest {
 
     @Test
     void test_stats() throws Exception {
+        assertEquals("1.1.1.1:0", HttpNodesStatsAction.parseTransportAddress("1.1.1.1").toString());
+        assertEquals("1.1.1.1:9300", HttpNodesStatsAction.parseTransportAddress("1.1.1.1:9300").toString());
+        assertEquals("[::1]:0", HttpNodesStatsAction.parseTransportAddress("[::1]").toString());
+        assertEquals("[::1]:9300", HttpNodesStatsAction.parseTransportAddress("[::1]:9300").toString());
+
         NodesStatsResponse response = client.admin().cluster().prepareNodesStats().execute().actionGet();
         assertFalse(response.getNodes().isEmpty());
     }
