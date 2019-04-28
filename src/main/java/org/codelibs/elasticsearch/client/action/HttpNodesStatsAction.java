@@ -304,8 +304,8 @@ public class HttpNodesStatsAction extends HttpAction {
                                 }
                                 parser.nextToken();
                             }
-                            pipelineStats.add(new IngestStats.PipelineStat(name,
-                                    new IngestStats.Stats(ingestCount, ingestTimeInMillis, ingestCurrent, ingestFailedCount)));
+                            pipelineStats.add(new IngestStats.PipelineStat(name, new IngestStats.Stats(ingestCount, ingestTimeInMillis,
+                                    ingestCurrent, ingestFailedCount)));
                         }
                         parser.nextToken();
                     }

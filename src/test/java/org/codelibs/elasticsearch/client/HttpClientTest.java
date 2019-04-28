@@ -22,7 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -34,12 +36,10 @@ import java.util.logging.SimpleFormatter;
 import org.codelibs.elasticsearch.client.action.HttpNodesStatsAction;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.DocWriteResponse.Result;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequestBuilder;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
 import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
-import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteResponse;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsResponse;
 import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptResponse;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
@@ -92,6 +92,7 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -1233,8 +1234,27 @@ public class HttpClientTest {
         assertEquals("[::1]:0", HttpNodesStatsAction.parseTransportAddress("[::1]").toString());
         assertEquals("[::1]:9300", HttpNodesStatsAction.parseTransportAddress("[::1]:9300").toString());
 
-        NodesStatsResponse response = client.admin().cluster().prepareNodesStats().execute().actionGet();
-        assertFalse(response.getNodes().isEmpty());
+        {
+            NodesStatsResponse response = client.admin().cluster().prepareNodesStats().execute().actionGet();
+            assertFalse(response.getNodes().isEmpty());
+        }
+
+        {
+            NodesStatsResponse response =
+                    client.admin().cluster().prepareNodesStats().setIngest(false).setBreaker(false).setDiscovery(false).setFs(true)
+                            .setHttp(false).setIndices(true).setJvm(true).setOs(true).setProcess(true).setScript(false).setThreadPool(true)
+                            .setTransport(true).execute().actionGet();
+            assertFalse(response.getNodes().isEmpty());
+            final XContentBuilder builder = XContentFactory.jsonBuilder();
+            builder.startObject();
+            response.toXContent(builder, ToXContent.EMPTY_PARAMS);
+            builder.endObject();
+            builder.flush();
+            try (OutputStream out = builder.getOutputStream()) {
+                String value = ((ByteArrayOutputStream) out).toString("UTF-8");
+                System.out.println(value);
+            }
+        }
     }
 
     // TODO PutIndexTemplateAction
