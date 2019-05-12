@@ -140,6 +140,7 @@ public class HttpAction {
         } catch (final Exception ex) {
             elasticsearchException =
                     new ElasticsearchStatusException(response.getContentAsString(), RestStatus.fromCode(response.getHttpStatusCode()), e);
+            elasticsearchException.addSuppressed(e);
             elasticsearchException.addSuppressed(ex);
         }
         return elasticsearchException;
