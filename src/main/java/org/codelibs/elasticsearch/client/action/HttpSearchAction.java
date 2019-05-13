@@ -44,7 +44,11 @@ public class HttpSearchAction extends HttpAction {
         getCurlRequest(request).body(getQuerySource(request)).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
                 final SearchResponse searchResponse = SearchResponse.fromXContent(parser);
-                listener.onResponse(searchResponse);
+                if (searchResponse.getHits() == null) {
+                    listener.onFailure(toElasticsearchException(response, new ElasticsearchException("hits is null.")));
+                } else {
+                    listener.onResponse(searchResponse);
+                }
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
             }
