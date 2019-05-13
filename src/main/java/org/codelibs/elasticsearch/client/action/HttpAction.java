@@ -137,6 +137,7 @@ public class HttpAction {
         try (final XContentParser parser = createParser(response)) {
             elasticsearchException = BytesRestResponse.errorFromXContent(parser);
             elasticsearchException.addSuppressed(e);
+            elasticsearchException.addSuppressed(new CurlResponseException(response.getContentAsString()));
         } catch (final Exception ex) {
             elasticsearchException =
                     new ElasticsearchStatusException(response.getContentAsString(), RestStatus.fromCode(response.getHttpStatusCode()), e);
@@ -160,6 +161,14 @@ public class HttpAction {
             return out.toStreamInput().readInt();
         } catch (final IOException e) {
             throw new ElasticsearchException("Failed to parse a request.", e);
+        }
+    }
+
+    protected static class CurlResponseException extends Exception {
+        private static final long serialVersionUID = 1L;
+
+        CurlResponseException(final String msg) {
+            super(msg, null, false, false);
         }
     }
 }
