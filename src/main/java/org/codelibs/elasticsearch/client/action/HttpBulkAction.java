@@ -92,8 +92,8 @@ public class HttpBulkAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final BulkResponse bulkResponse = BulkResponse.fromXContent(parser);
                 listener.onResponse(bulkResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -37,8 +37,8 @@ public class HttpFieldCapabilitiesAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final FieldCapabilitiesResponse fieldCapabilitiesResponse = FieldCapabilitiesResponse.fromXContent(parser);
                 listener.onResponse(fieldCapabilitiesResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

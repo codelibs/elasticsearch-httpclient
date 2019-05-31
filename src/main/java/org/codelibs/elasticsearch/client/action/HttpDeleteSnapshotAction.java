@@ -38,8 +38,8 @@ public class HttpDeleteSnapshotAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse cancelTasksResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(cancelTasksResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

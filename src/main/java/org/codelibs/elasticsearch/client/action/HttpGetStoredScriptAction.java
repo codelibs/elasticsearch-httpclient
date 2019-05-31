@@ -38,8 +38,8 @@ public class HttpGetStoredScriptAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetStoredScriptResponse getStoredScriptResponse = GetStoredScriptResponse.fromXContent(parser);
                 listener.onResponse(getStoredScriptResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

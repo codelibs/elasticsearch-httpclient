@@ -38,8 +38,8 @@ public class HttpDeletePipelineAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse deletePipelineResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deletePipelineResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

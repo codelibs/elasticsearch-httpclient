@@ -56,8 +56,8 @@ public class HttpUpdateAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final UpdateResponse updateResponse = UpdateResponse.fromXContent(parser);
                 listener.onResponse(updateResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -80,8 +80,8 @@ public class HttpNodesStatsAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final NodesStatsResponse nodesStatsResponse = fromXContent(parser);
                 listener.onResponse(nodesStatsResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }
