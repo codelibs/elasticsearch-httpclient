@@ -906,13 +906,8 @@ public class HttpClient extends AbstractClient {
     protected ForkJoinPool createThreadPool(final Settings settings) {
         int parallelism = settings.getAsInt("thread_pool.http.size", Runtime.getRuntime().availableProcessors());
         boolean asyncMode = settings.getAsBoolean("thread_pool.http.async", false);
-        int corePoolSize = settings.getAsInt("thread_pool.http.core", 0);
-        int maximumPoolSize = settings.getAsInt("thread_pool.http.max", 0x7fff);
-        int minimumRunnable = settings.getAsInt("thread_pool.http.min", 1);
-        TimeValue keeyAlive = settings.getAsTime("thread_pool.http.keep_alive", TimeValue.timeValueSeconds(60));
-        return new ForkJoinPool(parallelism, pool -> new WorkerThread(pool), (t, e) -> logger.warn("An exception has been raised by {}",
-                t.getName(), e), asyncMode, corePoolSize, maximumPoolSize, minimumRunnable, null, keeyAlive.getMillis(),
-                TimeUnit.MILLISECONDS);
+        return new ForkJoinPool(parallelism, pool -> new WorkerThread(pool),
+                (t, e) -> logger.warn("An exception has been raised by {}", t.getName(), e), asyncMode);
     }
 
     protected List<NamedXContentRegistry.Entry> getDefaultNamedXContents() {
