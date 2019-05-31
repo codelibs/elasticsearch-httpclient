@@ -38,8 +38,8 @@ public class HttpDeleteIndexTemplateAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse deleteIndexTemplateResponse = getAcknowledgedResponse(parser, action::newResponse);
                 listener.onResponse(deleteIndexTemplateResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

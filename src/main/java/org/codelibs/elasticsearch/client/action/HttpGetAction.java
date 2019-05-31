@@ -42,11 +42,11 @@ public class HttpGetAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetResponse getResponse = GetResponse.fromXContent(parser);
                 listener.onResponse(getResponse);
-            } catch (final Exception e) {
+            } catch (final Throwable t) {
                 if (response.getHttpStatusCode() == 404) {
-                    throw new IndexNotFoundException(request.index(), e);
+                    throw new IndexNotFoundException(request.index(), t);
                 } else {
-                    listener.onFailure(toElasticsearchException(response, e));
+                    listener.onFailure(toElasticsearchException(response, t));
                 }
             }
         }, e -> unwrapElasticsearchException(listener, e));

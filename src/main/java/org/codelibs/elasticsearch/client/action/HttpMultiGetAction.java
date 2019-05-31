@@ -51,8 +51,8 @@ public class HttpMultiGetAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final MultiGetResponse multiGetResponse = MultiGetResponse.fromXContent(parser);
                 listener.onResponse(multiGetResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

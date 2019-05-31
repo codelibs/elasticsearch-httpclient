@@ -38,8 +38,8 @@ public class HttpGetFieldMappingsAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetFieldMappingsResponse getFieldMappingsResponse = GetFieldMappingsResponse.fromXContent(parser);
                 listener.onResponse(getFieldMappingsResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

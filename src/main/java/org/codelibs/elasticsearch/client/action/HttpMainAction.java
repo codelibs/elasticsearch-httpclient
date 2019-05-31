@@ -37,8 +37,8 @@ public class HttpMainAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final MainResponse mainResponse = MainResponse.fromXContent(parser);
                 listener.onResponse(mainResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -38,8 +38,8 @@ public class HttpForceMergeAction extends HttpAction {
                     try (final XContentParser parser = createParser(response)) {
                         final ForceMergeResponse forceMergeResponse = ForceMergeResponse.fromXContent(parser);
                         listener.onResponse(forceMergeResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
+                    } catch (final Throwable t) {
+                        listener.onFailure(toElasticsearchException(response, t));
                     }
                 }, e -> unwrapElasticsearchException(listener, e));
     }

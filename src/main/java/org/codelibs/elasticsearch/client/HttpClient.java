@@ -17,6 +17,7 @@ package org.codelibs.elasticsearch.client;
 
 import static java.util.stream.Collectors.toList;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -266,6 +269,7 @@ import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ContextParser;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.plugins.spi.NamedXContentProvider;
@@ -380,6 +384,12 @@ public class HttpClient extends AbstractClient {
 
     protected final NamedXContentRegistry namedXContentRegistry;
 
+    protected final ForkJoinPool threadPool;
+
+    protected final String basicAuth;
+
+    protected final List<Function<CurlRequest, CurlRequest>> requestBuilderList = new ArrayList<>();
+
     public enum ContentType {
         JSON("application/json"), X_NDJSON("application/x-ndjson");
 
@@ -409,6 +419,9 @@ public class HttpClient extends AbstractClient {
         if (hosts.length == 0) {
             throw new ElasticsearchException("http.hosts is empty.");
         }
+
+        basicAuth = createBasicAuthentication(settings);
+        this.threadPool = createThreadPool(settings);
 
         namedXContentRegistry =
                 new NamedXContentRegistry(Stream
@@ -817,9 +830,28 @@ public class HttpClient extends AbstractClient {
 
     }
 
+    private String createBasicAuthentication(final Settings settings) {
+        final String username = settings.get("elasticsearch.username");
+        final String password = settings.get("elasticsearch.password");
+        if (username != null && password != null) {
+            final String value = username + ":" + password;
+            return "Basic " + java.util.Base64.getEncoder().encodeToString(value.toString().getBytes(StandardCharsets.UTF_8));
+        }
+        return null;
+    }
+
     @Override
     public void close() {
-        // TODO thread pool management
+        if (!threadPool.isShutdown()) {
+            try {
+                threadPool.shutdown();
+                threadPool.awaitTermination(60, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // nothing
+            } finally {
+                threadPool.shutdownNow();
+            }
+        }
     }
 
     @Override
@@ -850,9 +882,26 @@ public class HttpClient extends AbstractClient {
         if (path != null) {
             buf.append(path);
         }
-        // TODO other request headers
-        // TODO threadPool
-        return method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(ForkJoinPool.commonPool());
+        CurlRequest request = method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(threadPool);
+        if (basicAuth != null) {
+            request = request.header("Authorization", basicAuth);
+        }
+        for (final Function<CurlRequest, CurlRequest> builder : requestBuilderList) {
+            request = builder.apply(request);
+        }
+        return request;
+    }
+
+    protected ForkJoinPool createThreadPool(final Settings settings) {
+        int parallelism = settings.getAsInt("thread_pool.http.size", Runtime.getRuntime().availableProcessors());
+        boolean asyncMode = settings.getAsBoolean("thread_pool.http.async", false);
+        int corePoolSize = settings.getAsInt("thread_pool.http.core", 0);
+        int maximumPoolSize = settings.getAsInt("thread_pool.http.max", 0x7fff);
+        int minimumRunnable = settings.getAsInt("thread_pool.http.min", 1);
+        TimeValue keeyAlive = settings.getAsTime("thread_pool.http.keep_alive", TimeValue.timeValueSeconds(60));
+        return new ForkJoinPool(parallelism, pool -> new WorkerThread(pool), (t, e) -> logger.warn("An exception has been raised by {}",
+                t.getName(), e), asyncMode, corePoolSize, maximumPoolSize, minimumRunnable, null, keeyAlive.getMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     protected List<NamedXContentRegistry.Entry> getDefaultNamedXContents() {
@@ -926,4 +975,14 @@ public class HttpClient extends AbstractClient {
         return namedXContentRegistry;
     }
 
+    public void addRequestBuilder(final Function<CurlRequest, CurlRequest> builder) {
+        requestBuilderList.add(builder);
+    }
+
+    protected static class WorkerThread extends ForkJoinWorkerThread {
+        protected WorkerThread(ForkJoinPool pool) {
+            super(pool);
+            setName("eshttp");
+        }
+    }
 }

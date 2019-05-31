@@ -37,8 +37,8 @@ public class HttpListTasksAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final ListTasksResponse listTasksResponse = ListTasksResponse.fromXContent(parser);
                 listener.onResponse(listTasksResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

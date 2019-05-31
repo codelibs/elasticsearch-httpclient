@@ -54,8 +54,8 @@ public class HttpIndexAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final IndexResponse indexResponse = IndexResponse.fromXContent(parser);
                 listener.onResponse(indexResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

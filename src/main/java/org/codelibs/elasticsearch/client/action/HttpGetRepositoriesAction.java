@@ -37,8 +37,8 @@ public class HttpGetRepositoriesAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetRepositoriesResponse getRepositoriesResponse = GetRepositoriesResponse.fromXContent(parser);
                 listener.onResponse(getRepositoriesResponse);
-            } catch (final Exception e) {
-                listener.onFailure(toElasticsearchException(response, e));
+            } catch (final Throwable t) {
+                listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }
