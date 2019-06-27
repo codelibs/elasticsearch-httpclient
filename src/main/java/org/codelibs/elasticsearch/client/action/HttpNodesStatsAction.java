@@ -1248,7 +1248,7 @@ public class HttpNodesStatsAction extends HttpAction {
             out.writeVInt(currentAsTarget);
             out.writeLong(throttleTimeInNanos);
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
-                return RecoveryStats.readRecoveryStats(in);
+                return new RecoveryStats(in);
             }
         }
     }
@@ -1391,9 +1391,7 @@ public class HttpNodesStatsAction extends HttpAction {
                 out.writeLong(entry.getValue().longValue());
             }
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
-                final SegmentsStats segmentsStats = new SegmentsStats();
-                segmentsStats.readFrom(in);
-                return segmentsStats;
+                return new SegmentsStats(in);
             }
         }
     }
@@ -1514,6 +1512,8 @@ public class HttpNodesStatsAction extends HttpAction {
         String fieldName = null;
         long total = 0;
         long totalTimeInMillis = 0;
+        long externalTotal = 0;
+        long externalTotalTimeInMillis = 0;
         int listeners = 0;
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
@@ -1524,13 +1524,17 @@ public class HttpNodesStatsAction extends HttpAction {
                     total = parser.longValue();
                 } else if ("total_time_in_millis".equals(fieldName)) {
                     totalTimeInMillis = parser.longValue();
+                } else if ("external_total".equals(fieldName)) {
+                    externalTotal = parser.longValue();
+                } else if ("external_total_time_in_millis".equals(fieldName)) {
+                    externalTotalTimeInMillis = parser.longValue();
                 } else if ("listeners".equals(fieldName)) {
                     listeners = parser.intValue();
                 }
             }
             parser.nextToken();
         }
-        return new RefreshStats(total, totalTimeInMillis, listeners);
+        return new RefreshStats(total, totalTimeInMillis, externalTotal, externalTotalTimeInMillis, listeners);
     }
 
     protected MergeStats parseMergeStats(final XContentParser parser) throws IOException {
