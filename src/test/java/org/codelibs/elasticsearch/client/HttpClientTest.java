@@ -46,6 +46,7 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
+import org.elasticsearch.action.admin.indices.analyze.AnalyzeResponse;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -188,6 +189,32 @@ public class HttpClientTest {
         {
             RefreshResponse refreshResponse = client.admin().indices().prepareRefresh(index).execute().actionGet();
             assertEquals(refreshResponse.getStatus(), RestStatus.OK);
+        }
+    }
+
+    @Test
+    void test_analyze() throws Exception {
+        final String index = "test_analyze";
+        CountDownLatch latch = new CountDownLatch(1);
+        client.admin().indices().prepareCreate(index).execute().actionGet();
+
+        client.admin().indices().prepareAnalyze(index, "this is a pen.").setAnalyzer("standard").execute(wrap(res -> {
+            assertEquals(4, res.getTokens().size());
+            latch.countDown();
+        }, e -> {
+            e.printStackTrace();
+            try {
+                fail();
+            } finally {
+                latch.countDown();
+            }
+        }));
+        latch.await();
+
+        {
+            AnalyzeResponse analyzeResponse =
+                    client.admin().indices().prepareAnalyze(index, "this is a pen.").setAnalyzer("standard").execute().actionGet();
+            assertEquals(4, analyzeResponse.getTokens().size());
         }
     }
 
