@@ -15,12 +15,17 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import static org.elasticsearch.common.xcontent.ConstructingObjectParser.constructorArg;
+
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
+import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 public class HttpCloseIndexAction extends HttpAction {
@@ -32,15 +37,30 @@ public class HttpCloseIndexAction extends HttpAction {
         this.action = action;
     }
 
-    public void execute(final CloseIndexRequest request, final ActionListener<AcknowledgedResponse> listener) {
+    public void execute(final CloseIndexRequest request, final ActionListener<CloseIndexResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final AcknowledgedResponse closeIndexResponse = AcknowledgedResponse.fromXContent(parser);
+                final CloseIndexResponse closeIndexResponse = fromXContent(parser);
                 listener.onResponse(closeIndexResponse);
             } catch (final Throwable t) {
                 listener.onFailure(toElasticsearchException(response, t));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    private static final ParseField SHARDS_ACKNOWLEDGED = new ParseField("shards_acknowledged");
+    private static final ParseField ACKNOWLEDGED = new ParseField("acknowledged");
+    private static final ConstructingObjectParser<CloseIndexResponse, Void> PARSER =
+            new ConstructingObjectParser<>("close_index", true, args -> new CloseIndexResponse((boolean) args[0], (boolean) args[1]));
+
+    static {
+        PARSER.declareField(constructorArg(), (parser, context) -> parser.booleanValue(), ACKNOWLEDGED, ObjectParser.ValueType.BOOLEAN);
+        PARSER.declareField(constructorArg(), (parser, context) -> parser.booleanValue(), SHARDS_ACKNOWLEDGED,
+                ObjectParser.ValueType.BOOLEAN);
+    }
+
+    private CloseIndexResponse fromXContent(XContentParser parser) {
+        return PARSER.apply(parser, null);
     }
 
     protected CurlRequest getCurlRequest(final CloseIndexRequest request) {

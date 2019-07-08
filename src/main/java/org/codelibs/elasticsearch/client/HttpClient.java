@@ -168,6 +168,7 @@ import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheReque
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
+import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -275,7 +276,6 @@ import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.ContextParser;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.plugins.spi.NamedXContentProvider;
@@ -467,7 +467,7 @@ public class HttpClient extends AbstractClient {
         actions.put(CloseIndexAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.close.CloseIndexAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<AcknowledgedResponse> actionListener = (ActionListener<AcknowledgedResponse>) listener;
+                final ActionListener<CloseIndexResponse> actionListener = (ActionListener<CloseIndexResponse>) listener;
                 new HttpCloseIndexAction(this, CloseIndexAction.INSTANCE).execute((CloseIndexRequest) request, actionListener);
             });
         actions.put(IndicesExistsAction.INSTANCE, (request, listener) -> {
