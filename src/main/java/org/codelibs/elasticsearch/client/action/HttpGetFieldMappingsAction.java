@@ -50,8 +50,8 @@ public class HttpGetFieldMappingsAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetFieldMappingsResponse getFieldMappingsResponse = fromXContent(parser);
                 listener.onResponse(getFieldMappingsResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

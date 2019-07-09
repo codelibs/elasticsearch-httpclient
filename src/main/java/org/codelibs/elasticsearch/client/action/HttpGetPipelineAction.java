@@ -38,8 +38,8 @@ public class HttpGetPipelineAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetPipelineResponse getPipelineResponse = GetPipelineResponse.fromXContent(parser);
                 listener.onResponse(getPipelineResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -38,8 +38,8 @@ public class HttpGetSettingsAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetSettingsResponse getSettingsResponse = GetSettingsResponse.fromXContent(parser);
                 listener.onResponse(getSettingsResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -52,8 +52,8 @@ public class HttpCreateIndexAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final CreateIndexResponse refreshResponse = CreateIndexResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

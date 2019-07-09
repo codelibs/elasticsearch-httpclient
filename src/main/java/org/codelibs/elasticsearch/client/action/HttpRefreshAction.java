@@ -37,8 +37,8 @@ public class HttpRefreshAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final RefreshResponse refreshResponse = RefreshResponse.fromXContent(parser);
                 listener.onResponse(refreshResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

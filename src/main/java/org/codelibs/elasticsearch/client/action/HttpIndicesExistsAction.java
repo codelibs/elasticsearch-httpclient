@@ -48,8 +48,8 @@ public class HttpIndicesExistsAction extends HttpAction {
             try {
                 final IndicesExistsResponse indicesExistsResponse = new IndicesExistsResponse(exists);
                 listener.onResponse(indicesExistsResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

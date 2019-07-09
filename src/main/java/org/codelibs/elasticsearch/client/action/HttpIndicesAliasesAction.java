@@ -67,8 +67,8 @@ public class HttpIndicesAliasesAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse indicesAliasesResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(indicesAliasesResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

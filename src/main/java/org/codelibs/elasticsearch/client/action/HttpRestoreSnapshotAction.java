@@ -37,8 +37,8 @@ public class HttpRestoreSnapshotAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final RestoreSnapshotResponse restoreSnapshotResponse = RestoreSnapshotResponse.fromXContent(parser);
                 listener.onResponse(restoreSnapshotResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

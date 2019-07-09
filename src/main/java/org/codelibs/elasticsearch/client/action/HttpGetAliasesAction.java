@@ -51,8 +51,8 @@ public class HttpGetAliasesAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser, action::newResponse);
                 listener.onResponse(getAliasesResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -43,8 +43,8 @@ public class HttpClusterHealthAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final ClusterHealthResponse clusterHealthResponse = ClusterHealthResponse.fromXContent(parser);
                 listener.onResponse(clusterHealthResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

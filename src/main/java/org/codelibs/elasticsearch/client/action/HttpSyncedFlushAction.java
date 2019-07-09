@@ -67,8 +67,8 @@ public class HttpSyncedFlushAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);
                 listener.onResponse(syncedFlushResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

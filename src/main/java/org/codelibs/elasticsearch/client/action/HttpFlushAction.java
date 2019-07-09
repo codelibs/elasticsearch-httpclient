@@ -37,8 +37,8 @@ public class HttpFlushAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final FlushResponse flushResponse = FlushResponse.fromXContent(parser);
                 listener.onResponse(flushResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

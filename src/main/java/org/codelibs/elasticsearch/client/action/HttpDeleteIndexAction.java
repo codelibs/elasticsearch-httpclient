@@ -37,8 +37,8 @@ public class HttpDeleteIndexAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse deleteIndexResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deleteIndexResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

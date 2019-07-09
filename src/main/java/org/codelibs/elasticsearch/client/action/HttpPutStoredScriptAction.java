@@ -48,8 +48,8 @@ public class HttpPutStoredScriptAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse putStoredScriptResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(putStoredScriptResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

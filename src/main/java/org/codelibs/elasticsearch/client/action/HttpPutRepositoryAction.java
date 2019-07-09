@@ -38,8 +38,8 @@ public class HttpPutRepositoryAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse putRepositoryResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(putRepositoryResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

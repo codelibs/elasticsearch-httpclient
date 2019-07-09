@@ -38,8 +38,8 @@ public class HttpShrinkAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final ResizeResponse resizeResponse = ResizeResponse.fromXContent(parser);
                 listener.onResponse(resizeResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

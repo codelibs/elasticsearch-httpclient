@@ -51,8 +51,8 @@ public class HttpClearScrollAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final ClearScrollResponse clearScrollResponse = ClearScrollResponse.fromXContent(parser);
                 listener.onResponse(clearScrollResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -38,8 +38,8 @@ public class HttpVerifyRepositoryAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final VerifyRepositoryResponse verifyRepositoryResponse = VerifyRepositoryResponse.fromXContent(parser);
                 listener.onResponse(verifyRepositoryResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

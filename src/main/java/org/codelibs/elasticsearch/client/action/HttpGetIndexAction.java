@@ -37,8 +37,8 @@ public class HttpGetIndexAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetIndexResponse getIndexResponse = GetIndexResponse.fromXContent(parser);
                 listener.onResponse(getIndexResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

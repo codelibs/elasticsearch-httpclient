@@ -42,16 +42,16 @@ public class HttpCloseIndexAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final CloseIndexResponse closeIndexResponse = fromXContent(parser);
                 listener.onResponse(closeIndexResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }
 
     private static final ParseField SHARDS_ACKNOWLEDGED = new ParseField("shards_acknowledged");
     private static final ParseField ACKNOWLEDGED = new ParseField("acknowledged");
-    private static final ConstructingObjectParser<CloseIndexResponse, Void> PARSER =
-            new ConstructingObjectParser<>("close_index", true, args -> new CloseIndexResponse((boolean) args[0], (boolean) args[1]));
+    private static final ConstructingObjectParser<CloseIndexResponse, Void> PARSER = new ConstructingObjectParser<>("close_index", true,
+            args -> new CloseIndexResponse((boolean) args[0], (boolean) args[1]));
 
     static {
         PARSER.declareField(constructorArg(), (parser, context) -> parser.booleanValue(), ACKNOWLEDGED, ObjectParser.ValueType.BOOLEAN);

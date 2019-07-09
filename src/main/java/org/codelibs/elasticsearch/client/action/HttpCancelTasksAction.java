@@ -37,8 +37,8 @@ public class HttpCancelTasksAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final CancelTasksResponse cancelTasksResponse = CancelTasksResponse.fromXContent(parser);
                 listener.onResponse(cancelTasksResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

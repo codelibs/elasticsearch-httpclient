@@ -80,8 +80,8 @@ public class HttpNodesStatsAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final NodesStatsResponse nodesStatsResponse = fromXContent(parser);
                 listener.onResponse(nodesStatsResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }
@@ -102,7 +102,7 @@ public class HttpNodesStatsAction extends HttpAction {
                     nodes = parseNodes(parser);
                 }
             } else if (token == XContentParser.Token.VALUE_STRING) {
-                if (fieldName.equals("cluster_name")) {
+                if ("cluster_name".equals(fieldName)) {
                     clusterName = new ClusterName(parser.text());
                 }
             }
@@ -844,7 +844,7 @@ public class HttpNodesStatsAction extends HttpAction {
                     heapUsed = parser.longValue();
                 } else if ("heap_max_in_bytes".equals(fieldName)) {
                     heapMax = parser.longValue();
-                } else if ("non_heap_used_in_bytes".equals(fieldName)) {
+                } else if ("non_heap_committed_in_bytes".equals(fieldName)) {
                     nonHeapCommitted = parser.longValue();
                 } else if ("non_heap_used_in_bytes".equals(fieldName)) {
                     nonHeapUsed = parser.longValue();

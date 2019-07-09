@@ -52,8 +52,8 @@ public class HttpCreateSnapshotAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final CreateSnapshotResponse cancelTasksResponse = CreateSnapshotResponse.fromXContent(parser);
                 listener.onResponse(cancelTasksResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

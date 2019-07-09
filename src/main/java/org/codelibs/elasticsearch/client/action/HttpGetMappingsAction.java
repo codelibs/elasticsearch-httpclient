@@ -49,8 +49,8 @@ public class HttpGetMappingsAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final GetMappingsResponse getMappingsResponse = /*GetMappingsResponse.*/fromXContent(parser);
                 listener.onResponse(getMappingsResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

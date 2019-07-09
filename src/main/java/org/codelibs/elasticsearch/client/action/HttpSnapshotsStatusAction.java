@@ -38,8 +38,8 @@ public class HttpSnapshotsStatusAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final SnapshotsStatusResponse cancelTasksResponse = SnapshotsStatusResponse.fromXContent(parser);
                 listener.onResponse(cancelTasksResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

@@ -38,8 +38,8 @@ public class HttpDeleteRepositoryAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final AcknowledgedResponse deleteRepositoryResponse = AcknowledgedResponse.fromXContent(parser);
                 listener.onResponse(deleteRepositoryResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

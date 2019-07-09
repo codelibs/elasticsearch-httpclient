@@ -49,8 +49,8 @@ public class HttpSearchAction extends HttpAction {
                 } else {
                     listener.onResponse(searchResponse);
                 }
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }

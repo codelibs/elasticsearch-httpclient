@@ -51,8 +51,8 @@ public class HttpSearchScrollAction extends HttpAction {
             try (final XContentParser parser = createParser(response)) {
                 final SearchResponse scrollResponse = SearchResponse.fromXContent(parser);
                 listener.onResponse(scrollResponse);
-            } catch (final Throwable t) {
-                listener.onFailure(toElasticsearchException(response, t));
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
     }
