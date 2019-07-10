@@ -22,11 +22,10 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codelibs.elasticsearch.client.action.HttpAction;
 
 public final class UrlUtils {
 
-    private static Logger logger = LogManager.getLogger(HttpAction.class);
+    private static final Logger logger = LogManager.getLogger(UrlUtils.class);
 
     private UrlUtils() {
         // nothing
@@ -36,7 +35,7 @@ public final class UrlUtils {
         if (elements == null) {
             return null;
         }
-        return Arrays.stream(elements).map(s -> UrlUtils.encode(s)).collect(Collectors.joining(delimiter));
+        return Arrays.stream(elements).map(UrlUtils::encode).collect(Collectors.joining(delimiter));
     }
 
     public static String encode(final CharSequence element) {

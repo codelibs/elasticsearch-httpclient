@@ -21,6 +21,7 @@ import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpect
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -195,7 +196,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         }
     }
 
-    protected ShardRouting parseShardRouting(final XContentParser parser) throws IOException {
+    protected ShardRouting parseShardRouting(final XContentParser parser) {
         final ConstructingObjectParser<ShardRouting, Void> objectParser = new ConstructingObjectParser<>("routing", true, a -> {
             try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
                 int i = 0;
@@ -254,7 +255,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         return objectParser.apply(parser, null);
     }
 
-    protected UnassignedInfo getUnassignedInfo(final XContentParser parser) throws Exception {
+    protected UnassignedInfo getUnassignedInfo(final XContentParser parser) throws IOException, ParseException {
         ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
         UnassignedInfo.Reason reason = null;
