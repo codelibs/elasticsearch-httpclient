@@ -166,7 +166,7 @@ public class HttpClientTest {
         client.admin().indices().prepareCreate(index).execute().actionGet();
 
         client.admin().indices().prepareRefresh(index).execute(wrap(res -> {
-            assertEquals(res.getStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, res.getStatus());
             latch.countDown();
         }, e -> {
             e.printStackTrace();
@@ -177,7 +177,7 @@ public class HttpClientTest {
 
         {
             RefreshResponse refreshResponse = client.admin().indices().prepareRefresh(index).execute().actionGet();
-            assertEquals(refreshResponse.getStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, refreshResponse.getStatus());
         }
     }
 
@@ -488,7 +488,7 @@ public class HttpClientTest {
         client.admin().indices().prepareCreate(index).execute().actionGet();
 
         client.admin().indices().prepareFlush(index).execute(wrap(res -> {
-            assertEquals(res.getStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, res.getStatus());
             latch.countDown();
         }, e -> {
             e.printStackTrace();
@@ -499,7 +499,7 @@ public class HttpClientTest {
 
         {
             FlushResponse res = client.admin().indices().prepareFlush(index).execute().actionGet();
-            assertEquals(res.getStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, res.getStatus());
         }
     }
 
@@ -727,11 +727,11 @@ public class HttpClientTest {
             final FieldCapabilitiesResponse fieldCapabilitiesResponse =
                     client.prepareFieldCaps().setFields(field0, field1).execute().actionGet();
             final FieldCapabilities capabilities0 = fieldCapabilitiesResponse.getField(field0).get("text");
-            assertEquals(capabilities0.getName(), field0);
+            assertEquals(field0, capabilities0.getName());
             final FieldCapabilities capabilities1 = fieldCapabilitiesResponse.getField(field1).get("long");
-            assertEquals(capabilities1.indices().length, 1);
+            assertEquals(1, capabilities1.indices().length);
             final FieldCapabilities capabilities2 = fieldCapabilitiesResponse.getField(field1).get("text");
-            assertEquals(capabilities2.indices().length, 1);
+            assertEquals(1, capabilities2.indices().length);
         }
     }
 
@@ -807,7 +807,7 @@ public class HttpClientTest {
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         client.admin().indices().prepareForceMerge(index).execute(wrap(res -> {
-            assertEquals(res.getStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, res.getStatus());
             latch.countDown();
         }, e -> {
             e.printStackTrace();
@@ -818,7 +818,7 @@ public class HttpClientTest {
 
         {
             ForceMergeResponse forceMergeResponse = client.admin().indices().prepareForceMerge(index).execute().actionGet();
-            assertEquals(forceMergeResponse.getStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, forceMergeResponse.getStatus());
         }
     }
 
@@ -980,7 +980,7 @@ public class HttpClientTest {
         client.admin().indices().prepareCreate(index).execute().actionGet();
 
         client.admin().indices().prepareSyncedFlush(index).execute(wrap(res -> {
-            assertEquals(res.restStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, res.restStatus());
             latch.countDown();
         }, e -> {
             e.printStackTrace();
@@ -991,7 +991,7 @@ public class HttpClientTest {
 
         {
             SyncedFlushResponse syncedFlushResponse = client.admin().indices().prepareSyncedFlush(index).execute().actionGet();
-            assertEquals(syncedFlushResponse.restStatus(), RestStatus.OK);
+            assertEquals(RestStatus.OK, syncedFlushResponse.restStatus());
         }
     }
 
