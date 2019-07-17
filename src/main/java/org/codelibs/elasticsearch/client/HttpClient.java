@@ -905,7 +905,8 @@ public class HttpClient extends AbstractClient {
     }
 
     protected ForkJoinPool createThreadPool(final Settings settings) {
-        int parallelism = settings.getAsInt("thread_pool.http.size", Runtime.getRuntime().availableProcessors());
+        int parallelism =
+                settings.getAsInt("thread_pool.http.size", settings.getAsInt("processors", Runtime.getRuntime().availableProcessors()));
         boolean asyncMode = settings.getAsBoolean("thread_pool.http.async", false);
         return new ForkJoinPool(parallelism, WorkerThread::new,
                 (t, e) -> logger.warn("An exception has been raised by {}", t.getName(), e), asyncMode);
