@@ -38,6 +38,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.seqno.SequenceNumbers;
 
 public class HttpBulkAction extends HttpAction {
 
@@ -113,8 +114,10 @@ public class HttpBulkAction extends HttpAction {
     }
 
     protected String getStringfromDocWriteRequest(final DocWriteRequest<?> request) {
+        // BulkRequestParser
         final StringBuilder buf = new StringBuilder(100);
-        buf.append("{\"").append(request.opType().getLowercase()).append("\":{");
+        final String opType = request.opType().getLowercase();
+        buf.append("{\"").append(opType).append("\":{");
         appendStr(buf, "_index", request.index());
         if (request.type() != null) {
             appendStr(buf.append(','), "_type", request.type());
@@ -129,14 +132,42 @@ public class HttpBulkAction extends HttpAction {
             appendStr(buf.append(','), "parent", request.parent());
         }
         if (request.version() >= 0) {
-            buf.append(',').append('"').append("version").append("\":").append(request.version());
+            appendStr(buf.append(','), "version", request.version());
         }
         if (request.versionType() != null) {
             appendStr(buf.append(','), "version_type", request.versionType().name().toLowerCase(Locale.ROOT));
         }
+        if (request.ifSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) {
+            appendStr(buf.append(','), "if_seq_no", request.ifSeqNo());
+        }
+        if (request.ifPrimaryTerm() != SequenceNumbers.UNASSIGNED_PRIMARY_TERM) {
+            appendStr(buf.append(','), "if_primary_term", request.ifPrimaryTerm());
+        }
+        // retry_on_conflict
+        switch (request.opType()) {
+        case INDEX:
+        case CREATE:
+            final IndexRequest indexRequest = (IndexRequest) request;
+            if (indexRequest.getPipeline() != null) {
+                appendStr(buf.append(','), "pipeline", indexRequest.getPipeline());
+            }
+            break;
+        case UPDATE:
+            // final UpdateRequest updateRequest = (UpdateRequest) request;
+            break;
+        case DELETE:
+            // final DeleteRequest deleteRequest = (DeleteRequest) request;
+            break;
+        default:
+            break;
+        }
         buf.append('}');
         buf.append('}');
         return buf.toString();
+    }
+
+    protected StringBuilder appendStr(final StringBuilder buf, final String key, final long value) {
+        return buf.append('"').append(key).append("\":").append(value);
     }
 
     protected StringBuilder appendStr(final StringBuilder buf, final String key, final String value) {
