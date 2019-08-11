@@ -28,6 +28,7 @@ import org.elasticsearch.action.admin.indices.stats.IndexShardStats;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.DiskUsage;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -132,7 +133,7 @@ public class HttpNodesStatsAction extends HttpAction {
         String fieldName = null;
         String nodeName = "";
         long timestamp = 0;
-        final Set<DiscoveryNode.Role> roles = new HashSet<>();
+        final Set<DiscoveryNodeRole> roles = new HashSet<>();
         NodeIndicesStats indices = null;
         OsStats os = null;
         ProcessStats process = null;
@@ -194,24 +195,8 @@ public class HttpNodesStatsAction extends HttpAction {
                 } else if ("transport_address".equals(fieldName)) {
                     transportAddress = parseTransportAddress(parser.text());
                 }
-            } else if (token == XContentParser.Token.START_ARRAY) {
-                if ("roles".equals(fieldName)) {
-                    while ((token = parser.currentToken()) != XContentParser.Token.END_ARRAY) {
-                        if (token == XContentParser.Token.VALUE_STRING) {
-                            final String role = parser.text();
-                            if (DiscoveryNode.Role.MASTER.getRoleName().equals(role)) {
-                                roles.add(DiscoveryNode.Role.MASTER);
-                            } else if (DiscoveryNode.Role.DATA.getRoleName().equals(role)) {
-                                roles.add(DiscoveryNode.Role.DATA);
-                            } else if (DiscoveryNode.Role.INGEST.getRoleName().equals(role)) {
-                                roles.add(DiscoveryNode.Role.INGEST);
-                            }
-                        }
-                        parser.nextToken();
-                    }
-
-                }
             }
+            // TODO roles
             parser.nextToken();
         }
         final DiscoveryNode node = new DiscoveryNode(nodeName, nodeId, transportAddress, attributes, roles, Version.CURRENT);

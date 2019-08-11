@@ -99,10 +99,10 @@ import org.codelibs.elasticsearch.client.action.HttpValidateQueryAction;
 import org.codelibs.elasticsearch.client.action.HttpVerifyRepositoryAction;
 import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
@@ -162,8 +162,6 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
-import org.elasticsearch.action.admin.indices.analyze.AnalyzeRequest;
-import org.elasticsearch.action.admin.indices.analyze.AnalyzeResponse;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
@@ -381,7 +379,7 @@ public class HttpClient extends AbstractClient {
 
     protected String[] hosts;
 
-    protected final Map<Action<?>, BiConsumer<ActionRequest, ActionListener<?>>> actions = new HashMap<>();
+    protected final Map<ActionType<?>, BiConsumer<ActionRequest, ActionListener<?>>> actions = new HashMap<>();
 
     protected final NamedXContentRegistry namedXContentRegistry;
 
@@ -765,8 +763,8 @@ public class HttpClient extends AbstractClient {
         actions.put(AnalyzeAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.admin.indices.analyze.AnalyzeAction
                 @SuppressWarnings("unchecked")
-                final ActionListener<AnalyzeResponse> actionListener = (ActionListener<AnalyzeResponse>) listener;
-                new HttpAnalyzeAction(this, AnalyzeAction.INSTANCE).execute((AnalyzeRequest) request, actionListener);
+                final ActionListener<AnalyzeAction.Response> actionListener = (ActionListener<AnalyzeAction.Response>) listener;
+                new HttpAnalyzeAction(this, AnalyzeAction.INSTANCE).execute((AnalyzeAction.Request) request, actionListener);
             });
         actions.put(SimulatePipelineAction.INSTANCE, (request, listener) -> {
             // org.elasticsearch.action.ingest.SimulatePipelineAction
@@ -867,7 +865,7 @@ public class HttpClient extends AbstractClient {
     }
 
     @Override
-    protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(Action<Response> action, Request request,
+    protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(ActionType<Response> action, Request request,
             ActionListener<Response> listener) {
         final BiConsumer<ActionRequest, ActionListener<?>> httpAction = actions.get(action);
         if (httpAction == null) {

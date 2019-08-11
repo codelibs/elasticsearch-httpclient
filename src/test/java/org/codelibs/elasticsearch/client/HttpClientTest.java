@@ -46,8 +46,9 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
-import org.elasticsearch.action.admin.indices.analyze.AnalyzeResponse;
+import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
+import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
@@ -212,7 +213,7 @@ public class HttpClientTest {
         latch.await();
 
         {
-            AnalyzeResponse analyzeResponse =
+            AnalyzeAction.Response analyzeResponse =
                     client.admin().indices().prepareAnalyze(index, "this is a pen.").setAnalyzer("standard").execute().actionGet();
             assertEquals(4, analyzeResponse.getTokens().size());
         }
@@ -394,8 +395,16 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate(index2).execute().actionGet();
-            AcknowledgedResponse closeIndexResponse = client.admin().indices().prepareClose(index2).execute().actionGet();
+            CloseIndexResponse closeIndexResponse = client.admin().indices().prepareClose(index2).execute().actionGet();
             assertTrue(closeIndexResponse.isAcknowledged());
+            assertTrue(closeIndexResponse.isShardsAcknowledged());
+            assertEquals(1, closeIndexResponse.getIndices().size());
+        }
+        {
+            CloseIndexResponse closeIndexResponse = client.admin().indices().prepareClose(index2).execute().actionGet();
+            assertTrue(closeIndexResponse.isAcknowledged());
+            assertFalse(closeIndexResponse.isShardsAcknowledged());
+            assertEquals(0, closeIndexResponse.getIndices().size());
         }
     }
 
