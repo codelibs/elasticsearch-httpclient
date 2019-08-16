@@ -38,6 +38,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 
 public class HttpBulkAction extends HttpAction {
@@ -134,7 +135,7 @@ public class HttpBulkAction extends HttpAction {
         if (request.version() >= 0) {
             appendStr(buf.append(','), "version", request.version());
         }
-        if (request.versionType() != null) {
+        if (VersionType.INTERNAL.equals(request.versionType())) {
             appendStr(buf.append(','), "version_type", request.versionType().name().toLowerCase(Locale.ROOT));
         }
         if (request.ifSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) {

@@ -46,7 +46,12 @@ public class HttpGetSettingsAction extends HttpAction {
     protected CurlRequest getCurlRequest(final GetSettingsRequest request) {
         // RestGetSettingsAction
         final CurlRequest curlRequest = client.getCurlRequest(GET, "/_settings", request.indices());
+        curlRequest.param("human", Boolean.toString(request.humanReadable()));
+        curlRequest.param("include_defaults", Boolean.toString(request.includeDefaults()));
         curlRequest.param("local", Boolean.toString(request.local()));
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
         return curlRequest;
     }
 }

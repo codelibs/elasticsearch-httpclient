@@ -84,6 +84,8 @@ public class HttpUpdateAction extends HttpAction {
         }
         curlRequest.param("doc_as_upsert", Boolean.toString(request.docAsUpsert()));
         curlRequest.param("retry_on_conflict", String.valueOf(request.retryOnConflict()));
+        curlRequest.param("if_seq_no", Long.toString(request.ifSeqNo()));
+        curlRequest.param("if_primary_term", Long.toString(request.ifPrimaryTerm()));
         if (request.version() >= 0) {
             curlRequest.param("version", Long.toString(request.version()));
         }
