@@ -22,11 +22,10 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codelibs.elasticsearch.client.action.HttpAction;
 
 public final class UrlUtils {
 
-    private static Logger logger = LogManager.getLogger(HttpAction.class);
+    private static Logger logger = LogManager.getLogger(UrlUtils.class);
 
     private UrlUtils() {
         // nothing
