@@ -32,7 +32,7 @@
 	</parent>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<elasticsearch.version>6.8.1</elasticsearch.version>
+		<elasticsearch.version>6.8.2</elasticsearch.version>
 		<junit.jupiter.version>5.4.2</junit.jupiter.version>
 	</properties>
 	<build>
@@ -128,7 +128,7 @@
 		<dependency>
 			<groupId>org.codelibs</groupId>
 			<artifactId>curl4j</artifactId>
-			<version>1.2.1</version>
+			<version>1.2.3</version>
 		</dependency>
 		<dependency>
 			<groupId>org.codelibs</groupId>
