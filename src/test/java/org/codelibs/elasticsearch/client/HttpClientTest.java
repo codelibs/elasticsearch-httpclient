@@ -266,11 +266,19 @@ public class HttpClientTest {
         {
             String settingsSource =
                     "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}";
-            String mappingSource =
-                    "{\"dynamic_templates\":[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}],\"properties\":{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}}";
             CreateIndexResponse createIndexResponse =
-                    client.admin().indices().prepareCreate(index2).setSettings(settingsSource, XContentType.JSON)
-                            .addMapping("_doc", mappingSource, XContentType.JSON).addAlias(new Alias("fess.suggest")).execute().actionGet();
+                    client.admin()
+                            .indices()
+                            .prepareCreate(index2)
+                            .setSettings(settingsSource, XContentType.JSON)
+                            .addMapping(
+                                    "dynamic_templates",
+                                    "[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}]",
+                                    XContentType.JSON)
+                            .addMapping(
+                                    "properties",
+                                    "{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}",
+                                    XContentType.JSON).addAlias(new Alias("fess.suggest")).execute().actionGet();
             assertTrue(createIndexResponse.isAcknowledged());
             assertEquals(index2, createIndexResponse.index());
         }

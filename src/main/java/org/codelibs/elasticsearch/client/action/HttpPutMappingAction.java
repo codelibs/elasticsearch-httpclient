@@ -47,13 +47,10 @@ public class HttpPutMappingAction extends HttpAction {
     protected CurlRequest getCurlRequest(final PutMappingRequest request) {
         // RestPutMappingAction
         final String path;
-        final boolean typeInPath;
         if (request.type() != null && !request.type().isEmpty()) {
             path = "/_mapping/" + UrlUtils.encode(request.type());
-            typeInPath = true;
         } else {
             path = "/_mapping";
-            typeInPath = false;
         }
         final CurlRequest curlRequest = client.getCurlRequest(PUT, path, request.indices());
         if (request.timeout() != null) {
@@ -61,10 +58,6 @@ public class HttpPutMappingAction extends HttpAction {
         }
         if (request.masterNodeTimeout() != null) {
             curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
-        }
-        if (typeInPath) {
-            // remove in a future release
-            curlRequest.param("include_type_name", "true");
         }
         return curlRequest;
     }
