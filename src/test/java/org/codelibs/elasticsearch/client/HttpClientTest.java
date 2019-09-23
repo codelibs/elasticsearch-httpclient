@@ -493,6 +493,7 @@ public class HttpClientTest {
     void test_put_mapping() throws Exception {
         final String index1 = "test_put_mapping1";
         final String index2 = "test_put_mapping2";
+        final String index3 = "test_put_mapping3";
         final XContentBuilder mappingBuilder =
                 XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("test_prop").field("type", "text")
                         .endObject().endObject().endObject();
@@ -520,6 +521,19 @@ public class HttpClientTest {
             client.admin().indices().prepareCreate(index2).execute().actionGet();
             AcknowledgedResponse putMappingResponse =
                     client.admin().indices().preparePutMapping(index2).setSource(mappingSource, XContentType.JSON).execute().actionGet();
+            assertTrue(putMappingResponse.isAcknowledged());
+        }
+
+        {
+            client.admin().indices().prepareCreate(index3).execute().actionGet();
+            AcknowledgedResponse putMappingResponse =
+                    client.admin()
+                            .indices()
+                            .preparePutMapping(index3)
+                            .setSource(
+                                    XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("key")
+                                            .field("type", "keyword").endObject().endObject().endObject()).setType("_doc").execute()
+                            .actionGet();
             assertTrue(putMappingResponse.isAcknowledged());
         }
     }

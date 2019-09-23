@@ -46,12 +46,7 @@ public class HttpPutMappingAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final PutMappingRequest request) {
         // RestPutMappingAction
-        final String path;
-        if (request.type() != null && !request.type().isEmpty()) {
-            path = "/_mapping/" + UrlUtils.encode(request.type());
-        } else {
-            path = "/_mapping";
-        }
+        final String path = "/_mapping";
         final CurlRequest curlRequest = client.getCurlRequest(PUT, path, request.indices());
         if (request.timeout() != null) {
             curlRequest.param("timeout", request.timeout().toString());
