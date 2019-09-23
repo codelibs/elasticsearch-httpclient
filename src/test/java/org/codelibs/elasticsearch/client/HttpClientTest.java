@@ -248,6 +248,7 @@ public class HttpClientTest {
     void test_create_index() throws Exception {
         final String index1 = "test_create_index1";
         final String index2 = "test_create_index2";
+        final String index3 = "test_create_index3";
         CountDownLatch latch = new CountDownLatch(1);
 
         client.admin().indices().prepareCreate(index1).execute(wrap(res -> {
@@ -266,21 +267,37 @@ public class HttpClientTest {
         {
             String settingsSource =
                     "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}";
+            String mappingSource =
+                    "{\"_source\":{\"includes\":[\"aaa\"],\"excludes\":[\"111\"]},"
+                    //                                + "\"dynamic_templates\":[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}],"
+                            + "\"properties\":{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}}";
+            final Map<String, Object> sourceMap = XContentHelper.convertToMap(new BytesArray(mappingSource), false, XContentType.JSON).v2();
             CreateIndexResponse createIndexResponse =
-                    client.admin()
-                            .indices()
-                            .prepareCreate(index2)
-                            .setSettings(settingsSource, XContentType.JSON)
-                            .addMapping(
-                                    "dynamic_templates",
-                                    "[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}]",
-                                    XContentType.JSON)
-                            .addMapping(
-                                    "properties",
-                                    "{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}",
-                                    XContentType.JSON).addAlias(new Alias("fess.suggest")).execute().actionGet();
+                    client.admin().indices().prepareCreate(index2).setSettings(settingsSource, XContentType.JSON)//
+                            .addMapping("_doc", mappingSource, XContentType.JSON)//
+                            //.addMapping("_doc", sourceMap)//
+                            .addAlias(new Alias("fess.test2")).execute().actionGet();
             assertTrue(createIndexResponse.isAcknowledged());
             assertEquals(index2, createIndexResponse.index());
+        }
+
+        {
+            String source =
+                    "{\"settings\":"//
+                            + "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}"//
+                            + ",\"mappings\":{"//
+                            + "\"_source\":"//
+                            + "{\"includes\":[\"aaa\"],\"excludes\":[\"111\"]}"//
+                            //                    + ",\"dynamic_templates\":"
+                            //                    + "[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}]"
+                            + ",\"properties\":"
+                            + "{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}"
+                            + "}}";
+            CreateIndexResponse createIndexResponse =
+                    client.admin().indices().prepareCreate(index3).setSource(source, XContentType.JSON).addAlias(new Alias("fess.test3"))
+                            .execute().actionGet();
+            assertTrue(createIndexResponse.isAcknowledged());
+            assertEquals(index3, createIndexResponse.index());
         }
     }
 
@@ -497,9 +514,12 @@ public class HttpClientTest {
         latch.await();
 
         {
+            String mappingSource =
+                    "{\"dynamic_templates\":[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}],"
+                            + "\"properties\":{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}}";
             client.admin().indices().prepareCreate(index2).execute().actionGet();
             AcknowledgedResponse putMappingResponse =
-                    client.admin().indices().preparePutMapping(index2).setSource(source, XContentType.JSON).execute().actionGet();
+                    client.admin().indices().preparePutMapping(index2).setSource(mappingSource, XContentType.JSON).execute().actionGet();
             assertTrue(putMappingResponse.isAcknowledged());
         }
     }

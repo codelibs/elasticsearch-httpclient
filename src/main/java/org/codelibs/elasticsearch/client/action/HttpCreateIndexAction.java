@@ -16,22 +16,34 @@
 package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.support.ActiveShardCount;
+import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.ToXContent.Params;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 
 public class HttpCreateIndexAction extends HttpAction {
+
+    protected static final ParseField MAPPINGS = new ParseField("mappings");
+    protected static final ParseField SETTINGS = new ParseField("settings");
+    protected static final ParseField ALIASES = new ParseField("aliases");
 
     protected final CreateIndexAction action;
 
@@ -42,7 +54,7 @@ public class HttpCreateIndexAction extends HttpAction {
 
     public void execute(final CreateIndexRequest request, final ActionListener<CreateIndexResponse> listener) {
         String source = null;
-        try (final XContentBuilder builder = request.toXContent(JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
+        try (final XContentBuilder builder = toXContent(request, JsonXContent.contentBuilder(), ToXContent.EMPTY_PARAMS)) {
             builder.flush();
             source = BytesReference.bytes(builder).utf8ToString();
         } catch (final IOException e) {
@@ -56,6 +68,47 @@ public class HttpCreateIndexAction extends HttpAction {
                 listener.onFailure(toElasticsearchException(response, e));
             }
         }, e -> unwrapElasticsearchException(listener, e));
+    }
+
+    protected XContentBuilder toXContent(CreateIndexRequest request, XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        innerToXContent(request, builder, params);
+        builder.endObject();
+        return builder;
+    }
+
+    protected XContentBuilder innerToXContent(CreateIndexRequest request, XContentBuilder builder, Params params) throws IOException {
+        builder.startObject(SETTINGS.getPreferredName());
+        request.settings().toXContent(builder, params);
+        builder.endObject();
+
+        final String mappingSource = request.mappings().get("_doc");
+        if (mappingSource != null) {
+            try (InputStream stream = new BytesArray(mappingSource).streamInput()) {
+                builder.rawField(MAPPINGS.getPreferredName(), stream, XContentType.JSON);
+            }
+        } else {
+            builder.startObject(MAPPINGS.getPreferredName());
+            for (Map.Entry<String, String> entry : request.mappings().entrySet()) {
+                if ("properties".equals(entry.getKey()) || "dynamic_templates".equals(entry.getKey()) || "_source".equals(entry.getKey())) {
+                    final Map<String, Object> sourceMap =
+                            XContentHelper.convertToMap(new BytesArray(entry.getValue()), false, XContentType.JSON).v2();
+                    builder.field(entry.getKey(), sourceMap.get(entry.getKey()));
+                } else {
+                    try (InputStream stream = new BytesArray(entry.getValue()).streamInput()) {
+                        builder.rawField(entry.getKey(), stream, XContentType.JSON);
+                    }
+                }
+            }
+            builder.endObject();
+        }
+
+        builder.startObject(ALIASES.getPreferredName());
+        for (Alias alias : request.aliases()) {
+            alias.toXContent(builder, params);
+        }
+        builder.endObject();
+        return builder;
     }
 
     protected CurlRequest getCurlRequest(final CreateIndexRequest request) {
