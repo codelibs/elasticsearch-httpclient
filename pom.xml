@@ -32,7 +32,7 @@
 	</parent>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<elasticsearch.version>7.3.2</elasticsearch.version>
+		<elasticsearch.version>7.4.0</elasticsearch.version>
 		<junit.jupiter.version>5.4.2</junit.jupiter.version>
 	</properties>
 	<build>
