@@ -18,7 +18,6 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -49,7 +48,7 @@ public class HttpGetAliasesAction extends HttpAction {
     public void execute(final GetAliasesRequest request, final ActionListener<GetAliasesResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser, action::newResponse);
+                final GetAliasesResponse getAliasesResponse = getGetAliasesResponse(parser);
                 listener.onResponse(getAliasesResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -65,8 +64,7 @@ public class HttpGetAliasesAction extends HttpAction {
         return curlRequest;
     }
 
-    protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser, final Supplier<GetAliasesResponse> newResponse)
-            throws IOException {
+    protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser) throws IOException {
         final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
@@ -98,9 +96,7 @@ public class HttpGetAliasesAction extends HttpAction {
                     aliasMetaData.writeTo(out);
                 }
             }
-            final GetAliasesResponse response = newResponse.get();
-            response.readFrom(out.toStreamInput());
-            return response;
+            return action.getResponseReader().read(out.toStreamInput());
         }
     }
 

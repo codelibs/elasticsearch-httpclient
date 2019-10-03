@@ -31,6 +31,8 @@ import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.ToXContent.Params;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -82,10 +84,18 @@ public class HttpCreateIndexAction extends HttpAction {
         request.settings().toXContent(builder, params);
         builder.endObject();
 
-        final String mappingSource = request.mappings().get("_doc");
+        String mappingSource = request.mappings().get("_doc");
         if (mappingSource != null) {
-            try (InputStream stream = new BytesArray(mappingSource).streamInput()) {
-                builder.rawField(MAPPINGS.getPreferredName(), stream, XContentType.JSON);
+            try (final XContentParser createParser =
+                    JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, mappingSource)) {
+                final Map<String, Object> mappingMap = createParser.map();
+                if (mappingMap.containsKey("_doc")) {
+                    builder.field(MAPPINGS.getPreferredName(), mappingMap.get("_doc"));
+                } else {
+                    try (InputStream stream = new BytesArray(mappingSource).streamInput()) {
+                        builder.rawField(MAPPINGS.getPreferredName(), stream, XContentType.JSON);
+                    }
+                }
             }
         } else {
             builder.startObject(MAPPINGS.getPreferredName());

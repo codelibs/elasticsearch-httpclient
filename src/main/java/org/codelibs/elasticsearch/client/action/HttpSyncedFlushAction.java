@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -66,7 +65,7 @@ public class HttpSyncedFlushAction extends HttpAction {
     public void execute(final SyncedFlushRequest request, final ActionListener<SyncedFlushResponse> listener) {
         getCurlRequest(request).execute(response -> {
             try (final XContentParser parser = createParser(response)) {
-                final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser, action::newResponse);
+                final SyncedFlushResponse syncedFlushResponse = getSyncedFlushResponse(parser);
                 listener.onResponse(syncedFlushResponse);
             } catch (final Exception e) {
                 listener.onFailure(toElasticsearchException(response, e));
@@ -80,8 +79,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         return curlRequest;
     }
 
-    protected SyncedFlushResponse getSyncedFlushResponse(final XContentParser parser, final Supplier<SyncedFlushResponse> newResponse)
-            throws IOException {
+    protected SyncedFlushResponse getSyncedFlushResponse(final XContentParser parser) throws IOException {
         ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
 
         //  Fields for ShardCounts
@@ -117,9 +115,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                     shardsSyncedFlushResult.writeTo(out);
                 }
             }
-            final SyncedFlushResponse response = newResponse.get();
-            response.readFrom(out.toStreamInput());
-            return response;
+            return action.getResponseReader().read(out.toStreamInput());
         }
     }
 

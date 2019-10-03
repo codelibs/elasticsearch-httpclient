@@ -1186,22 +1186,22 @@ public class HttpNodesStatsAction extends HttpAction {
             parser.nextToken();
         }
         try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-            out.writeOptionalStreamable(docs);
-            out.writeOptionalStreamable(store);
-            out.writeOptionalStreamable(indexing);
-            out.writeOptionalStreamable(get);
+            out.writeOptionalWriteable(docs);
+            out.writeOptionalWriteable(store);
+            out.writeOptionalWriteable(indexing);
+            out.writeOptionalWriteable(get);
             out.writeOptionalWriteable(search);
-            out.writeOptionalStreamable(merge);
-            out.writeOptionalStreamable(refresh);
-            out.writeOptionalStreamable(flush);
-            out.writeOptionalStreamable(warmer);
-            out.writeOptionalStreamable(queryCache);
-            out.writeOptionalStreamable(fieldData);
-            out.writeOptionalStreamable(completion);
-            out.writeOptionalStreamable(segments);
-            out.writeOptionalStreamable(translog);
-            out.writeOptionalStreamable(requestCache);
-            out.writeOptionalStreamable(recoveryStats);
+            out.writeOptionalWriteable(merge);
+            out.writeOptionalWriteable(refresh);
+            out.writeOptionalWriteable(flush);
+            out.writeOptionalWriteable(warmer);
+            out.writeOptionalWriteable(queryCache);
+            out.writeOptionalWriteable(fieldData);
+            out.writeOptionalWriteable(completion);
+            out.writeOptionalWriteable(segments);
+            out.writeOptionalWriteable(translog);
+            out.writeOptionalWriteable(requestCache);
+            out.writeOptionalWriteable(recoveryStats);
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
                 return new NodeIndicesStats(new CommonStats(in), statsByShard);
             }
@@ -1575,8 +1575,7 @@ public class HttpNodesStatsAction extends HttpAction {
             out.writeVLong(totalThrottledTimeInMillis);
             out.writeVLong(totalBytesPerSecAutoThrottle);
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
-                final MergeStats mergeStats = new MergeStats();
-                mergeStats.readFrom(in);
+                final MergeStats mergeStats = new MergeStats(in);
                 return mergeStats;
             }
         }

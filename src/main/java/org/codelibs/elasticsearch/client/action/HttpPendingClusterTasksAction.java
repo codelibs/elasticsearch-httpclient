@@ -18,7 +18,6 @@ package org.codelibs.elasticsearch.client.action;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -43,16 +42,14 @@ public class HttpPendingClusterTasksAction extends HttpAction {
     }
 
     public void execute(final PendingClusterTasksRequest request, final ActionListener<PendingClusterTasksResponse> listener) {
-        getCurlRequest(request).execute(
-                response -> {
-                    try (final XContentParser parser = createParser(response)) {
-                        final PendingClusterTasksResponse pendingClusterTasksResponse =
-                                getPendingClusterTasksResponse(parser, action::newResponse);
-                        listener.onResponse(pendingClusterTasksResponse);
-                    } catch (final Exception e) {
-                        listener.onFailure(toElasticsearchException(response, e));
-                    }
-                }, e -> unwrapElasticsearchException(listener, e));
+        getCurlRequest(request).execute(response -> {
+            try (final XContentParser parser = createParser(response)) {
+                final PendingClusterTasksResponse pendingClusterTasksResponse = getPendingClusterTasksResponse(parser);
+                listener.onResponse(pendingClusterTasksResponse);
+            } catch (final Exception e) {
+                listener.onFailure(toElasticsearchException(response, e));
+            }
+        }, e -> unwrapElasticsearchException(listener, e));
     }
 
     protected CurlRequest getCurlRequest(final PendingClusterTasksRequest request) {
@@ -65,8 +62,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
         return curlRequest;
     }
 
-    protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser,
-            final Supplier<PendingClusterTasksResponse> newResponse) {
+    protected PendingClusterTasksResponse getPendingClusterTasksResponse(final XContentParser parser) {
         @SuppressWarnings("unchecked")
         final ConstructingObjectParser<PendingClusterTasksResponse, Void> objectParser =
                 new ConstructingObjectParser<>("pending_cluster_tasks", true, a -> {
@@ -78,9 +74,7 @@ public class HttpPendingClusterTasksAction extends HttpAction {
                             task.writeTo(out);
                         }
 
-                        final PendingClusterTasksResponse response = newResponse.get();
-                        response.readFrom(out.toStreamInput());
-                        return response;
+                        return action.getResponseReader().read(out.toStreamInput());
                     } catch (final IOException e) {
                         throw new UncheckedIOException(e);
                     }
