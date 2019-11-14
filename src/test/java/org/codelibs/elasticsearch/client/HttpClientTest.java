@@ -146,7 +146,7 @@ public class HttpClientTest {
 
     @BeforeEach
     void setUp() {
-        final Settings settings = Settings.builder().putList("http.hosts", "localhost:9201").build();
+        final Settings settings = Settings.builder().putList("http.hosts", "localhost:9201").put("http.compression", true).build();
         client = new HttpClient(settings, null);
     }
 

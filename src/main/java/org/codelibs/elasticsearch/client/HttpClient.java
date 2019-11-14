@@ -387,6 +387,8 @@ public class HttpClient extends AbstractClient {
 
     protected final String basicAuth;
 
+    protected final boolean compression;
+
     protected final List<UnaryOperator<CurlRequest>> requestBuilderList = new ArrayList<>();
 
     public enum ContentType {
@@ -419,6 +421,7 @@ public class HttpClient extends AbstractClient {
             throw new ElasticsearchException("http.hosts is empty.");
         }
 
+        compression = settings.getAsBoolean("http.compression", true);
         basicAuth = createBasicAuthentication(settings);
         this.threadPool = createThreadPool(settings);
 
@@ -840,7 +843,7 @@ public class HttpClient extends AbstractClient {
 
     }
 
-    private String createBasicAuthentication(final Settings settings) {
+    protected String createBasicAuthentication(final Settings settings) {
         final String username = settings.get("elasticsearch.username");
         final String password = settings.get("elasticsearch.password");
         if (username != null && password != null) {
@@ -895,6 +898,9 @@ public class HttpClient extends AbstractClient {
         CurlRequest request = method.apply(buf.toString()).header("Content-Type", contentType.getString()).threadPool(threadPool);
         if (basicAuth != null) {
             request = request.header("Authorization", basicAuth);
+        }
+        if (compression) {
+            request.compression("gzip");
         }
         for (final UnaryOperator<CurlRequest> builder : requestBuilderList) {
             request = builder.apply(request);
