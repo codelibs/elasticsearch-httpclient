@@ -25,8 +25,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -128,6 +130,7 @@ public class HttpSyncedFlushAction extends HttpAction {
             if (token == Token.START_ARRAY) {
                 final String currentFieldName = parser.currentName();
                 if (FAILURES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
+                    // TODO response may be only shard and reason
                     parseFailuresField(parser, index, shardsSyncedFlushResults, total);
                 } else {
                     parser.skipChildren();
@@ -258,6 +261,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         long unassignedTimeMillis = 0;
         int failedAllocations = 0;
         boolean delayed = false;
+        final Set<String> failedNodeIds = new HashSet<>();
         UnassignedInfo.AllocationStatus allocationStatus = null;
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
             if (token.isValue()) {
@@ -282,7 +286,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         }
 
         return new UnassignedInfo(reason, null, null, failedAllocations, unassignedTimeMillis * 1000000L, unassignedTimeMillis, delayed,
-                allocationStatus);
+                allocationStatus, failedNodeIds);
     }
 
     protected RecoverySource getRecoverySource(final XContentParser parser) throws IOException {
