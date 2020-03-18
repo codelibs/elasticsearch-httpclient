@@ -39,6 +39,7 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.VersionType;
+import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 
 public class HttpBulkAction extends HttpAction {
@@ -120,7 +121,9 @@ public class HttpBulkAction extends HttpAction {
         final String opType = request.opType().getLowercase();
         buf.append("{\"").append(opType).append("\":{");
         appendStr(buf, "_index", request.index());
-        if (request.type() != null) {
+        if (request.type() != null &&
+                // workaround fix for org.elasticsearch.action.index.IndexRequest.type()
+                !request.type().equals(MapperService.SINGLE_MAPPING_NAME)) {
             appendStr(buf.append(','), "_type", request.type());
         }
         if (request.id() != null) {
