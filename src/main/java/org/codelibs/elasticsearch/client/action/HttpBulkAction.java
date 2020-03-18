@@ -120,7 +120,9 @@ public class HttpBulkAction extends HttpAction {
         final String opType = request.opType().getLowercase();
         buf.append("{\"").append(opType).append("\":{");
         appendStr(buf, "_index", request.index());
-        if (request.type() != null) {
+        if (request.type() != null &&
+                // workaround fix for org.elasticsearch.action.index.IndexRequest.type()
+                !request.type().equals("_doc")) {
             appendStr(buf.append(','), "_type", request.type());
         }
         if (request.id() != null) {
