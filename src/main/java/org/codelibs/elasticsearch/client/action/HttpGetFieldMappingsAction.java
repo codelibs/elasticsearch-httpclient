@@ -15,6 +15,8 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
+
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
@@ -33,8 +35,6 @@ import org.elasticsearch.common.xcontent.ConstructingObjectParser;
 import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
-
-import static org.elasticsearch.common.xcontent.XContentParserUtils.ensureExpectedToken;
 
 public class HttpGetFieldMappingsAction extends HttpAction {
 

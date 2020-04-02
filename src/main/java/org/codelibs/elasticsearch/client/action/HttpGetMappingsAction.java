@@ -64,21 +64,21 @@ public class HttpGetMappingsAction extends HttpAction {
 
     // TODO replace with GetMappingsResonse#fromXContent, but it cannot parse dynamic_templates in 7.0.0-beta1.
     // from GetMappingsResponse
-    public static GetMappingsResponse fromXContent(XContentParser parser) throws IOException {
+    public static GetMappingsResponse fromXContent(final XContentParser parser) throws IOException {
         if (parser.currentToken() == null) {
             parser.nextToken();
         }
         assert parser.currentToken() == XContentParser.Token.START_OBJECT;
-        Map<String, Object> parts = parser.map();
+        final Map<String, Object> parts = parser.map();
 
-        ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> builder = new ImmutableOpenMap.Builder<>();
-        for (Map.Entry<String, Object> entry : parts.entrySet()) {
+        final ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> builder = new ImmutableOpenMap.Builder<>();
+        for (final Map.Entry<String, Object> entry : parts.entrySet()) {
             final String indexName = entry.getKey();
             assert entry.getValue() instanceof Map : "expected a map as type mapping, but got: " + entry.getValue().getClass();
             final Map<String, Object> mapping = (Map<String, Object>) ((Map) entry.getValue()).get(MAPPINGS.getPreferredName());
 
-            ImmutableOpenMap.Builder<String, MappingMetaData> typeBuilder = new ImmutableOpenMap.Builder<>();
-            for (Map.Entry<String, Object> typeEntry : mapping.entrySet()) {
+            final ImmutableOpenMap.Builder<String, MappingMetaData> typeBuilder = new ImmutableOpenMap.Builder<>();
+            for (final Map.Entry<String, Object> typeEntry : mapping.entrySet()) {
                 final String typeName = typeEntry.getKey();
                 assert typeEntry.getValue() instanceof Map : "expected a map as inner type mapping, but got: "
                         + typeEntry.getValue().getClass();
@@ -86,7 +86,7 @@ public class HttpGetMappingsAction extends HttpAction {
                     continue;
                 }
                 final Map<String, Object> fieldMappings = (Map<String, Object>) typeEntry.getValue();
-                MappingMetaData mmd = new MappingMetaData(typeName, fieldMappings);
+                final MappingMetaData mmd = new MappingMetaData(typeName, fieldMappings);
                 typeBuilder.put(typeName, mmd);
             }
             builder.put(indexName, typeBuilder.build());

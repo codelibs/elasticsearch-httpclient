@@ -24,6 +24,7 @@ import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.action.admin.indices.stats.CommonStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
+import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags.Flag;
 import org.elasticsearch.action.admin.indices.stats.IndexShardStats;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.DiskUsage;
@@ -147,7 +148,7 @@ public class HttpNodesStatsAction extends HttpAction {
         DiscoveryStats discoveryStats = null;
         IngestStats ingestStats = null;
         AdaptiveSelectionStats adaptiveSelectionStats = null;
-        Map<String, String> attributes = new HashMap<>();
+        final Map<String, String> attributes = new HashMap<>();
         XContentParser.Token token;
         TransportAddress transportAddress = new TransportAddress(TransportAddress.META_ADDRESS, 0);
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
@@ -207,21 +208,21 @@ public class HttpNodesStatsAction extends HttpAction {
     public static TransportAddress parseTransportAddress(final String addr) {
         try {
             if (addr.startsWith("[")) {
-                String[] values = addr.split("\\]:");
+                final String[] values = addr.split("\\]:");
                 int port = 0;
                 if (values.length > 1) {
                     port = Integer.parseInt(values[1]);
                 }
                 return new TransportAddress(InetAddress.getByName(values[0].replace('[', ' ').replace(']', ' ').trim()), port);
             } else {
-                String[] values = addr.split(":");
+                final String[] values = addr.split(":");
                 int port = 0;
                 if (values.length > 1) {
                     port = Integer.parseInt(values[1]);
                 }
                 return new TransportAddress(InetAddress.getByName(values[0]), port);
             }
-        } catch (Exception e) {
+        } catch (final Exception e) {
             return new TransportAddress(TransportAddress.META_ADDRESS, 0);
         }
     }
@@ -1373,7 +1374,7 @@ public class HttpNodesStatsAction extends HttpAction {
             out.writeVInt(fileSizes.size());
             for (final Map.Entry<String, Long> entry : fileSizes.entrySet()) {
                 out.writeString(entry.getKey());
-                out.writeLong(entry.getValue().longValue());
+                out.writeLong(entry.getValue());
             }
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
                 return new SegmentsStats(in);
@@ -1825,7 +1826,7 @@ public class HttpNodesStatsAction extends HttpAction {
         if (request.indices().anySet() && CommonStatsFlags.ALL.getFlags().length != request.indices().getFlags().length) {
             list.add("indices");
             return list.stream().collect(Collectors.joining(",")) + "/"
-                    + Arrays.stream(request.indices().getFlags()).map(f -> f.getRestName()).collect(Collectors.joining(","));
+                    + Arrays.stream(request.indices().getFlags()).map(Flag::getRestName).collect(Collectors.joining(","));
         } else {
             return list.stream().collect(Collectors.joining(","));
         }

@@ -17,7 +17,6 @@ package org.codelibs.elasticsearch.client.action;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
-import org.codelibs.elasticsearch.client.util.UrlUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;

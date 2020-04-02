@@ -859,7 +859,7 @@ public class HttpClient extends AbstractClient {
             try {
                 threadPool.shutdown();
                 threadPool.awaitTermination(60, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 // nothing
             } finally {
                 threadPool.shutdownNow();
@@ -868,8 +868,8 @@ public class HttpClient extends AbstractClient {
     }
 
     @Override
-    protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(ActionType<Response> action, Request request,
-            ActionListener<Response> listener) {
+    protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(final ActionType<Response> action,
+            final Request request, final ActionListener<Response> listener) {
         final BiConsumer<ActionRequest, ActionListener<?>> httpAction = actions.get(action);
         if (httpAction == null) {
             throw new UnsupportedOperationException("Action: " + action.name());
@@ -909,9 +909,9 @@ public class HttpClient extends AbstractClient {
     }
 
     protected ForkJoinPool createThreadPool(final Settings settings) {
-        int parallelism =
+        final int parallelism =
                 settings.getAsInt("thread_pool.http.size", settings.getAsInt("processors", Runtime.getRuntime().availableProcessors()));
-        boolean asyncMode = settings.getAsBoolean("thread_pool.http.async", false);
+        final boolean asyncMode = settings.getAsBoolean("thread_pool.http.async", false);
         return new ForkJoinPool(parallelism, WorkerThread::new,
                 (t, e) -> logger.warn("An exception has been raised by {}", t.getName(), e), asyncMode);
     }
@@ -992,7 +992,7 @@ public class HttpClient extends AbstractClient {
     }
 
     protected static class WorkerThread extends ForkJoinWorkerThread {
-        protected WorkerThread(ForkJoinPool pool) {
+        protected WorkerThread(final ForkJoinPool pool) {
             super(pool);
             setName("eshttp");
         }

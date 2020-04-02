@@ -72,19 +72,21 @@ public class HttpCreateIndexAction extends HttpAction {
         }, e -> unwrapElasticsearchException(listener, e));
     }
 
-    protected XContentBuilder toXContent(CreateIndexRequest request, XContentBuilder builder, Params params) throws IOException {
+    protected XContentBuilder toXContent(final CreateIndexRequest request, final XContentBuilder builder, final Params params)
+            throws IOException {
         builder.startObject();
         innerToXContent(request, builder, params);
         builder.endObject();
         return builder;
     }
 
-    protected XContentBuilder innerToXContent(CreateIndexRequest request, XContentBuilder builder, Params params) throws IOException {
+    protected XContentBuilder innerToXContent(final CreateIndexRequest request, final XContentBuilder builder, final Params params)
+            throws IOException {
         builder.startObject(SETTINGS.getPreferredName());
         request.settings().toXContent(builder, params);
         builder.endObject();
 
-        String mappingSource = request.mappings().get("_doc");
+        final String mappingSource = request.mappings().get("_doc");
         if (mappingSource != null) {
             try (final XContentParser createParser =
                     JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, mappingSource)) {
@@ -99,7 +101,7 @@ public class HttpCreateIndexAction extends HttpAction {
             }
         } else {
             builder.startObject(MAPPINGS.getPreferredName());
-            for (Map.Entry<String, String> entry : request.mappings().entrySet()) {
+            for (final Map.Entry<String, String> entry : request.mappings().entrySet()) {
                 if ("properties".equals(entry.getKey()) || "dynamic_templates".equals(entry.getKey()) || "_source".equals(entry.getKey())) {
                     final Map<String, Object> sourceMap =
                             XContentHelper.convertToMap(new BytesArray(entry.getValue()), false, XContentType.JSON).v2();
@@ -114,7 +116,7 @@ public class HttpCreateIndexAction extends HttpAction {
         }
 
         builder.startObject(ALIASES.getPreferredName());
-        for (Alias alias : request.aliases()) {
+        for (final Alias alias : request.aliases()) {
             alias.toXContent(builder, params);
         }
         builder.endObject();

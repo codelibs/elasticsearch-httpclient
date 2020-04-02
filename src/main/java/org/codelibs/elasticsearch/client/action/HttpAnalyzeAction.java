@@ -125,7 +125,7 @@ public class HttpAnalyzeAction extends HttpAction {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> T[] fromList(Class<T> clazz, List<T> list) {
+    private static <T> T[] fromList(final Class<T> clazz, final List<T> list) {
         if (list == null) {
             return null;
         }
@@ -169,11 +169,11 @@ public class HttpAnalyzeAction extends HttpAction {
         PARSER.declareObject(optionalConstructorArg(), DETAIL_PARSER, new ParseField(Fields.DETAIL));
     }
 
-    public static AnalyzeAction.Response fromXContent(XContentParser parser) throws IOException {
+    public static AnalyzeAction.Response fromXContent(final XContentParser parser) throws IOException {
         return PARSER.parse(parser, null);
     }
 
-    protected static AnalyzeToken getAnalyzeTokenFromXContent(XContentParser parser) throws IOException {
+    protected static AnalyzeToken getAnalyzeTokenFromXContent(final XContentParser parser) throws IOException {
         ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.currentToken(), parser::getTokenLocation);
         String field = null;
         String term = "";
@@ -182,7 +182,7 @@ public class HttpAnalyzeAction extends HttpAction {
         int endOffset = -1;
         int positionLength = 1;
         String type = "";
-        Map<String, Object> attributes = new HashMap<>();
+        final Map<String, Object> attributes = new HashMap<>();
         for (XContentParser.Token t = parser.nextToken(); t != XContentParser.Token.END_OBJECT; t = parser.nextToken()) {
             if (t == XContentParser.Token.FIELD_NAME) {
                 field = parser.currentName();
@@ -217,8 +217,8 @@ public class HttpAnalyzeAction extends HttpAction {
         return new AnalyzeToken(term, position, startOffset, endOffset, positionLength, type, attributes);
     }
 
-    private static DetailAnalyzeResponse createDetailAnalyzeResponse(boolean customAnalyzer, AnalyzeTokenList analyzer,
-            CharFilteredText[] charfilters, AnalyzeTokenList tokenizer, AnalyzeTokenList[] tokenfilters) {
+    private static DetailAnalyzeResponse createDetailAnalyzeResponse(final boolean customAnalyzer, final AnalyzeTokenList analyzer,
+            final CharFilteredText[] charfilters, final AnalyzeTokenList tokenizer, final AnalyzeTokenList[] tokenfilters) {
         if (customAnalyzer) {
             return new DetailAnalyzeResponse(charfilters, tokenizer, tokenfilters);
         } else {
