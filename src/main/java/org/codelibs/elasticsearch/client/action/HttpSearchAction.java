@@ -72,7 +72,9 @@ public class HttpSearchAction extends HttpAction {
         final CurlRequest curlRequest = client.getCurlRequest(POST, "/_search", request.indices());
         curlRequest.param("typed_keys", "true");
         curlRequest.param("batched_reduce_size", Integer.toString(request.getBatchedReduceSize()));
-        curlRequest.param("pre_filter_shard_size", Integer.toString(request.getPreFilterShardSize()));
+        if (request.getPreFilterShardSize() != null) {
+            curlRequest.param("pre_filter_shard_size", request.getPreFilterShardSize().toString());
+        }
         if (request.getMaxConcurrentShardRequests() > 0) {
             curlRequest.param("max_concurrent_shard_requests", Integer.toString(request.getMaxConcurrentShardRequests()));
         }
