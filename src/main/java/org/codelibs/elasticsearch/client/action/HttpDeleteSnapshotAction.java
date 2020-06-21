@@ -15,6 +15,9 @@
  */
 package org.codelibs.elasticsearch.client.action;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
 import org.codelibs.elasticsearch.client.util.UrlUtils;
@@ -50,8 +53,8 @@ public class HttpDeleteSnapshotAction extends HttpAction {
         if (request.repository() != null) {
             pathBuf.append('/').append(UrlUtils.encode(request.repository()));
         }
-        if (request.snapshot() != null) {
-            pathBuf.append('/').append(UrlUtils.encode(request.snapshot()));
+        if (request.snapshots() != null && request.snapshots().length > 0) {
+            pathBuf.append('/').append(UrlUtils.encode(Arrays.stream(request.snapshots()).collect(Collectors.joining(","))));
         }
         final CurlRequest curlRequest = client.getCurlRequest(DELETE, pathBuf.toString());
         if (request.masterNodeTimeout() != null) {

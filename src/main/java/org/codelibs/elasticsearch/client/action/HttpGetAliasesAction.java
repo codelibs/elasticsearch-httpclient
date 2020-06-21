@@ -27,7 +27,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -65,7 +65,7 @@ public class HttpGetAliasesAction extends HttpAction {
     }
 
     protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser) throws IOException {
-        final ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesMapBuilder = ImmutableOpenMap.builder();
+        final ImmutableOpenMap.Builder<String, List<AliasMetadata>> aliasesMapBuilder = ImmutableOpenMap.builder();
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
         XContentParser.Token token;
@@ -85,14 +85,14 @@ public class HttpGetAliasesAction extends HttpAction {
             }
         }
 
-        final ImmutableOpenMap<String, List<AliasMetaData>> aliases = aliasesMapBuilder.build();
+        final ImmutableOpenMap<String, List<AliasMetadata>> aliases = aliasesMapBuilder.build();
 
         try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
             out.writeVInt(aliases.size());
-            for (final ObjectObjectCursor<String, List<AliasMetaData>> entry : aliases) {
+            for (final ObjectObjectCursor<String, List<AliasMetadata>> entry : aliases) {
                 out.writeString(entry.key);
                 out.writeVInt(entry.value.size());
-                for (final AliasMetaData aliasMetaData : entry.value) {
+                for (final AliasMetadata aliasMetaData : entry.value) {
                     aliasMetaData.writeTo(out);
                 }
             }
@@ -100,15 +100,15 @@ public class HttpGetAliasesAction extends HttpAction {
         }
     }
 
-    public static List<AliasMetaData> getAliases(final XContentParser parser) throws IOException {
-        final List<AliasMetaData> aliases = new ArrayList<>();
+    public static List<AliasMetadata> getAliases(final XContentParser parser) throws IOException {
+        final List<AliasMetadata> aliases = new ArrayList<>();
         Token token = parser.nextToken();
         if (token == null) {
             return aliases;
         }
         while ((token = parser.nextToken()) != Token.END_OBJECT) {
             if (token == Token.FIELD_NAME) {
-                aliases.add(AliasMetaData.Builder.fromXContent(parser));
+                aliases.add(AliasMetadata.Builder.fromXContent(parser));
             }
         }
         return aliases;

@@ -70,11 +70,11 @@ public class HttpGetFieldMappingsAction extends HttpAction {
 
     protected GetFieldMappingsResponse fromXContent(final XContentParser parser) throws IOException {
         ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
-        final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings = new HashMap<>();
+        final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetadata>>> mappings = new HashMap<>();
         if (parser.nextToken() == XContentParser.Token.FIELD_NAME) {
             while (parser.currentToken() == XContentParser.Token.FIELD_NAME) {
                 final String index = parser.currentName();
-                final Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> typeMappings =
+                final Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetadata>> typeMappings =
                         parseTypeMappings(parser, index);
                 mappings.put(index, typeMappings);
 
@@ -85,9 +85,9 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         return newGetFieldMappingsResponse(mappings);
     }
 
-    protected Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> parseTypeMappings(final XContentParser parser,
+    protected Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetadata>> parseTypeMappings(final XContentParser parser,
             final String index) throws IOException {
-        final ObjectParser<Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>, String> objectParser =
+        final ObjectParser<Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetadata>>, String> objectParser =
                 new ObjectParser<>(MAPPINGS_FIELD.getPreferredName(), true, HashMap::new);
         objectParser.declareField((p, typeMappings, idx) -> {
             p.nextToken();
@@ -95,11 +95,11 @@ public class HttpGetFieldMappingsAction extends HttpAction {
                 final String typeName = p.currentName();
 
                 if (p.nextToken() == XContentParser.Token.START_OBJECT) {
-                    final Map<String, GetFieldMappingsResponse.FieldMappingMetaData> typeMapping = new HashMap<>();
+                    final Map<String, GetFieldMappingsResponse.FieldMappingMetadata> typeMapping = new HashMap<>();
                     typeMappings.put(typeName, typeMapping);
                     do {
                         final String fieldName = p.currentName();
-                        final GetFieldMappingsResponse.FieldMappingMetaData fieldMappingMetaData = getFieldMappingMetaData(p);
+                        final GetFieldMappingsResponse.FieldMappingMetadata fieldMappingMetaData = getFieldMappingMetadata(p);
                         typeMapping.put(fieldName, fieldMappingMetaData);
                     } while (p.nextToken() == XContentParser.Token.START_OBJECT);
                 } else {
@@ -112,9 +112,9 @@ public class HttpGetFieldMappingsAction extends HttpAction {
         return objectParser.parse(parser, index);
     }
 
-    protected GetFieldMappingsResponse.FieldMappingMetaData getFieldMappingMetaData(final XContentParser parser) throws IOException {
-        final ConstructingObjectParser<GetFieldMappingsResponse.FieldMappingMetaData, String> objectParser =
-                new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new GetFieldMappingsResponse.FieldMappingMetaData(
+    protected GetFieldMappingsResponse.FieldMappingMetadata getFieldMappingMetadata(final XContentParser parser) throws IOException {
+        final ConstructingObjectParser<GetFieldMappingsResponse.FieldMappingMetadata, String> objectParser =
+                new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new GetFieldMappingsResponse.FieldMappingMetadata(
                         (String) a[0], (BytesReference) a[1]));
 
         objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
@@ -127,7 +127,7 @@ public class HttpGetFieldMappingsAction extends HttpAction {
     }
 
     protected GetFieldMappingsResponse newGetFieldMappingsResponse(
-            final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> mappings) {
+            final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetadata>>> mappings) {
         final Class<GetFieldMappingsResponse> clazz = GetFieldMappingsResponse.class;
         final Class<?>[] types = { Map.class };
         try {

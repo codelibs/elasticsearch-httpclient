@@ -63,6 +63,7 @@ import org.elasticsearch.monitor.jvm.JvmStats;
 import org.elasticsearch.monitor.os.OsStats;
 import org.elasticsearch.monitor.process.ProcessStats;
 import org.elasticsearch.node.AdaptiveSelectionStats;
+import org.elasticsearch.script.ScriptCacheStats;
 import org.elasticsearch.script.ScriptStats;
 import org.elasticsearch.search.suggest.completion.CompletionStats;
 import org.elasticsearch.threadpool.ThreadPoolStats;
@@ -148,6 +149,7 @@ public class HttpNodesStatsAction extends HttpAction {
         DiscoveryStats discoveryStats = null;
         IngestStats ingestStats = null;
         AdaptiveSelectionStats adaptiveSelectionStats = null;
+        ScriptCacheStats scriptCacheStats = null;
         final Map<String, String> attributes = new HashMap<>();
         XContentParser.Token token;
         TransportAddress transportAddress = new TransportAddress(TransportAddress.META_ADDRESS, 0);
@@ -182,6 +184,8 @@ public class HttpNodesStatsAction extends HttpAction {
                     ingestStats = parseIngestStats(parser);
                 } else if ("adaptive_selection".equals(fieldName)) {
                     adaptiveSelectionStats = parseAdaptiveSelectionStats(parser);
+                } else if ("script_cache".equals(fieldName)) {
+                    scriptCacheStats = parsescriptCacheStats(parser);
                 } else {
                     consumeObject(parser);
                 }
@@ -202,7 +206,7 @@ public class HttpNodesStatsAction extends HttpAction {
         }
         final DiscoveryNode node = new DiscoveryNode(nodeName, nodeId, transportAddress, attributes, roles, Version.CURRENT);
         return new NodeStats(node, timestamp, indices, os, process, jvm, threadPool, fs, transport, http, breaker, scriptStats,
-                discoveryStats, ingestStats, adaptiveSelectionStats);
+                discoveryStats, ingestStats, adaptiveSelectionStats, scriptCacheStats);
     }
 
     public static TransportAddress parseTransportAddress(final String addr) {
@@ -230,6 +234,11 @@ public class HttpNodesStatsAction extends HttpAction {
     protected AdaptiveSelectionStats parseAdaptiveSelectionStats(final XContentParser parser) throws IOException {
         consumeObject(parser); // TODO
         return new AdaptiveSelectionStats(Collections.emptyMap(), Collections.emptyMap());
+    }
+
+    protected ScriptCacheStats parsescriptCacheStats(final XContentParser parser) throws IOException {
+        consumeObject(parser); // TODO
+        return new ScriptCacheStats(Collections.emptyMap());
     }
 
     protected IngestStats parseIngestStats(final XContentParser parser) throws IOException {
@@ -1786,49 +1795,12 @@ public class HttpNodesStatsAction extends HttpAction {
     }
 
     protected String getMetric(final NodesStatsRequest request) {
-        final List<String> list = new ArrayList<>();
-        if (request.os()) {
-            list.add("os");
-        }
-        if (request.jvm()) {
-            list.add("jvm");
-        }
-        if (request.threadPool()) {
-            list.add("thread_pool");
-        }
-        if (request.fs()) {
-            list.add("fs");
-        }
-        if (request.transport()) {
-            list.add("transport");
-        }
-        if (request.http()) {
-            list.add("http");
-        }
-        if (request.process()) {
-            list.add("process");
-        }
-        if (request.breaker()) {
-            list.add("breaker");
-        }
-        if (request.script()) {
-            list.add("script");
-        }
-        if (request.discovery()) {
-            list.add("discovery");
-        }
-        if (request.ingest()) {
-            list.add("ingest");
-        }
-        if (request.adaptiveSelection()) {
-            list.add("adaptive_selection");
-        }
+        final Set<String> metrics = request.requestedMetrics();
         if (request.indices().anySet() && CommonStatsFlags.ALL.getFlags().length != request.indices().getFlags().length) {
-            list.add("indices");
-            return list.stream().collect(Collectors.joining(",")) + "/"
+            return metrics.stream().collect(Collectors.joining(",")) + "/"
                     + Arrays.stream(request.indices().getFlags()).map(Flag::getRestName).collect(Collectors.joining(","));
         } else {
-            return list.stream().collect(Collectors.joining(","));
+            return metrics.stream().collect(Collectors.joining(","));
         }
     }
 

@@ -87,7 +87,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateResponse;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -562,7 +562,7 @@ public class HttpClientTest {
 
         client.admin().indices().prepareGetMappings(index).execute(wrap(res -> {
             try {
-                ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = res.getMappings();
+                ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetadata>> mappings = res.getMappings();
                 assertTrue(mappings.containsKey(index));
                 assertTrue(mappings.get(index).containsKey("properties"));
             } finally {
@@ -580,7 +580,7 @@ public class HttpClientTest {
 
         {
             GetMappingsResponse getMappingsResponse = client.admin().indices().prepareGetMappings(index).execute().actionGet();
-            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = getMappingsResponse.getMappings();
+            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetadata>> mappings = getMappingsResponse.getMappings();
             assertTrue(mappings.containsKey(index));
             assertTrue(mappings.get(index).containsKey("properties"));
         }
@@ -588,7 +588,7 @@ public class HttpClientTest {
         {
             GetMappingsResponse getMappingsResponse =
                     client.admin().indices().prepareGetMappings(index).setTypes("not_exists").execute().actionGet();
-            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = getMappingsResponse.getMappings();
+            ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetadata>> mappings = getMappingsResponse.getMappings();
             assertTrue(mappings.containsKey(index));
             assertFalse(mappings.get(index).containsKey("not_exists"));
         }
@@ -1318,9 +1318,8 @@ public class HttpClientTest {
 
         {
             NodesStatsResponse response =
-                    client.admin().cluster().prepareNodesStats().setIngest(false).setBreaker(false).setDiscovery(false).setFs(true)
-                            .setHttp(false).setIndices(true).setJvm(true).setOs(true).setProcess(true).setScript(false).setThreadPool(true)
-                            .setTransport(true).execute().actionGet();
+                    client.admin().cluster().prepareNodesStats().addMetrics("fs", "jvm", "os", "process", "thread_pool", "transport")
+                            .execute().actionGet();
             assertFalse(response.getNodes().isEmpty());
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();

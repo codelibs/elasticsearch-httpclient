@@ -25,6 +25,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
 import org.elasticsearch.action.admin.indices.rollover.RolloverRequest;
 import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
+import org.elasticsearch.action.support.ActiveShardCount;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -59,13 +60,23 @@ public class HttpRolloverAction extends HttpAction {
     }
 
     protected CurlRequest getCurlRequest(final RolloverRequest request) {
-        // RestRolloverAction
+        // RestRolloverIndexAction
         final CurlRequest curlRequest =
                 client.getCurlRequest(POST,
                         "/_rollover" + (request.getNewIndexName() != null ? "/" + UrlUtils.encode(request.getNewIndexName()) : ""),
-                        request.getAlias());
+                        request.getRolloverTarget());
         if (request.isDryRun()) {
             curlRequest.param("dry_run", "");
+        }
+        if (request.timeout() != null) {
+            curlRequest.param("timeout", request.timeout().toString());
+        }
+        if (request.masterNodeTimeout() != null) {
+            curlRequest.param("master_timeout", request.masterNodeTimeout().toString());
+        }
+        if (!ActiveShardCount.DEFAULT.equals(request.getCreateIndexRequest().waitForActiveShards())) {
+            curlRequest.param("wait_for_active_shards",
+                    String.valueOf(getActiveShardsCountValue(request.getCreateIndexRequest().waitForActiveShards())));
         }
         return curlRequest;
     }
