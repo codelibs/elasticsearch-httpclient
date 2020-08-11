@@ -1349,10 +1349,11 @@ public class HttpClientTest {
     // TODO RestoreSnapshotAction
 
     // needs x-pack
+    // TODO @Test
     void test_info() throws Exception {
         {
             MainResponse mainResponse = client.execute(MainAction.INSTANCE, new MainRequest()).actionGet();
-            assertEquals("elasticsearch", mainResponse.getClusterName());
+            assertEquals("elasticsearch", mainResponse.getClusterName().value());
         }
     }
 }
