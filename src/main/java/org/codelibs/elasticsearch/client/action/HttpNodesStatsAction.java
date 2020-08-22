@@ -51,6 +51,7 @@ import org.elasticsearch.index.refresh.RefreshStats;
 import org.elasticsearch.index.search.stats.SearchStats;
 import org.elasticsearch.index.shard.DocsStats;
 import org.elasticsearch.index.shard.IndexingStats;
+import org.elasticsearch.index.stats.IndexingPressureStats;
 import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.index.translog.TranslogStats;
 import org.elasticsearch.index.warmer.WarmerStats;
@@ -150,6 +151,7 @@ public class HttpNodesStatsAction extends HttpAction {
         IngestStats ingestStats = null;
         AdaptiveSelectionStats adaptiveSelectionStats = null;
         ScriptCacheStats scriptCacheStats = null;
+        IndexingPressureStats indexingPressureStats = null;
         final Map<String, String> attributes = new HashMap<>();
         XContentParser.Token token;
         TransportAddress transportAddress = new TransportAddress(TransportAddress.META_ADDRESS, 0);
@@ -185,7 +187,9 @@ public class HttpNodesStatsAction extends HttpAction {
                 } else if ("adaptive_selection".equals(fieldName)) {
                     adaptiveSelectionStats = parseAdaptiveSelectionStats(parser);
                 } else if ("script_cache".equals(fieldName)) {
-                    scriptCacheStats = parsescriptCacheStats(parser);
+                    scriptCacheStats = parseScriptCacheStats(parser);
+                } else if ("script_cache".equals(fieldName)) {
+                    indexingPressureStats = parsesIndexingPressureStats(parser);
                 } else {
                     consumeObject(parser);
                 }
@@ -206,7 +210,7 @@ public class HttpNodesStatsAction extends HttpAction {
         }
         final DiscoveryNode node = new DiscoveryNode(nodeName, nodeId, transportAddress, attributes, roles, Version.CURRENT);
         return new NodeStats(node, timestamp, indices, os, process, jvm, threadPool, fs, transport, http, breaker, scriptStats,
-                discoveryStats, ingestStats, adaptiveSelectionStats, scriptCacheStats);
+                discoveryStats, ingestStats, adaptiveSelectionStats, scriptCacheStats, indexingPressureStats);
     }
 
     public static TransportAddress parseTransportAddress(final String addr) {
@@ -236,9 +240,14 @@ public class HttpNodesStatsAction extends HttpAction {
         return new AdaptiveSelectionStats(Collections.emptyMap(), Collections.emptyMap());
     }
 
-    protected ScriptCacheStats parsescriptCacheStats(final XContentParser parser) throws IOException {
+    protected ScriptCacheStats parseScriptCacheStats(final XContentParser parser) throws IOException {
         consumeObject(parser); // TODO
         return new ScriptCacheStats(Collections.emptyMap());
+    }
+
+    protected IndexingPressureStats parsesIndexingPressureStats(final XContentParser parser) throws IOException {
+        consumeObject(parser); // TODO
+        return new IndexingPressureStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     protected IngestStats parseIngestStats(final XContentParser parser) throws IOException {
@@ -1725,6 +1734,7 @@ public class HttpNodesStatsAction extends HttpAction {
     protected StoreStats parseStoreStats(final XContentParser parser) throws IOException {
         String fieldName = null;
         long sizeInBytes = 0;
+        long reservedSize = -1L;
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
@@ -1732,11 +1742,13 @@ public class HttpNodesStatsAction extends HttpAction {
             } else if (token == XContentParser.Token.VALUE_NUMBER) {
                 if ("size_in_bytes".equals(fieldName)) {
                     sizeInBytes = parser.longValue();
+                } else if ("reserved_in_bytes".equals(fieldName)) {
+                    reservedSize = parser.longValue();
                 }
             }
             parser.nextToken();
         }
-        return new StoreStats(sizeInBytes);
+        return new StoreStats(sizeInBytes, reservedSize);
     }
 
     protected DocsStats parseDocsStats(final XContentParser parser) throws IOException {
