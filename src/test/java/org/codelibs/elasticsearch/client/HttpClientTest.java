@@ -266,10 +266,9 @@ public class HttpClientTest {
         {
             String settingsSource =
                     "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}";
-            String mappingSource =
-                    "{\"_source\":{\"includes\":[\"aaa\"],\"excludes\":[\"111\"]},"
+            String mappingSource = "{\"_source\":{\"includes\":[\"aaa\"],\"excludes\":[\"111\"]},"
                     //                                + "\"dynamic_templates\":[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}],"
-                            + "\"properties\":{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}}";
+                    + "\"properties\":{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}}";
             final Map<String, Object> sourceMap = XContentHelper.convertToMap(new BytesArray(mappingSource), false, XContentType.JSON).v2();
             CreateIndexResponse createIndexResponse =
                     client.admin().indices().prepareCreate(index2).setSettings(settingsSource, XContentType.JSON)//
@@ -281,20 +280,18 @@ public class HttpClientTest {
         }
 
         {
-            String source =
-                    "{\"settings\":"//
-                            + "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}"//
-                            + ",\"mappings\":{"//
-                            + "\"_source\":"//
-                            + "{\"includes\":[\"aaa\"],\"excludes\":[\"111\"]}"//
-                            //                    + ",\"dynamic_templates\":"
-                            //                    + "[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}]"
-                            + ",\"properties\":"
-                            + "{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}"
-                            + "}}";
-            CreateIndexResponse createIndexResponse =
-                    client.admin().indices().prepareCreate(index3).setSource(source, XContentType.JSON).addAlias(new Alias("fess.test3"))
-                            .execute().actionGet();
+            String source = "{\"settings\":"//
+                    + "{\"index\":{\"refresh_interval\":\"10s\",\"number_of_shards\":\"1\",\"auto_expand_replicas\":\"0-1\",\"number_of_replicas\":\"0\"}}"//
+                    + ",\"mappings\":{"//
+                    + "\"_source\":"//
+                    + "{\"includes\":[\"aaa\"],\"excludes\":[\"111\"]}"//
+                    //                    + ",\"dynamic_templates\":"
+                    //                    + "[{\"strings\":{\"mapping\":{\"type\":\"keyword\"},\"match\":\"*\",\"match_mapping_type\":\"string\"}}]"
+                    + ",\"properties\":"
+                    + "{\"@timestamp\":{\"type\":\"date\",\"format\":\"epoch_millis\"},\"docFreq\":{\"type\":\"long\"},\"fields\":{\"type\":\"keyword\"},\"kinds\":{\"type\":\"keyword\"},\"queryFreq\":{\"type\":\"long\"},\"roles\":{\"type\":\"keyword\"},\"languages\":{\"type\":\"keyword\"},\"score\":{\"type\":\"double\"},\"tags\":{\"type\":\"keyword\"},\"text\":{\"type\":\"keyword\"},\"userBoost\":{\"type\":\"double\"}}"
+                    + "}}";
+            CreateIndexResponse createIndexResponse = client.admin().indices().prepareCreate(index3).setSource(source, XContentType.JSON)
+                    .addAlias(new Alias("fess.test3")).execute().actionGet();
             assertTrue(createIndexResponse.isAcknowledged());
             assertEquals(index3, createIndexResponse.index());
         }
@@ -493,9 +490,8 @@ public class HttpClientTest {
         final String index1 = "test_put_mapping1";
         final String index2 = "test_put_mapping2";
         final String index3 = "test_put_mapping3";
-        final XContentBuilder mappingBuilder =
-                XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("test_prop").field("type", "text")
-                        .endObject().endObject().endObject();
+        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder().startObject().startObject("properties")
+                .startObject("test_prop").field("type", "text").endObject().endObject().endObject();
         final String source = BytesReference.bytes(mappingBuilder).utf8ToString();
         CountDownLatch latch = new CountDownLatch(1);
         client.admin().indices().prepareCreate(index1).execute().actionGet();
@@ -525,14 +521,10 @@ public class HttpClientTest {
 
         {
             client.admin().indices().prepareCreate(index3).execute().actionGet();
-            AcknowledgedResponse putMappingResponse =
-                    client.admin()
-                            .indices()
-                            .preparePutMapping(index3)
-                            .setSource(
-                                    XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("key")
-                                            .field("type", "keyword").endObject().endObject().endObject()).setType("_doc").execute()
-                            .actionGet();
+            AcknowledgedResponse putMappingResponse = client
+                    .admin().indices().preparePutMapping(index3).setSource(XContentFactory.jsonBuilder().startObject()
+                            .startObject("properties").startObject("key").field("type", "keyword").endObject().endObject().endObject())
+                    .setType("_doc").execute().actionGet();
             assertTrue(putMappingResponse.isAcknowledged());
         }
     }
@@ -551,9 +543,8 @@ public class HttpClientTest {
             fail();
         }
 
-        final XContentBuilder mappingBuilder =
-                XContentFactory.jsonBuilder().startObject().startObject("properties").startObject("test_prop").field("type", "text")
-                        .endObject().endObject().endObject();
+        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder().startObject().startObject("properties")
+                .startObject("test_prop").field("type", "text").endObject().endObject().endObject();
         String source = BytesReference.bytes(mappingBuilder).utf8ToString();
         Map<String, Object> mappingMap = XContentHelper.convertToMap(BytesReference.bytes(mappingBuilder), true, XContentType.JSON).v2();
         CountDownLatch latch = new CountDownLatch(1);
@@ -630,9 +621,8 @@ public class HttpClientTest {
         }
         bulkRequestBuilder1.execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
-        SearchResponse scrollResponse =
-                client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).setScroll(new TimeValue(60000)).setSize(1).execute()
-                        .actionGet();
+        SearchResponse scrollResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery()).setScroll(new TimeValue(60000))
+                .setSize(1).execute().actionGet();
         String id = scrollResponse.getScrollId();
         SearchHit[] hits = scrollResponse.getHits().getHits();
         while (hits.length != 0) {
@@ -696,13 +686,10 @@ public class HttpClientTest {
         }
 
         // Create a document
-        final IndexResponse indexResponse =
-                client.prepareIndex()
-                        .setIndex(index)
-                        .setId(id)
-                        .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                        .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                                XContentType.JSON).execute().actionGet();
+        final IndexResponse indexResponse = client.prepareIndex().setIndex(index).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
+                        XContentType.JSON)
+                .execute().actionGet();
         assertTrue((Result.CREATED == indexResponse.getResult()) || (Result.UPDATED == indexResponse.getResult()));
 
         // Refresh index to search
@@ -785,10 +772,10 @@ public class HttpClientTest {
         final String type = "test_type";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex(index, type, id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        client.prepareIndex(index, type, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
+                        XContentType.JSON)
+                .execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         client.prepareExplain(index, type, id).setQuery(QueryBuilders.termQuery("text", "test")).execute(wrap(res -> {
@@ -819,18 +806,14 @@ public class HttpClientTest {
         final String field0 = "user";
         final String field1 = "content";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex()
-                .setIndex(index0)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        client.prepareIndex().setIndex(index0).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":1" + "}",
-                        XContentType.JSON).execute().actionGet();
-        client.prepareIndex()
-                .setIndex(index1)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                        XContentType.JSON)
+                .execute().actionGet();
+        client.prepareIndex().setIndex(index1).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"" + field1 + "\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
+                        XContentType.JSON)
+                .execute().actionGet();
 
         client.admin().indices().prepareRefresh(index0).execute().actionGet();
         client.admin().indices().prepareRefresh(index1).execute().actionGet();
@@ -865,12 +848,10 @@ public class HttpClientTest {
         final String index = "test_update_settings";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex()
-                .setIndex(index)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        client.prepareIndex().setIndex(index).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
+                        XContentType.JSON)
+                .execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         client.admin().indices().prepareUpdateSettings(index).setSettings(Settings.builder().put("index.number_of_replicas", 0))
@@ -888,9 +869,8 @@ public class HttpClientTest {
         latch.await();
 
         {
-            AcknowledgedResponse updateSettingsResponse =
-                    client.admin().indices().prepareUpdateSettings(index)
-                            .setSettings(Settings.builder().put("index.number_of_replicas", 0)).execute().actionGet();
+            AcknowledgedResponse updateSettingsResponse = client.admin().indices().prepareUpdateSettings(index)
+                    .setSettings(Settings.builder().put("index.number_of_replicas", 0)).execute().actionGet();
             assertTrue(updateSettingsResponse.isAcknowledged());
         }
     }
@@ -900,12 +880,10 @@ public class HttpClientTest {
         final String index = "test_get_settings";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex()
-                .setIndex(index)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        client.prepareIndex().setIndex(index).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
+                        XContentType.JSON)
+                .execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         client.admin().indices().prepareGetSettings(index).execute(wrap(res -> {
@@ -932,12 +910,10 @@ public class HttpClientTest {
         final String index = "test_force_merge";
         final String id = "1";
         CountDownLatch latch = new CountDownLatch(1);
-        client.prepareIndex()
-                .setIndex(index)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        client.prepareIndex().setIndex(index).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
+                        XContentType.JSON)
+                .execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         client.admin().indices().prepareForceMerge(index).execute(wrap(res -> {
@@ -1044,12 +1020,10 @@ public class HttpClientTest {
         final String id = "0";
         CountDownLatch latch = new CountDownLatch(1);
 
-        client.prepareIndex()
-                .setIndex(index)
-                .setId(id)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        client.prepareIndex().setIndex(index).setId(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .setSource("{" + "\"user\":\"user_" + id + "\"," + "\"postDate\":\"2018-07-30\"," + "\"text\":\"test\"" + "}",
-                        XContentType.JSON).execute().actionGet();
+                        XContentType.JSON)
+                .execute().actionGet();
         client.admin().indices().prepareRefresh(index).execute().actionGet();
 
         client.admin().indices().prepareValidateQuery(index).setExplain(true).setQuery(QueryBuilders.matchAllQuery()).execute(wrap(res -> {
@@ -1066,9 +1040,8 @@ public class HttpClientTest {
         latch.await();
 
         {
-            ValidateQueryResponse validateQueryResponse =
-                    client.admin().indices().prepareValidateQuery(index).setExplain(true).setQuery(QueryBuilders.matchAllQuery()).execute()
-                            .actionGet();
+            ValidateQueryResponse validateQueryResponse = client.admin().indices().prepareValidateQuery(index).setExplain(true)
+                    .setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
             assertTrue(validateQueryResponse.isValid());
         }
     }
@@ -1157,9 +1130,8 @@ public class HttpClientTest {
     void test_get_field_mappings() throws Exception {
         final String index = "test_get_field_mappings";
         final String field = "content";
-        final XContentBuilder mappingBuilder =
-                XContentFactory.jsonBuilder().startObject().startObject("properties").startObject(field).field("type", "text").endObject()
-                        .endObject().endObject();
+        final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder().startObject().startObject("properties").startObject(field)
+                .field("type", "text").endObject().endObject().endObject();
         final String source = BytesReference.bytes(mappingBuilder).utf8ToString();
         client.admin().indices().prepareCreate(index).execute().actionGet();
         client.admin().indices().preparePutMapping(index).setSource(source, XContentType.JSON).execute().actionGet();
@@ -1262,9 +1234,8 @@ public class HttpClientTest {
                 "{\"description\":\"my set of processors\"," + "\"processors\":[{\"set\":{\"field\":\"foo\",\"value\":\"bar\"}}]}";
         final String id = "test_crud_pipeline";
 
-        AcknowledgedResponse putPipelineResponse =
-                client.admin().cluster().preparePutPipeline(id, new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON)
-                        .execute().actionGet();
+        AcknowledgedResponse putPipelineResponse = client.admin().cluster()
+                .preparePutPipeline(id, new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON).execute().actionGet();
         assertTrue(putPipelineResponse.isAcknowledged());
 
         GetPipelineResponse getPipelineResponse = client.admin().cluster().prepareGetPipeline(id).execute().actionGet();
@@ -1276,14 +1247,12 @@ public class HttpClientTest {
 
     @Test
     void test_crud_storedscript() throws Exception {
-        final String source =
-                "{\n" + " \"script\": {\n" + "\"lang\":\"painless\",\n" + "\"source\": \"Math.log(_score * 2) + params.my_modifier\"\n"
-                        + " }\n" + "}\n";
+        final String source = "{\n" + " \"script\": {\n" + "\"lang\":\"painless\",\n"
+                + "\"source\": \"Math.log(_score * 2) + params.my_modifier\"\n" + " }\n" + "}\n";
         final String id = "test_crud_storedscript";
 
-        AcknowledgedResponse putStoredScriptResponse =
-                client.admin().cluster().preparePutStoredScript().setId(id)
-                        .setContent(new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON).execute().actionGet();
+        AcknowledgedResponse putStoredScriptResponse = client.admin().cluster().preparePutStoredScript().setId(id)
+                .setContent(new BytesArray(source.getBytes(StandardCharsets.UTF_8)), XContentType.JSON).execute().actionGet();
         assertTrue(putStoredScriptResponse.isAcknowledged());
 
         GetStoredScriptResponse getStoredScriptResponse = client.admin().cluster().prepareGetStoredScript().setId(id).execute().actionGet();
@@ -1317,9 +1286,8 @@ public class HttpClientTest {
         }
 
         {
-            NodesStatsResponse response =
-                    client.admin().cluster().prepareNodesStats().addMetrics("fs", "jvm", "os", "process", "thread_pool", "transport")
-                            .execute().actionGet();
+            NodesStatsResponse response = client.admin().cluster().prepareNodesStats()
+                    .addMetrics("fs", "jvm", "os", "process", "thread_pool", "transport").execute().actionGet();
             assertFalse(response.getNodes().isEmpty());
             final XContentBuilder builder = XContentFactory.jsonBuilder();
             builder.startObject();
