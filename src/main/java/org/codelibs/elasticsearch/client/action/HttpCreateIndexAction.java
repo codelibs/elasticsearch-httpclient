@@ -88,8 +88,8 @@ public class HttpCreateIndexAction extends HttpAction {
 
         final String mappingSource = request.mappings().get("_doc");
         if (mappingSource != null) {
-            try (final XContentParser createParser =
-                    JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE, mappingSource)) {
+            try (final XContentParser createParser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY,
+                    LoggingDeprecationHandler.INSTANCE, mappingSource)) {
                 final Map<String, Object> mappingMap = createParser.map();
                 if (mappingMap.containsKey("_doc")) {
                     builder.field(MAPPINGS.getPreferredName(), mappingMap.get("_doc"));

@@ -61,10 +61,9 @@ public class HttpRolloverAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final RolloverRequest request) {
         // RestRolloverIndexAction
-        final CurlRequest curlRequest =
-                client.getCurlRequest(POST,
-                        "/_rollover" + (request.getNewIndexName() != null ? "/" + UrlUtils.encode(request.getNewIndexName()) : ""),
-                        request.getRolloverTarget());
+        final CurlRequest curlRequest = client.getCurlRequest(POST,
+                "/_rollover" + (request.getNewIndexName() != null ? "/" + UrlUtils.encode(request.getNewIndexName()) : ""),
+                request.getRolloverTarget());
         if (request.isDryRun()) {
             curlRequest.param("dry_run", "");
         }

@@ -82,7 +82,7 @@ public class HttpSyncedFlushAction extends HttpAction {
     }
 
     protected SyncedFlushResponse getSyncedFlushResponse(final XContentParser parser) throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser);
 
         //  Fields for ShardCounts
         ShardCounts totalCounts = null;
@@ -90,7 +90,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         final XContentLocation startLoc = parser.getTokenLocation();
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
             if (_SHARDS_FIELD.match(parser.currentName(), LoggingDeprecationHandler.INSTANCE)) {
-                ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+                ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser);
                 totalCounts = ShardCounts.fromXContent(parser);
             } else if (token == Token.START_OBJECT) {
                 final String index = parser.currentName();
@@ -156,14 +156,14 @@ public class HttpSyncedFlushAction extends HttpAction {
             final List<ShardsSyncedFlushResult> shardsSyncedFlushResults, final int total) throws IOException {
         Token token;
         while ((token = parser.nextToken()) != Token.END_ARRAY) {
-            ensureExpectedToken(Token.START_OBJECT, token, parser::getTokenLocation);
+            ensureExpectedToken(Token.START_OBJECT, token, parser);
             shardsSyncedFlushResults.add(parseShardFailuresResults(parser, index, total));
         }
     }
 
     protected ShardsSyncedFlushResult parseShardFailuresResults(final XContentParser parser, final Index index, final int totalShards)
             throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser);
 
         String failureReason = null;
         int shardIdValue = 0;
@@ -248,14 +248,14 @@ public class HttpSyncedFlushAction extends HttpAction {
         }, UNASSIGNED_INFO_FIELD);
         objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> AllocationId.fromXContent(p),
                 ALLOCATION_ID_FIELD);
-        objectParser
-                .declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> getRecoverySource(p), RECOVERY_SOURCE_FIELD);
+        objectParser.declareObject(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> getRecoverySource(p),
+                RECOVERY_SOURCE_FIELD);
 
         return objectParser.apply(parser, null);
     }
 
     protected UnassignedInfo getUnassignedInfo(final XContentParser parser) throws IOException, ParseException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser);
 
         UnassignedInfo.Reason reason = null;
         long unassignedTimeMillis = 0;
@@ -290,7 +290,7 @@ public class HttpSyncedFlushAction extends HttpAction {
     }
 
     protected RecoverySource getRecoverySource(final XContentParser parser) throws IOException {
-        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(Token.START_OBJECT, parser.nextToken(), parser);
 
         byte type = -1;
         for (Token token = parser.nextToken(); token != Token.END_OBJECT; token = parser.nextToken()) {
@@ -311,8 +311,8 @@ public class HttpSyncedFlushAction extends HttpAction {
 
     private static final class ShardCounts {
 
-        private static final ConstructingObjectParser<ShardCounts, Void> PARSER = new ConstructingObjectParser<>("shardcounts",
-                a -> new ShardCounts((Integer) a[0], (Integer) a[1], (Integer) a[2]));
+        private static final ConstructingObjectParser<ShardCounts, Void> PARSER =
+                new ConstructingObjectParser<>("shardcounts", a -> new ShardCounts((Integer) a[0], (Integer) a[1], (Integer) a[2]));
         static {
             PARSER.declareInt(constructorArg(), TOTAL_FIELD);
             PARSER.declareInt(constructorArg(), SUCCESSFUL_FIELD);

@@ -247,7 +247,7 @@ public class HttpNodesStatsAction extends HttpAction {
 
     protected IndexingPressureStats parsesIndexingPressureStats(final XContentParser parser) throws IOException {
         consumeObject(parser); // TODO
-        return new IndexingPressureStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        return new IndexingPressureStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     protected IngestStats parseIngestStats(final XContentParser parser) throws IOException {
@@ -308,8 +308,8 @@ public class HttpNodesStatsAction extends HttpAction {
                                 }
                                 parser.nextToken();
                             }
-                            pipelineStats.add(new IngestStats.PipelineStat(name, new IngestStats.Stats(ingestCount, ingestTimeInMillis,
-                                    ingestCurrent, ingestFailedCount)));
+                            pipelineStats.add(new IngestStats.PipelineStat(name,
+                                    new IngestStats.Stats(ingestCount, ingestTimeInMillis, ingestCurrent, ingestFailedCount)));
                         }
                         parser.nextToken();
                     }
@@ -475,6 +475,7 @@ public class HttpNodesStatsAction extends HttpAction {
     protected TransportStats parseTransportStats(final XContentParser parser) throws IOException {
         String fieldName = null;
         long serverOpen = 0;
+        long totalOutboundConnections = 0;
         long rxCount = 0;
         long rxSize = 0;
         long txCount = 0;
@@ -486,6 +487,8 @@ public class HttpNodesStatsAction extends HttpAction {
             } else if (token == XContentParser.Token.VALUE_NUMBER) {
                 if ("server_open".equals(fieldName)) {
                     serverOpen = parser.longValue();
+                } else if ("total_outbound_connections".equals(fieldName)) {
+                    totalOutboundConnections = parser.longValue();
                 } else if ("rx_count".equals(fieldName)) {
                     rxCount = parser.longValue();
                 } else if ("rx_size_in_bytes".equals(fieldName)) {
@@ -498,7 +501,7 @@ public class HttpNodesStatsAction extends HttpAction {
             }
             parser.nextToken();
         }
-        return new TransportStats(serverOpen, rxCount, rxSize, txCount, txSize);
+        return new TransportStats(serverOpen, totalOutboundConnections, rxCount, rxSize, txCount, txSize);
     }
 
     protected FsInfo parseFsInfo(final XContentParser parser) throws IOException {
@@ -506,19 +509,13 @@ public class HttpNodesStatsAction extends HttpAction {
         long timestamp = 0;
         final FsInfo.IoStats ioStats = null;
         final List<FsInfo.Path> paths = new ArrayList<>();
-        DiskUsage leastUsage = null;
-        DiskUsage mostUsage = null;
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
             } else if (token == XContentParser.Token.START_OBJECT) {
                 parser.nextToken();
-                if ("least_usage_estimate".equals(fieldName)) {
-                    leastUsage = parseFsInfoIskUsage(parser);
-                } else if ("most_usage_estimate".equals(fieldName)) {
-                    mostUsage = parseFsInfoIskUsage(parser);
-                } else if ("data".equals(fieldName)) {
+                if ("data".equals(fieldName)) {
                     parser.nextToken();
                     while ((token = parser.currentToken()) != XContentParser.Token.END_ARRAY) {
                         String path = null;
@@ -560,7 +557,7 @@ public class HttpNodesStatsAction extends HttpAction {
             }
             parser.nextToken();
         }
-        return new FsInfo(timestamp, ioStats, paths.toArray(new FsInfo.Path[paths.size()]), leastUsage, mostUsage);
+        return new FsInfo(timestamp, ioStats, paths.toArray(new FsInfo.Path[paths.size()]));
     }
 
     protected DiskUsage parseFsInfoIskUsage(final XContentParser parser) throws IOException {

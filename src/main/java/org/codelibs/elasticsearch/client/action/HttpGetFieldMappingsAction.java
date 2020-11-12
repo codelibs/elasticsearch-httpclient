@@ -69,7 +69,7 @@ public class HttpGetFieldMappingsAction extends HttpAction {
     }
 
     protected GetFieldMappingsResponse fromXContent(final XContentParser parser) throws IOException {
-        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser::getTokenLocation);
+        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser);
         final Map<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetadata>>> mappings = new HashMap<>();
         if (parser.nextToken() == XContentParser.Token.FIELD_NAME) {
             while (parser.currentToken() == XContentParser.Token.FIELD_NAME) {
@@ -114,8 +114,8 @@ public class HttpGetFieldMappingsAction extends HttpAction {
 
     protected GetFieldMappingsResponse.FieldMappingMetadata getFieldMappingMetadata(final XContentParser parser) throws IOException {
         final ConstructingObjectParser<GetFieldMappingsResponse.FieldMappingMetadata, String> objectParser =
-                new ConstructingObjectParser<>("field_mapping_meta_data", true, a -> new GetFieldMappingsResponse.FieldMappingMetadata(
-                        (String) a[0], (BytesReference) a[1]));
+                new ConstructingObjectParser<>("field_mapping_meta_data", true,
+                        a -> new GetFieldMappingsResponse.FieldMappingMetadata((String) a[0], (BytesReference) a[1]));
 
         objectParser.declareField(ConstructingObjectParser.optionalConstructorArg(), (p, c) -> p.text(), FULL_NAME_FIELD,
                 ObjectParser.ValueType.STRING);

@@ -174,7 +174,7 @@ public class HttpAnalyzeAction extends HttpAction {
     }
 
     protected static AnalyzeToken getAnalyzeTokenFromXContent(final XContentParser parser) throws IOException {
-        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.currentToken(), parser::getTokenLocation);
+        ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.currentToken(), parser);
         String field = null;
         String term = "";
         int position = -1;

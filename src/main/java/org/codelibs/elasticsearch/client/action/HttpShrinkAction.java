@@ -46,9 +46,8 @@ public class HttpShrinkAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final ResizeRequest request) {
         // RestShrinkAction
-        final CurlRequest curlRequest =
-                client.getCurlRequest(POST, "/_shrink/" + UrlUtils.encode(request.getTargetIndexRequest().index()),
-                        request.getSourceIndex());
+        final CurlRequest curlRequest = client.getCurlRequest(POST, "/_shrink/" + UrlUtils.encode(request.getTargetIndexRequest().index()),
+                request.getSourceIndex());
         return curlRequest;
     }
 }

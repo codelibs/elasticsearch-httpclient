@@ -51,16 +51,15 @@ public class HttpClusterHealthAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final ClusterHealthRequest request) {
         // RestClusterHealthAction
-        final CurlRequest curlRequest =
-                client.getCurlRequest(GET,
-                        "/_cluster/health" + (request.indices() == null ? "" : "/" + UrlUtils.joinAndEncode(",", request.indices())));
+        final CurlRequest curlRequest = client.getCurlRequest(GET,
+                "/_cluster/health" + (request.indices() == null ? "" : "/" + UrlUtils.joinAndEncode(",", request.indices())));
         curlRequest.param("wait_for_no_relocating_shards", Boolean.toString(request.waitForNoRelocatingShards()));
         curlRequest.param("wait_for_no_initializing_shards", Boolean.toString(request.waitForNoInitializingShards()));
         curlRequest.param("wait_for_nodes", request.waitForNodes());
         if (request.waitForStatus() != null) {
             try {
-                curlRequest.param("wait_for_status", ClusterHealthStatus.fromValue(request.waitForStatus().value()).toString()
-                        .toLowerCase());
+                curlRequest.param("wait_for_status",
+                        ClusterHealthStatus.fromValue(request.waitForStatus().value()).toString().toLowerCase());
             } catch (final IOException e) {
                 throw new ElasticsearchException("Failed to parse a request.", e);
             }

@@ -60,9 +60,8 @@ public class HttpSimulatePipelineAction extends HttpAction {
 
     protected CurlRequest getCurlRequest(final SimulatePipelineRequest request) {
         // RestSimulatePipelineAction
-        final String path =
-                request.getId() != null ? "/_ingest/pipeline/" + UrlUtils.encode(request.getId()) + "/_simulate"
-                        : "/_ingest/pipeline/_simulate";
+        final String path = request.getId() != null ? "/_ingest/pipeline/" + UrlUtils.encode(request.getId()) + "/_simulate"
+                : "/_ingest/pipeline/_simulate";
         final CurlRequest curlRequest = client.getCurlRequest(POST, path);
         curlRequest.param("verbose", String.valueOf(request.isVerbose()));
         return curlRequest;
