@@ -188,7 +188,7 @@ public class HttpNodesStatsAction extends HttpAction {
                     adaptiveSelectionStats = parseAdaptiveSelectionStats(parser);
                 } else if ("script_cache".equals(fieldName)) {
                     scriptCacheStats = parseScriptCacheStats(parser);
-                } else if ("script_cache".equals(fieldName)) {
+                } else if ("indexing_pressure".equals(fieldName)) {
                     indexingPressureStats = parsesIndexingPressureStats(parser);
                 } else {
                     consumeObject(parser);
