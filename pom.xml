@@ -5,7 +5,7 @@
 	<artifactId>elasticsearch-httpclient</artifactId>
 	<packaging>jar</packaging>
 	<name>elasticsearch-httpclient</name>
-	<version>7.10.1-SNAPSHOT</version>
+	<version>7.11.0-SNAPSHOT</version>
 	<description />
 	<url>https://github.com/codelibs/elasticsearch-httpclient</url>
 	<inceptionYear>2012</inceptionYear>
@@ -32,7 +32,7 @@
 	</parent>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<elasticsearch.version>7.10.1</elasticsearch.version>
+		<elasticsearch.version>7.11.0</elasticsearch.version>
 		<junit.jupiter.version>5.7.0</junit.jupiter.version>
 	</properties>
 	<build>
@@ -91,7 +91,7 @@
 				<configuration>
 					<header>https://www.codelibs.org/assets/license/header.txt</header>
 					<properties>
-						<year>2019</year>
+						<year>2021</year>
 					</properties>
 					<includes>
 						<include>src/**/*.java</include>
@@ -119,11 +119,34 @@
 			</plugin>
 		</plugins>
 	</build>
+	<repositories>
+		<repository>
+			<id>central</id>
+			<url>https://repo1.maven.org/maven2</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>codelibs.org</id>
+			<name>CodeLibs Repository</name>
+			<url>https://maven.codelibs.org/</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch-plugin-classloader</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.codelibs</groupId>
