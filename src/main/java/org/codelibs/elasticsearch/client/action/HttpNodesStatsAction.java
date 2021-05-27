@@ -1746,6 +1746,7 @@ public class HttpNodesStatsAction extends HttpAction {
     protected StoreStats parseStoreStats(final XContentParser parser) throws IOException {
         String fieldName = null;
         long sizeInBytes = 0;
+        long totalDataSetSizeInBytes = -1L;
         long reservedSize = -1L;
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
@@ -1754,13 +1755,18 @@ public class HttpNodesStatsAction extends HttpAction {
             } else if (token == XContentParser.Token.VALUE_NUMBER) {
                 if ("size_in_bytes".equals(fieldName)) {
                     sizeInBytes = parser.longValue();
+                } else if ("total_data_set_size_in_bytes".equals(fieldName)) {
+                    totalDataSetSizeInBytes = parser.longValue();
                 } else if ("reserved_in_bytes".equals(fieldName)) {
                     reservedSize = parser.longValue();
                 }
             }
             parser.nextToken();
         }
-        return new StoreStats(sizeInBytes, reservedSize);
+        if (totalDataSetSizeInBytes == -1L) {
+            totalDataSetSizeInBytes = sizeInBytes;
+        }
+        return new StoreStats(sizeInBytes, totalDataSetSizeInBytes, reservedSize);
     }
 
     protected DocsStats parseDocsStats(final XContentParser parser) throws IOException {
