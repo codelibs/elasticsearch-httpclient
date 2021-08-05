@@ -17,7 +17,9 @@ package org.codelibs.elasticsearch.client.action;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.codelibs.curl.CurlRequest;
 import org.codelibs.elasticsearch.client.HttpClient;
@@ -28,13 +30,14 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
+import org.elasticsearch.cluster.metadata.DataStreamAlias;
+import org.elasticsearch.cluster.metadata.DataStreamMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentParser.Token;
 import org.elasticsearch.common.xcontent.XContentParserUtils;
-
-import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 public class HttpGetAliasesAction extends HttpAction {
 
@@ -66,6 +69,7 @@ public class HttpGetAliasesAction extends HttpAction {
 
     protected GetAliasesResponse getGetAliasesResponse(final XContentParser parser) throws IOException {
         final ImmutableOpenMap.Builder<String, List<AliasMetadata>> aliasesMapBuilder = ImmutableOpenMap.builder();
+        final Map<String, List<DataStreamAlias>> dataStreamAliases = new HashMap<>();
 
         XContentParserUtils.ensureExpectedToken(XContentParser.Token.START_OBJECT, parser.nextToken(), parser);
         XContentParser.Token token;
@@ -78,6 +82,7 @@ public class HttpGetAliasesAction extends HttpAction {
                     final String currentFieldName = parser.currentName();
                     if (ALIASES_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                         aliasesMapBuilder.put(index, getAliases(parser));
+                        // TODO data_stream https://github.com/elastic/elasticsearch/commit/49da7ec4ecee51b2d713241e6d6a8bc98eef0681
                     } else {
                         parser.skipChildren();
                     }
@@ -88,13 +93,9 @@ public class HttpGetAliasesAction extends HttpAction {
         final ImmutableOpenMap<String, List<AliasMetadata>> aliases = aliasesMapBuilder.build();
 
         try (final ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
-            out.writeVInt(aliases.size());
-            for (final ObjectObjectCursor<String, List<AliasMetadata>> entry : aliases) {
-                out.writeString(entry.key);
-                out.writeVInt(entry.value.size());
-                for (final AliasMetadata aliasMetaData : entry.value) {
-                    aliasMetaData.writeTo(out);
-                }
+            out.writeMap(aliases, StreamOutput::writeString, StreamOutput::writeList);
+            if (out.getVersion().onOrAfter(DataStreamMetadata.DATA_STREAM_ALIAS_VERSION)) {
+                out.writeMap(dataStreamAliases, StreamOutput::writeString, StreamOutput::writeList);
             }
             return action.getResponseReader().read(out.toStreamInput());
         }

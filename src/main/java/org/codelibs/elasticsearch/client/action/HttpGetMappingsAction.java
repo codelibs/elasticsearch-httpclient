@@ -25,8 +25,8 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
-import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
+import org.elasticsearch.common.xcontent.ParseField;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.IndexNotFoundException;
 

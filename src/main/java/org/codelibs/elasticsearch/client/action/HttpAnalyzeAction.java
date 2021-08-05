@@ -34,10 +34,10 @@ import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction.AnalyzeToken
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction.AnalyzeTokenList;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction.CharFilteredText;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction.DetailAnalyzeResponse;
-import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.ConstructingObjectParser;
+import org.elasticsearch.common.xcontent.ParseField;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
