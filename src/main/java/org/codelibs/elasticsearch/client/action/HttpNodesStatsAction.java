@@ -66,6 +66,7 @@ import org.elasticsearch.index.refresh.RefreshStats;
 import org.elasticsearch.index.search.stats.SearchStats;
 import org.elasticsearch.index.shard.DocsStats;
 import org.elasticsearch.index.shard.IndexingStats;
+import org.elasticsearch.index.shard.ShardCountStats;
 import org.elasticsearch.index.stats.IndexingPressureStats;
 import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.index.translog.TranslogStats;
@@ -1170,6 +1171,7 @@ public class HttpNodesStatsAction extends HttpAction {
         TranslogStats translog = null;
         RequestCacheStats requestCache = null;
         RecoveryStats recoveryStats = null;
+        ShardCountStats shards = null;
         final Map<Index, List<IndexShardStats>> statsByShard = Collections.emptyMap();
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
@@ -1209,6 +1211,8 @@ public class HttpNodesStatsAction extends HttpAction {
                     requestCache = parseRequestCacheStats(parser);
                 } else if ("recovery".equals(fieldName)) {
                     recoveryStats = parseRecoveryStats(parser);
+                } else if ("shards".equals(fieldName)) {
+                    shards = parseShardCountStats(parser);
                 } else {
                     consumeObject(parser);
                 }
@@ -1233,6 +1237,9 @@ public class HttpNodesStatsAction extends HttpAction {
             out.writeOptionalWriteable(translog);
             out.writeOptionalWriteable(requestCache);
             out.writeOptionalWriteable(recoveryStats);
+            if (out.getVersion().onOrAfter(Version.V_7_15_0)) {
+                out.writeOptionalWriteable(shards);
+            }
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
                 return new NodeIndicesStats(new CommonStats(in), statsByShard);
             }
@@ -1265,6 +1272,28 @@ public class HttpNodesStatsAction extends HttpAction {
             out.writeLong(throttleTimeInNanos);
             try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
                 return new RecoveryStats(in);
+            }
+        }
+    }
+
+    protected ShardCountStats parseShardCountStats(final XContentParser parser) throws IOException {
+        String fieldName = null;
+        long totalCount = 0;
+        XContentParser.Token token;
+        while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
+            if (token == XContentParser.Token.FIELD_NAME) {
+                fieldName = parser.currentName();
+            } else if (token == XContentParser.Token.VALUE_NUMBER) {
+                if ("total_count".equals(fieldName)) {
+                    totalCount = parser.longValue();
+                }
+            }
+            parser.nextToken();
+        }
+        try (ByteArrayStreamOutput out = new ByteArrayStreamOutput()) {
+            out.writeLong(totalCount);
+            try (StreamInput in = new InputStreamStreamInput(new ByteArrayInputStream(out.toByteArray()))) {
+                return new ShardCountStats(in);
             }
         }
     }

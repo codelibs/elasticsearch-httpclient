@@ -269,7 +269,7 @@ public class HttpSyncedFlushAction extends HttpAction {
                 if (REASON_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     reason = UnassignedInfo.Reason.values()[parser.intValue()];
                 } else if (AT_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
-                    final SimpleDateFormat formatter = new SimpleDateFormat(Joda.forPattern("dateOptionalTime").pattern());
+                    final SimpleDateFormat formatter = new SimpleDateFormat(Joda.forPattern("date_optional_time").pattern());
                     unassignedTimeMillis = formatter.parse(parser.text()).getTime();
                 } else if (FAILED_ATTEMPTS_FIELD.match(currentFieldName, LoggingDeprecationHandler.INSTANCE)) {
                     failedAllocations = parser.intValue();
@@ -286,7 +286,7 @@ public class HttpSyncedFlushAction extends HttpAction {
         }
 
         return new UnassignedInfo(reason, null, null, failedAllocations, unassignedTimeMillis * 1000000L, unassignedTimeMillis, delayed,
-                allocationStatus, failedNodeIds);
+                allocationStatus, failedNodeIds, null); // TODO lastAllocatedNodeId
     }
 
     protected RecoverySource getRecoverySource(final XContentParser parser) throws IOException {
