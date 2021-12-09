@@ -26,9 +26,9 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.xcontent.ParseField;
-import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.xcontent.ParseField;
+import org.elasticsearch.xcontent.XContentParser;
 
 public class HttpGetMappingsAction extends HttpAction {
 
@@ -80,8 +80,8 @@ public class HttpGetMappingsAction extends HttpAction {
             final ImmutableOpenMap.Builder<String, MappingMetadata> typeBuilder = new ImmutableOpenMap.Builder<>();
             for (final Map.Entry<String, Object> typeEntry : mapping.entrySet()) {
                 final String typeName = typeEntry.getKey();
-                assert typeEntry.getValue() instanceof Map
-                        : "expected a map as inner type mapping, but got: " + typeEntry.getValue().getClass();
+                assert typeEntry.getValue() instanceof Map : "expected a map as inner type mapping, but got: "
+                        + typeEntry.getValue().getClass();
                 if ("dynamic_templates".equals(typeName)) {
                     continue;
                 }

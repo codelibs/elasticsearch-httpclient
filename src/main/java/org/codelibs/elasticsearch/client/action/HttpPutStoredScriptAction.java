@@ -26,7 +26,7 @@ import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptActio
 import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParser;
 
 public class HttpPutStoredScriptAction extends HttpAction {
 

@@ -43,12 +43,14 @@ import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags.Flag;
 import org.elasticsearch.action.admin.indices.stats.IndexShardStats;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.DiskUsage;
+import org.elasticsearch.cluster.coordination.ClusterStateSerializationStats;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
+import org.elasticsearch.cluster.service.ClusterApplierRecordingService;
+import org.elasticsearch.cluster.service.ClusterStateUpdateStats;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.discovery.DiscoveryStats;
 import org.elasticsearch.discovery.zen.PendingClusterStateStats;
 import org.elasticsearch.discovery.zen.PublishClusterStateStats;
@@ -85,6 +87,7 @@ import org.elasticsearch.script.ScriptStats;
 import org.elasticsearch.search.suggest.completion.CompletionStats;
 import org.elasticsearch.threadpool.ThreadPoolStats;
 import org.elasticsearch.transport.TransportStats;
+import org.elasticsearch.xcontent.XContentParser;
 
 public class HttpNodesStatsAction extends HttpAction {
 
@@ -342,6 +345,8 @@ public class HttpNodesStatsAction extends HttpAction {
         String fieldName = null;
         PendingClusterStateStats queueStats = null;
         PublishClusterStateStats publishStats = null;
+        ClusterStateUpdateStats clusterStateUpdateStats = null;
+        ClusterApplierRecordingService.Stats applierRecordingStats = null;
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
@@ -358,7 +363,7 @@ public class HttpNodesStatsAction extends HttpAction {
             }
             parser.nextToken();
         }
-        return new DiscoveryStats(queueStats, publishStats);
+        return new DiscoveryStats(queueStats, publishStats, clusterStateUpdateStats, applierRecordingStats);
     }
 
     protected PublishClusterStateStats parsePublishClusterStateStats(final XContentParser parser) throws IOException {
@@ -366,6 +371,7 @@ public class HttpNodesStatsAction extends HttpAction {
         long fullClusterStateReceivedCount = 0;
         long incompatibleClusterStateDiffReceivedCount = 0;
         long compatibleClusterStateDiffReceivedCount = 0;
+        ClusterStateSerializationStats clusterStateSerializationStats = null;
         XContentParser.Token token;
         while ((token = parser.currentToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
@@ -382,7 +388,7 @@ public class HttpNodesStatsAction extends HttpAction {
             parser.nextToken();
         }
         return new PublishClusterStateStats(fullClusterStateReceivedCount, incompatibleClusterStateDiffReceivedCount,
-                compatibleClusterStateDiffReceivedCount);
+                compatibleClusterStateDiffReceivedCount, clusterStateSerializationStats);
     }
 
     protected PendingClusterStateStats parsePendingClusterStateStats(final XContentParser parser) throws IOException {

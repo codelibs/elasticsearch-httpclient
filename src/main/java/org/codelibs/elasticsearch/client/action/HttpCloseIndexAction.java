@@ -30,8 +30,8 @@ import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse.IndexResult;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse.ShardResult;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse.ShardResult.Failure;
-import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.Index;
+import org.elasticsearch.xcontent.XContentParser;
 
 public class HttpCloseIndexAction extends HttpAction {
 
